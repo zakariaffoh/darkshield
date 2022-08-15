@@ -1,7 +1,7 @@
 use actix_web::{get, web, App, HttpServer, Responder};
 extern crate models;
 
-use models::authz::{Group, Role};
+use models::authz;
 
 #[get("/hello/{name}")]
 async fn greet(name: web::Path<String>) -> impl Responder {
