@@ -9,3 +9,4 @@ edition = "2021"
 actix-web = "4.1.0"
 models = { path = "../models", version = "0.1.0" }
 services = { path = "../services", version = "0.1.0" }
+store = { path = "../store", version = "0.1.0" }
