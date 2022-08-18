@@ -1,8 +1,13 @@
-use actix_web::{delete, get, post, put, web, Responder};
+use super::super::models::api_response;
+use actix_web::{
+    delete, get, post, put,
+    web::{self, Data},
+    Responder,
+};
 
 #[post("/realm/create")]
 pub async fn create_realm() -> impl Responder {
-    format!("create client")
+    api_response::ApiResponse::from_data("My Restponse".to_string())
 }
 
 #[put("/realm/update")]
@@ -17,7 +22,8 @@ pub async fn delete_realm(realm_id: web::Path<String>) -> impl Responder {
 
 #[get("/realm/{realm_id}")]
 pub async fn load_realm_by_id(realm_id: web::Path<String>) -> impl Responder {
-    format!("load realm {realm_id}")
+    let path = realm_id.as_str();
+    api_response::ApiResponse::from_data(String::from(path))
 }
 
 #[get("/realm/load_all")]
