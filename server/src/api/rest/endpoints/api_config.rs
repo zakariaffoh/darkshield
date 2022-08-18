@@ -1,5 +1,6 @@
 use actix_web::{web, HttpResponse};
 
+use super::metrics_api::metrics_handler;
 use super::realm_api;
 
 pub fn register_apis(api_config: &mut web::ServiceConfig) {
@@ -12,5 +13,6 @@ pub fn register_apis(api_config: &mut web::ServiceConfig) {
         .service(
             web::resource("/health_check")
                 .route(web::get().to(|| async { HttpResponse::Ok().body("running") })),
-        );
+        )
+        .service(metrics_handler);
 }

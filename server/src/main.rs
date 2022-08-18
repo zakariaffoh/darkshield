@@ -1,5 +1,6 @@
 mod api;
 mod context;
+mod metrics;
 mod services;
 
 use actix_web::{middleware::Logger, web::Data, App, HttpServer};
