@@ -1,19 +1,15 @@
-use actix_web::{get, web, App, HttpServer, Responder};
-extern crate models;
-
-use models::authz;
-
-#[get("/hello/{name}")]
-async fn greet(name: web::Path<String>) -> impl Responder {
-    format!("Hello {name}!")
-}
+mod api;
+use actix_web::{middleware::Logger, App, HttpServer};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let dat = "data".to_string();
-    println!("{}", dat);
-    HttpServer::new(|| App::new().service(greet))
-        .bind(("127.0.0.1", 8080))?
-        .run()
-        .await
+    HttpServer::new(|| {
+        App::new()
+            .configure(api::rest::endpoints::api_config::register_apis)
+            .wrap(Logger::new("%a %{User-Agent}i"))
+    })
+    .worker_max_blocking_threads(10)
+    .bind(("127.0.0.1", 8080))?
+    .run()
+    .await
 }
