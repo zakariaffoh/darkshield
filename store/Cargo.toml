@@ -7,3 +7,5 @@ edition = "2021"
 
 [dependencies]
 models = { path = "../models", version = "0.1.0" }
+deadpool-postgres = "0.10.1" 
+postgres = "0.19.1" 
