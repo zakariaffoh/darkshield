@@ -1,7 +1,11 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
-pub struct RealmCreateModel {}
+pub struct RealmCreateModel {
+    realm_id: String,
+}
 
 #[derive(Serialize, Deserialize)]
-pub struct RealmUpdateModel {}
+pub struct RealmUpdateModel {
+    realm_id: String,
+}
