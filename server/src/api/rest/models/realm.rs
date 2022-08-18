@@ -1,3 +1,7 @@
-pub struct RealmCreate {}
+use serde::{Deserialize, Serialize};
 
-pub struct RealmUpdate {}
+#[derive(Serialize, Deserialize)]
+pub struct RealmCreateModel {}
+
+#[derive(Serialize, Deserialize)]
+pub struct RealmUpdateModel {}
