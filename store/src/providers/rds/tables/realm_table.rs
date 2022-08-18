@@ -1,5 +1,2 @@
-use crate::models::RealmModel;
-
-pub struct RealmTable {
-    realm: Arc<RealmModel>,
-}
+#[allow(dead_code)]
+pub struct RealmTable {}

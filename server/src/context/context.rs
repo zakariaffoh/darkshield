@@ -1,11 +1,17 @@
-pub struct DarkShieldContext {}
+use store::providers::rds::client::postgres_client::DataBaseManager;
 
+#[allow(dead_code)]
+pub struct DarkShieldContext {
+    database: DataBaseManager,
+}
+
+#[allow(dead_code)]
 impl DarkShieldContext {
-    fn new() -> Self {
-        DarkShieldContext {}
+    pub fn new(database: DataBaseManager) -> Self {
+        Self { database }
     }
 
-    fn register_service(&mut self) {}
-
-    fn register_provider(&mut self) {}
+    pub fn database(&self) -> &DataBaseManager {
+        &self.database
+    }
 }
