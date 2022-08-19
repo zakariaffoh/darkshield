@@ -1,5 +1,3 @@
-pub struct RequestBuilder {}
-
 pub trait SqlCriteria {
     fn clause(&mut self, index: u16) -> String;
     fn current_index(&self) -> u16;
@@ -168,18 +166,23 @@ impl InsertRequestBuilder {
         }
     }
 
-    pub fn table_name(&mut self, table_name: String) -> &mut Self {
+    pub fn table_name(mut self, table_name: String) -> InsertRequestBuilder {
         self.table_name = Some(table_name);
         self
     }
 
-    pub fn connection_pool(&mut self, connection_pool: String) -> &mut Self {
+    pub fn connection_pool(mut self, connection_pool: String) -> InsertRequestBuilder {
         self.connection_pool = Some(connection_pool);
         self
     }
 
-    pub fn columns(&mut self, columns: Vec<String>) -> &mut Self {
+    pub fn columns(mut self, columns: Vec<String>) -> InsertRequestBuilder {
         self.columns = Some(columns);
+        self
+    }
+
+    pub fn resolve_conflict(mut self, resolve_conflict: bool) -> InsertRequestBuilder {
+        self.resolve_conflict = Some(resolve_conflict);
         self
     }
 
@@ -200,12 +203,19 @@ impl InsertRequestBuilder {
         if let Some(resolve_conflict) = self.resolve_conflict {
             if resolve_conflict {
                 return Ok(format!(
-                    "INSERT INTO {} ({}) ON CONFLICT DO NOTHING",
-                    columns, values
+                    "INSERT INTO {} ({}) VALUES({}) ON CONFLICT DO NOTHING",
+                    self.table_name.as_ref().unwrap(),
+                    columns,
+                    values
                 ));
             }
         }
-        Ok(format!("INSERT INTO {} ({})", columns, values))
+        Ok(format!(
+            "INSERT INTO {} ({}) VALUES({})",
+            self.table_name.as_ref().unwrap(),
+            columns,
+            values
+        ))
     }
 }
 
@@ -229,27 +239,32 @@ impl UpdateRequestBuilder {
             clauses: None,
         }
     }
-    pub fn table_name(&mut self, table_name: String) -> &mut Self {
+    pub fn table_name(mut self, table_name: String) -> UpdateRequestBuilder {
         self.table_name = Some(table_name);
         self
     }
 
-    pub fn connection_pool(&mut self, connection_pool: String) -> &mut Self {
+    pub fn connection_pool(mut self, connection_pool: String) -> UpdateRequestBuilder {
         self.connection_pool = Some(connection_pool);
         self
     }
 
-    pub fn columns(&mut self, columns: Vec<String>) -> &mut Self {
+    pub fn columns(mut self, columns: Vec<String>) -> UpdateRequestBuilder {
         self.columns = Some(columns);
         self
     }
 
-    pub fn manage_version(&mut self, manage_version: bool) -> &mut Self {
+    pub fn manage_version(mut self, manage_version: bool) -> UpdateRequestBuilder {
         self.manage_version = Some(manage_version);
         self
     }
 
-    fn sql_query(&mut self) -> Result<String, String> {
+    pub fn clauses(mut self, clauses: Vec<Box<dyn SqlCriteria>>) -> UpdateRequestBuilder {
+        self.clauses = Some(clauses);
+        self
+    }
+
+    fn sql_query(mut self) -> Result<String, String> {
         if self.table_name.is_none()
             || self.columns.is_none()
             || self.columns.as_ref().unwrap().is_empty()
@@ -302,22 +317,22 @@ impl DeleteQueryBuilder {
         }
     }
 
-    pub fn table_name(&mut self, table_name: String) -> &mut Self {
+    pub fn table_name(mut self, table_name: String) -> DeleteQueryBuilder {
         self.table_name = Some(table_name);
         self
     }
 
-    pub fn connection_pool(&mut self, connection_pool: String) -> &mut Self {
+    pub fn connection_pool(mut self, connection_pool: String) -> DeleteQueryBuilder {
         self.connection_pool = Some(connection_pool);
         self
     }
 
-    pub fn clauses(&mut self, clauses: Vec<Box<dyn SqlCriteria>>) -> &mut Self {
+    pub fn where_clauses(mut self, clauses: Vec<Box<dyn SqlCriteria>>) -> DeleteQueryBuilder {
         self.clauses = Some(clauses);
         self
     }
 
-    fn sql_query(&mut self) -> Result<String, String> {
+    fn sql_query(mut self) -> Result<String, String> {
         if let None = self.table_name {
             return Err("Invalid delete query state".to_owned());
         }
@@ -415,45 +430,44 @@ impl SelectRequestBuilder {
         }
     }
 
-    pub fn table_name(&mut self, table_name: String) -> &mut Self {
+    pub fn table_name(mut self, table_name: String) -> SelectRequestBuilder {
         self.table_name = Some(table_name);
         self
     }
 
-    pub fn connection_pool(&mut self, connection_pool: String) -> &mut Self {
+    pub fn connection_pool(mut self, connection_pool: String) -> SelectRequestBuilder {
         self.connection_pool = Some(connection_pool);
         self
     }
 
-    pub fn columns(&mut self, columns: Vec<String>) -> &mut Self {
+    pub fn columns(mut self, columns: Vec<String>) -> SelectRequestBuilder {
         self.columns = Some(columns);
         self
     }
 
-    pub fn pagination_options(&mut self, options: PaginationOptions) -> &mut Self {
+    pub fn pagination_options(mut self, options: PaginationOptions) -> SelectRequestBuilder {
         self.pagination_options = Some(options);
         self
     }
 
-    pub fn where_clause(&mut self, clause: Vec<Box<dyn SqlCriteria>>) -> &mut Self {
+    pub fn where_clauses(mut self, clause: Vec<Box<dyn SqlCriteria>>) -> SelectRequestBuilder {
         self.clauses = Some(clause);
         self
     }
 
     #[allow(dead_code)]
-    fn sql_query(&mut self) -> Result<String, String> {
+    fn sql_query(mut self) -> Result<String, String> {
         if self.table_name.is_none() {
             return Err("Invalid request builder".to_owned());
         }
         let table_name = self.table_name.as_ref().unwrap();
-        let selected_columns = if self.columns.is_some() {
-            "*".to_string()
+        let selected_columns;
+        if let Some(colums) = self.columns {
+            selected_columns = colums.join(",");
         } else {
-            self.columns.as_ref().unwrap().join(",")
-        };
-
+            selected_columns = "*".to_owned();
+        }
         let sql_clause;
-
         if let Some(clauses) = &mut self.clauses {
             let where_clause = build_sql_where_clause(clauses, 1);
             sql_clause = format!(
@@ -492,22 +506,25 @@ impl SelectCountRequestBuilder {
         }
     }
 
-    pub fn table_name(&mut self, table_name: String) -> &mut Self {
+    pub fn table_name(mut self, table_name: String) -> SelectCountRequestBuilder {
         self.table_name = Some(table_name);
         self
     }
 
-    pub fn connection_pool(&mut self, connection_pool: String) -> &mut Self {
+    pub fn connection_pool(mut self, connection_pool: String) -> SelectCountRequestBuilder {
         self.connection_pool = Some(connection_pool);
         self
     }
 
-    pub fn where_clause(&mut self, clause: Vec<Box<dyn SqlCriteria>>) -> &mut Self {
-        self.clauses = Some(clause);
+    pub fn where_clauses(
+        mut self,
+        clauses: Vec<Box<dyn SqlCriteria>>,
+    ) -> SelectCountRequestBuilder {
+        self.clauses = Some(clauses);
         self
     }
 
-    fn sql_query(&mut self) -> Result<String, String> {
+    fn sql_query(mut self) -> Result<String, String> {
         if let None = self.table_name {
             return Err("Invalid request builder".to_owned());
         }
@@ -520,5 +537,376 @@ impl SelectCountRequestBuilder {
             sql_clause = format!("SELECT COUNT(*) FROM {}", table_name);
         }
         Ok(sql_clause)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    // Note this useful idiom: importing names from outer (for mod tests) scope.
+    use super::*;
+
+    #[test]
+    fn test_comparable_sql_clause() {
+        let comp_op = ComaparableSqlClause::new("id".to_owned(), "=".to_owned());
+        assert_eq!(comp_op.column, "id");
+        assert_eq!(comp_op.op, "=");
+    }
+
+    #[test]
+    fn test_in_sql_clause_sql_clause() {
+        let in_op = InSqlClause::new("id".to_owned(), "IN".to_owned(), 10);
+        assert_eq!(in_op.column, "id");
+        assert_eq!(in_op.op, "IN");
+        assert_eq!(in_op.in_count, 10);
+    }
+
+    #[test]
+    fn test_comaparable_sql_clause_clause() {
+        {
+            let mut comp_op = ComaparableSqlClause::new("id".to_owned(), "=".to_owned());
+            assert_eq!(comp_op.clause(1), "id = $1");
+            assert_eq!(comp_op.current_index(), 2);
+        }
+        {
+            let mut comp_op = ComaparableSqlClause::new("id".to_owned(), ">".to_owned());
+            assert_eq!(comp_op.clause(10), "id > $10");
+            assert_eq!(comp_op.current_index(), 11);
+        }
+        {
+            let mut comp_op = ComaparableSqlClause::new("id".to_owned(), "<".to_owned());
+            assert_eq!(comp_op.clause(1), "id < $1");
+            assert_eq!(comp_op.current_index(), 2);
+        }
+        {
+            let mut comp_op = ComaparableSqlClause::new("id".to_owned(), "<=".to_owned());
+            assert_eq!(comp_op.clause(1), "id <= $1");
+            assert_eq!(comp_op.current_index(), 2);
+        }
+        {
+            let mut comp_op = ComaparableSqlClause::new("id".to_owned(), ">=".to_owned());
+            assert_eq!(comp_op.clause(1), "id >= $1");
+            assert_eq!(comp_op.current_index(), 2);
+        }
+        {
+            let mut comp_op = ComaparableSqlClause::new("id".to_owned(), "<>".to_owned());
+            assert_eq!(comp_op.clause(1), "id <> $1");
+            assert_eq!(comp_op.current_index(), 2);
+        }
+    }
+
+    #[test]
+    fn test_in_sql_clause_clause() {
+        {
+            let mut comp_op = InSqlClause::new("id".to_owned(), "IN".to_owned(), 1);
+            assert_eq!(comp_op.clause(1), "id IN ($1)");
+            assert_eq!(comp_op.current_index(), 2);
+        }
+        {
+            let mut comp_op = InSqlClause::new("id".to_owned(), "IN".to_owned(), 10);
+            assert_eq!(comp_op.clause(1), "id IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)");
+            assert_eq!(comp_op.current_index(), 11);
+        }
+        {
+            let mut comp_op = InSqlClause::new("id".to_owned(), "NOT IN".to_owned(), 10);
+            assert_eq!(
+                comp_op.clause(1),
+                "id NOT IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)"
+            );
+            assert_eq!(comp_op.current_index(), 11);
+        }
+    }
+
+    #[test]
+    fn test_null_sql_clause_clause() {
+        {
+            let mut null_op = NullSqlClause::new("id".to_owned(), "IS NULL".to_owned());
+            assert_eq!(null_op.clause(1), "id IS NULL");
+            assert_eq!(null_op.current_index(), 1);
+        }
+        {
+            let mut null_op = NullSqlClause::new("id".to_owned(), "IS NOT NULL".to_owned());
+            assert_eq!(null_op.clause(1), "id IS NOT NULL");
+            assert_eq!(null_op.current_index(), 1);
+        }
+    }
+
+    #[test]
+    fn test_sql_criteria_builder() {
+        {
+            assert_eq!(
+                SqlCriteriaBuilder::is_equals("id".to_owned()).clause(1),
+                "id = $1"
+            );
+        }
+        {
+            assert_eq!(
+                SqlCriteriaBuilder::is_not_equals("id".to_owned()).clause(1),
+                "id <> $1"
+            );
+        }
+        {
+            assert_eq!(
+                SqlCriteriaBuilder::is_less_than("id".to_owned()).clause(1),
+                "id < $1"
+            );
+        }
+        {
+            assert_eq!(
+                SqlCriteriaBuilder::is_less_or_equals("id".to_owned()).clause(1),
+                "id <= $1"
+            );
+        }
+        {
+            assert_eq!(
+                SqlCriteriaBuilder::is_greater_than("id".to_owned()).clause(1),
+                "id > $1"
+            );
+        }
+        {
+            assert_eq!(
+                SqlCriteriaBuilder::is_greater_or_equals("id".to_owned()).clause(1),
+                "id >= $1"
+            );
+        }
+        {
+            assert_eq!(
+                SqlCriteriaBuilder::is_not_in("id".to_owned(), 10).clause(1),
+                "id NOT IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)"
+            );
+        }
+        {
+            assert_eq!(
+                SqlCriteriaBuilder::is_in("id".to_owned(), 10).clause(1),
+                "id IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)"
+            );
+        }
+    }
+
+    #[test]
+    fn test_build_sql_where_clause() {
+        {
+            let mut clauses = vec![
+                SqlCriteriaBuilder::is_less_than("id".to_owned()),
+                SqlCriteriaBuilder::is_greater_than("tenant".to_owned()),
+            ];
+            assert_eq!(
+                build_sql_where_clause(&mut clauses, 1),
+                "id < $1 AND tenant > $2"
+            );
+        }
+        {
+            let mut clauses = vec![
+                SqlCriteriaBuilder::is_in("id".to_owned(), 10),
+                SqlCriteriaBuilder::is_greater_than("tenant".to_owned()),
+            ];
+            assert_eq!(
+                build_sql_where_clause(&mut clauses, 1),
+                "id IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) AND tenant > $11"
+            );
+        }
+        {
+            let mut clauses = vec![
+                SqlCriteriaBuilder::is_equals("id".to_owned()),
+                SqlCriteriaBuilder::is_less_than("tenant".to_owned()),
+                SqlCriteriaBuilder::is_less_or_equals("version".to_owned()),
+                SqlCriteriaBuilder::is_greater_than("name".to_owned()),
+                SqlCriteriaBuilder::is_greater_or_equals("description".to_owned()),
+            ];
+            assert_eq!(
+                build_sql_where_clause(&mut clauses, 1),
+                "id = $1 AND tenant < $2 AND version <= $3 AND name > $4 AND description >= $5"
+            );
+        }
+        {
+            let mut clauses = vec![
+                SqlCriteriaBuilder::is_in("id".to_owned(), 2),
+                SqlCriteriaBuilder::is_not_in("tenant".to_owned(), 2),
+            ];
+            assert_eq!(
+                build_sql_where_clause(&mut clauses, 1),
+                "id IN ($1,$2) AND tenant NOT IN ($3,$4)"
+            );
+        }
+    }
+
+    #[test]
+    fn test_select_from_query_with_pagination_query_builder() {
+        {
+            let mut builder =
+                SelectFromQueryWithPaginationQueryBuilder::new("SELECT * FROM USERS".to_string());
+            builder.pagination_option(PaginationOptions {
+                start_index: 1,
+                max_result: 10,
+            });
+            assert_eq!(
+                builder.sql_query().unwrap(),
+                "SELECT * FROM USERS OFFSET 1 LIMIT 10"
+            );
+        }
+        {
+            let builder =
+                SelectFromQueryWithPaginationQueryBuilder::new("SELECT * FROM USERS".to_string());
+            assert_eq!(builder.sql_query().unwrap(), "SELECT * FROM USERS");
+        }
+    }
+
+    #[test]
+    fn test_insert_request_builder() {
+        {
+            let mut builder = InsertRequestBuilder::new()
+                .table_name("USERS".to_owned())
+                .columns(vec!["id".to_owned()])
+                .connection_pool("my_pool".to_owned())
+                .resolve_conflict(false);
+            assert_eq!(
+                builder.sql_query().unwrap(),
+                "INSERT INTO USERS (id) VALUES($1)"
+            );
+        }
+        {
+            let mut builder = InsertRequestBuilder::new()
+                .table_name("USERS".to_owned())
+                .columns(vec![
+                    "id".to_owned(),
+                    "name".to_owned(),
+                    "description".to_owned(),
+                ])
+                .connection_pool("my_pool".to_owned())
+                .resolve_conflict(false);
+            assert_eq!(
+                builder.sql_query().unwrap(),
+                "INSERT INTO USERS (id,name,description) VALUES($1,$2,$3)"
+            );
+        }
+    }
+
+    #[test]
+    fn test_update_request_builder() {
+        {
+            let builder = UpdateRequestBuilder::new()
+                .table_name("USERS".to_owned())
+                .columns(vec![
+                    "id".to_owned(),
+                    "name".to_owned(),
+                    "description".to_owned(),
+                ])
+                .connection_pool("my_pool".to_owned())
+                .clauses(vec![SqlCriteriaBuilder::is_less_than("name".to_owned())])
+                .manage_version(true);
+            assert_eq!(
+                builder.sql_query().unwrap(),
+                "UPDATE USERS SET id=$1,name=$2,description=$3, version = version + 1 WHERE name < $4"
+            );
+        }
+        {
+            let builder = UpdateRequestBuilder::new()
+                .table_name("USERS".to_owned())
+                .columns(vec![
+                    "id".to_owned(),
+                    "name".to_owned(),
+                    "description".to_owned(),
+                ])
+                .connection_pool("my_pool".to_owned())
+                .clauses(vec![
+                    SqlCriteriaBuilder::is_less_than("name".to_owned()),
+                    SqlCriteriaBuilder::is_equals("creation_time".to_owned()),
+                ])
+                .manage_version(true);
+            assert_eq!(
+                builder.sql_query().unwrap(),
+                "UPDATE USERS SET id=$1,name=$2,description=$3, version = version + 1 WHERE name < $4 AND creation_time = $5"
+            );
+        }
+    }
+
+    #[test]
+    fn test_select_request_builder() {
+        {
+            let builder = SelectRequestBuilder::new()
+                .table_name("USERS".to_owned())
+                .columns(vec![
+                    "id".to_owned(),
+                    "name".to_owned(),
+                    "description".to_owned(),
+                ])
+                .connection_pool("my_pool".to_owned())
+                .where_clauses(vec![SqlCriteriaBuilder::is_less_than("name".to_owned())]);
+            assert_eq!(
+                builder.sql_query().unwrap(),
+                "SELECT id,name,description FROM USERS WHERE name < $1 "
+            );
+        }
+        {
+            let builder = SelectRequestBuilder::new()
+                .table_name("USERS".to_owned())
+                .columns(vec![
+                    "id".to_owned(),
+                    "name".to_owned(),
+                    "description".to_owned(),
+                ])
+                .connection_pool("my_pool".to_owned())
+                .where_clauses(vec![
+                    SqlCriteriaBuilder::is_less_than("name".to_owned()),
+                    SqlCriteriaBuilder::is_equals("creation_time".to_owned()),
+                ]);
+            assert_eq!(
+                builder.sql_query().unwrap(),
+                "SELECT id,name,description FROM USERS WHERE name < $1 AND creation_time = $2 "
+            );
+        }
+    }
+
+    #[test]
+    fn test_select_count_request_builder() {
+        {
+            let builder = SelectCountRequestBuilder::new()
+                .table_name("USERS".to_owned())
+                .connection_pool("my_pool".to_owned())
+                .where_clauses(vec![SqlCriteriaBuilder::is_less_than("name".to_owned())]);
+            assert_eq!(
+                builder.sql_query().unwrap(),
+                "SELECT COUNT(*) FROM USERS WHERE name < $1"
+            );
+        }
+        {
+            let builder = SelectCountRequestBuilder::new()
+                .table_name("USERS".to_owned())
+                .connection_pool("my_pool".to_owned())
+                .where_clauses(vec![
+                    SqlCriteriaBuilder::is_less_than("name".to_owned()),
+                    SqlCriteriaBuilder::is_equals("creation_time".to_owned()),
+                ]);
+            assert_eq!(
+                builder.sql_query().unwrap(),
+                "SELECT COUNT(*) FROM USERS WHERE name < $1 AND creation_time = $2"
+            );
+        }
+    }
+
+    #[test]
+    fn test_delete_request_builder() {
+        {
+            let builder = DeleteQueryBuilder::new()
+                .table_name("USERS".to_owned())
+                .connection_pool("my_pool".to_owned())
+                .where_clauses(vec![SqlCriteriaBuilder::is_less_than("name".to_owned())]);
+            assert_eq!(
+                builder.sql_query().unwrap(),
+                "DELETE FROM USERS  WHERE name < $1"
+            );
+        }
+        {
+            let builder = DeleteQueryBuilder::new()
+                .table_name("USERS".to_owned())
+                .connection_pool("my_pool".to_owned())
+                .where_clauses(vec![
+                    SqlCriteriaBuilder::is_less_than("name".to_owned()),
+                    SqlCriteriaBuilder::is_equals("creation_time".to_owned()),
+                ]);
+            assert_eq!(
+                builder.sql_query().unwrap(),
+                "DELETE FROM USERS  WHERE name < $1 AND creation_time = $2"
+            );
+        }
     }
 }
