@@ -6,22 +6,25 @@ pub struct Permission {}
 
 #[derive(Debug)]
 #[allow(dead_code)]
-pub struct Role {
-    role_id: String,
-    name: String,
-    description: String,
-    is_client_role: bool,
-    display_name: String,
-    metadata: AuditableModel,
+pub struct RoleModel {
+    pub role_id: String,
+    pub realm_id: String,
+    pub name: String,
+    pub description: String,
+    pub is_client_role: bool,
+    pub display_name: String,
+    pub metadata: AuditableModel,
 }
 
 #[derive(Debug)]
 #[allow(dead_code)]
-pub struct Group {
-    group_id: String,
-    realm_id: String,
-    name: String,
-    roles: Vec<Role>,
-    display_name: String,
-    metadata: AuditableModel,
+pub struct GroupModel {
+    pub group_id: String,
+    pub realm_id: String,
+    pub name: String,
+    pub roles: Option<Vec<RoleModel>>,
+    pub display_name: String,
+    pub description: String,
+    pub is_default: bool,
+    pub metadata: AuditableModel,
 }
