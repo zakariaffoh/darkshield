@@ -3,12 +3,14 @@ mod context;
 mod metrics;
 mod services;
 
+use crate::services::rds::database::rds_data_base;
 use actix_web::{middleware::Logger, web::Data, App, HttpServer};
-use context::context::build_darkshield_context;
+use context::context::DarkShieldContext;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let darkshield_context = build_darkshield_context();
+    let database = rds_data_base();
+    let darkshield_context = DarkShieldContext::new(database);
     let context = Data::new(darkshield_context);
 
     HttpServer::new(move || {
