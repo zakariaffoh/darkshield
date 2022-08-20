@@ -14,7 +14,3 @@ lazy_static! {
     )
     .unwrap();
 }
-
-pub fn register_metrics() {
-    let registry = prometheus::default_registry();
-}
