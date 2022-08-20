@@ -95,43 +95,43 @@ pub struct SqlCriteriaBuilder {}
 
 #[allow(dead_code)]
 impl SqlCriteriaBuilder {
-    fn is_equals(column: String) -> Box<dyn SqlCriteria> {
+    pub fn is_equals(column: String) -> Box<dyn SqlCriteria> {
         Box::new(ComaparableSqlClause::new(column, "=".to_owned()))
     }
 
-    fn is_less_than(column: String) -> Box<dyn SqlCriteria> {
+    pub fn is_less_than(column: String) -> Box<dyn SqlCriteria> {
         Box::new(ComaparableSqlClause::new(column, "<".to_owned()))
     }
 
-    fn is_less_or_equals(column: String) -> Box<dyn SqlCriteria> {
+    pub fn is_less_or_equals(column: String) -> Box<dyn SqlCriteria> {
         Box::new(ComaparableSqlClause::new(column, "<=".to_owned()))
     }
 
-    fn is_greater_than(column: String) -> Box<dyn SqlCriteria> {
+    pub fn is_greater_than(column: String) -> Box<dyn SqlCriteria> {
         Box::new(ComaparableSqlClause::new(column, ">".to_owned()))
     }
 
-    fn is_greater_or_equals(column: String) -> Box<dyn SqlCriteria> {
+    pub fn is_greater_or_equals(column: String) -> Box<dyn SqlCriteria> {
         Box::new(ComaparableSqlClause::new(column, ">=".to_owned()))
     }
 
-    fn is_not_equals(column: String) -> Box<dyn SqlCriteria> {
+    pub fn is_not_equals(column: String) -> Box<dyn SqlCriteria> {
         Box::new(ComaparableSqlClause::new(column, "<>".to_owned()))
     }
 
-    fn is_null(column: String) -> Box<dyn SqlCriteria> {
+    pub fn is_null(column: String) -> Box<dyn SqlCriteria> {
         Box::new(ComaparableSqlClause::new(column, "IS NULL".to_owned()))
     }
 
-    fn is_not_null(column: String) -> Box<dyn SqlCriteria> {
+    pub fn is_not_null(column: String) -> Box<dyn SqlCriteria> {
         Box::new(ComaparableSqlClause::new(column, "IS NOT NULL".to_owned()))
     }
 
-    fn is_in(column: String, in_count: u16) -> Box<dyn SqlCriteria> {
+    pub fn is_in(column: String, in_count: u16) -> Box<dyn SqlCriteria> {
         Box::new(InSqlClause::new(column, "IN".to_owned(), in_count))
     }
 
-    fn is_not_in(column: String, in_count: u16) -> Box<dyn SqlCriteria> {
+    pub fn is_not_in(column: String, in_count: u16) -> Box<dyn SqlCriteria> {
         Box::new(InSqlClause::new(column, "NOT IN".to_owned(), in_count))
     }
 }
@@ -186,7 +186,7 @@ impl InsertRequestBuilder {
         self
     }
 
-    fn sql_query(&mut self) -> Result<String, String> {
+    pub fn sql_query(&mut self) -> Result<String, String> {
         if self.table_name.is_none()
             || self.columns.is_none()
             || self.columns.as_ref().unwrap().is_empty()
@@ -259,12 +259,12 @@ impl UpdateRequestBuilder {
         self
     }
 
-    pub fn clauses(mut self, clauses: Vec<Box<dyn SqlCriteria>>) -> UpdateRequestBuilder {
+    pub fn where_clauses(mut self, clauses: Vec<Box<dyn SqlCriteria>>) -> UpdateRequestBuilder {
         self.clauses = Some(clauses);
         self
     }
 
-    fn sql_query(mut self) -> Result<String, String> {
+    pub fn sql_query(mut self) -> Result<String, String> {
         if self.table_name.is_none()
             || self.columns.is_none()
             || self.columns.as_ref().unwrap().is_empty()
@@ -332,7 +332,7 @@ impl DeleteQueryBuilder {
         self
     }
 
-    fn sql_query(mut self) -> Result<String, String> {
+    pub fn sql_query(mut self) -> Result<String, String> {
         if let None = self.table_name {
             return Err("Invalid delete query state".to_owned());
         }
@@ -456,7 +456,7 @@ impl SelectRequestBuilder {
     }
 
     #[allow(dead_code)]
-    fn sql_query(mut self) -> Result<String, String> {
+    pub fn sql_query(mut self) -> Result<String, String> {
         if self.table_name.is_none() {
             return Err("Invalid request builder".to_owned());
         }
@@ -791,7 +791,7 @@ mod tests {
                     "description".to_owned(),
                 ])
                 .connection_pool("my_pool".to_owned())
-                .clauses(vec![SqlCriteriaBuilder::is_less_than("name".to_owned())])
+                .where_clauses(vec![SqlCriteriaBuilder::is_less_than("name".to_owned())])
                 .manage_version(true);
             assert_eq!(
                 builder.sql_query().unwrap(),
@@ -807,7 +807,7 @@ mod tests {
                     "description".to_owned(),
                 ])
                 .connection_pool("my_pool".to_owned())
-                .clauses(vec![
+                .where_clauses(vec![
                     SqlCriteriaBuilder::is_less_than("name".to_owned()),
                     SqlCriteriaBuilder::is_equals("creation_time".to_owned()),
                 ])

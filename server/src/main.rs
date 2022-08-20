@@ -4,12 +4,12 @@ mod metrics;
 mod services;
 
 use actix_web::{middleware::Logger, web::Data, App, HttpServer};
+use context::context::build_darkshield_context;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let context = Data::new(context::context::DarkShieldContext::new(
-        services::rds::database::rds_data_base(),
-    ));
+    let darkshield_context = build_darkshield_context();
+    let context = Data::new(darkshield_context);
 
     HttpServer::new(move || {
         App::new()

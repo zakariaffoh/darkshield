@@ -1,12 +1,10 @@
-use chrono::{DateTime, Utc};
-
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct AuditableModel {
-    tenant: String,
-    created_by: String,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
-    updated_by: String,
-    version: i32,
+    pub tenant: String,
+    pub created_by: String,
+    pub updated_by: String,
+    pub created_at: f64,
+    pub updated_at: f64,
+    pub version: i32,
 }

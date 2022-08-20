@@ -6,5 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+lockfree = "0.5.1"
 models = { path = "../models", version = "0.1.0" }
 store = { path = "../store", version = "0.1.0" }
