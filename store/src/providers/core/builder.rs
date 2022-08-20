@@ -524,7 +524,7 @@ impl SelectCountRequestBuilder {
         self
     }
 
-    fn sql_query(mut self) -> Result<String, String> {
+    pub fn sql_query(mut self) -> Result<String, String> {
         if let None = self.table_name {
             return Err("Invalid request builder".to_owned());
         }
