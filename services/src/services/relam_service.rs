@@ -10,5 +10,5 @@ impl<'d> RealmService<'d> {
     pub fn new(database: &'d DataBaseManager) -> Self {
         Self { database: database }
     }
-    pub async fn create_realm(&self, realm: RealmModel) {}
+    pub async fn create_realm(&self, realm: &RealmModel) {}
 }
