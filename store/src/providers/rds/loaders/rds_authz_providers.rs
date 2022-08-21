@@ -274,7 +274,7 @@ pub struct RdsGroupProvider {
 }
 
 impl RdsGroupProvider {
-    fn read_group_record(&self, row: Row) -> GroupModel {
+    fn _read_group_record(&self, row: Row) -> GroupModel {
         GroupModel {
             group_id: row.get("group_id"),
             realm_id: row.get("realm_id"),
@@ -298,5 +298,5 @@ impl RdsGroupProvider {
 #[allow(dead_code)]
 #[async_trait]
 impl IGroupProvider for RdsGroupProvider {
-    async fn create_group(&self, role_model: &GroupModel) {}
+    async fn create_group(&self, _role_model: &GroupModel) {}
 }

@@ -2,7 +2,7 @@ pub mod core;
 pub mod interfaces;
 pub mod rds;
 
-use shaku::module;
+/*use shaku::{module, ModuleInterface};
 
 use rds::loaders::{
     rds_authz_providers::{RdsGroupProvider, RdsRoleProvider},
@@ -16,4 +16,4 @@ module! {
         components = [RdsRealmProvider, RdsGroupProvider, RdsRoleProvider, DataBaseManager],
         providers = []
     }
-}
+}*/
