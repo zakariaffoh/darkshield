@@ -28,6 +28,16 @@ impl<T> ApiResult<T> {
     pub fn error(error: ApiError) -> Self {
         ApiResult::Error(error)
     }
+
+    pub fn from_error(status_code: u16, error_code: &str, message: &str) -> Self {
+        ApiResult::Error(ApiError {
+            error: ErrorMessage {
+                error_code: error_code.to_owned(),
+                message: message.to_owned(),
+            },
+            status_code: status_code,
+        })
+    }
 }
 
 impl<T> Responder for ApiResult<T>
