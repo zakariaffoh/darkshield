@@ -1,9 +1,11 @@
-use crate::{
-    api::rest::models::realm::{RealmCreateModel, RealmUpdateModel},
-    context::context::DarkShieldContext,
+use crate::context::context::DarkShieldContext;
+use models::{
+    auditable::AuditableModel,
+    entities::realm::{RealmCreateModel, RealmUpdateModel},
 };
+use services::services::realm_service::IRealmService;
+use shaku::HasComponent;
 
-use super::super::models::api_response;
 use actix_web::{
     delete, get, post, put,
     web::{self},
@@ -16,7 +18,9 @@ pub async fn create_realm(
     realm: web::Json<RealmCreateModel>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
-    api_response::ApiResponse::from_data(realm)
+    let realm_service: &dyn IRealmService = context.services().resolve_ref();
+    let response = realm_service.create_realm(&realm.0).await;
+    response
 }
 
 #[allow(dead_code)]
@@ -25,7 +29,9 @@ pub async fn update_realm(
     realm: web::Json<RealmUpdateModel>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
-    api_response::ApiResponse::from_data(realm)
+    let realm_service: &dyn IRealmService = context.services().resolve_ref();
+    let response = realm_service.udpate_realm(&realm.0).await;
+    response
 }
 
 #[allow(dead_code)]
@@ -44,7 +50,7 @@ pub async fn load_realm_by_id(
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let path = realm_id.as_str();
-    api_response::ApiResponse::from_data(String::from(path))
+    format!("delete realm {path}")
 }
 
 #[allow(dead_code)]
