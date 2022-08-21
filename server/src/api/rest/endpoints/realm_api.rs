@@ -1,6 +1,6 @@
 use crate::context::context::DarkShieldContext;
 use log;
-use models::entities::realm::{RealmCreateModel, RealmUpdateModel};
+use models::entities::realm::{RealmCreateModel, RealmModel, RealmUpdateModel};
 use services::services::realm_service::IRealmService;
 use shaku::HasComponent;
 
@@ -18,7 +18,8 @@ pub async fn create_realm(
 ) -> impl Responder {
     log::debug!("Processing create realm request {}", realm.realm_id);
     let realm_service: &dyn IRealmService = context.services().resolve_ref();
-    let response = realm_service.create_realm(&realm.0).await;
+    let ream_model: RealmModel = realm.0.into();
+    let response = realm_service.create_realm(ream_model).await;
     response
 }
 
@@ -29,7 +30,8 @@ pub async fn update_realm(
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let realm_service: &dyn IRealmService = context.services().resolve_ref();
-    let response = realm_service.udpate_realm(&realm.0).await;
+    let ream_model: RealmModel = realm.0.into();
+    let response = realm_service.udpate_realm(ream_model).await;
     response
 }
 

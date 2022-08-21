@@ -1,9 +1,13 @@
+use async_trait::async_trait;
+use models::auditable::AuditableModel;
+use models::entities::realm::RealmModel;
+use tokio_postgres::Row;
+
 use std::sync::Arc;
 
-use async_trait::async_trait;
-use models::{auditable::AuditableModel, entities::realm::RealmModel};
 use shaku::Component;
-use tokio_postgres::Row;
+
+use crate::providers::rds::client::postgres_client::IDataBaseManager;
 
 use crate::providers::{
     core::builder::{
@@ -11,7 +15,6 @@ use crate::providers::{
         UpdateRequestBuilder,
     },
     interfaces::realm_provider::IRealmProvider,
-    rds::client::postgres_client::IDataBaseManager,
     rds::tables::realm_table,
 };
 
@@ -20,7 +23,7 @@ use crate::providers::{
 #[shaku(interface = IRealmProvider)]
 pub struct RdsRealmProvider {
     #[shaku(inject)]
-    database_manager: Arc<dyn IDataBaseManager>,
+    pub database_manager: Arc<dyn IDataBaseManager>,
 }
 
 impl RdsRealmProvider {
@@ -30,14 +33,14 @@ impl RdsRealmProvider {
             name: row.get("name"),
             display_name: row.get("display_name"),
             enabled: row.get("enabled"),
-            metadata: AuditableModel {
+            metadata: Some(AuditableModel {
                 tenant: row.get("tenant"),
                 created_by: row.get("created_by"),
                 updated_by: row.get("updated_by"),
                 created_at: row.get("created_at"),
                 updated_at: row.get("updated_at"),
                 version: row.get("version"),
-            },
+            }),
         }
     }
 }
@@ -59,6 +62,8 @@ impl IRealmProvider for RdsRealmProvider {
 
         let client = client.unwrap();
         let create_realm_stmt = client.prepare_cached(&create_realm_sql).await.unwrap();
+        let metadata = realm.metadata.as_ref().unwrap();
+
         client
             .execute(
                 &create_realm_stmt,
@@ -67,10 +72,10 @@ impl IRealmProvider for RdsRealmProvider {
                     &realm.name,
                     &realm.display_name,
                     &realm.enabled,
-                    &realm.metadata.tenant,
-                    &realm.metadata.created_by,
-                    &realm.metadata.created_at,
-                    &realm.metadata.version,
+                    &metadata.tenant,
+                    &metadata.created_by,
+                    &metadata.created_at,
+                    &metadata.version,
                 ],
             )
             .await
@@ -97,6 +102,7 @@ impl IRealmProvider for RdsRealmProvider {
 
         let client = client.unwrap();
         let update_realm_stmt = client.prepare_cached(&create_realm_sql).await.unwrap();
+        let metadata = realm.metadata.as_ref().unwrap();
         client
             .execute(
                 &update_realm_stmt,
@@ -104,9 +110,9 @@ impl IRealmProvider for RdsRealmProvider {
                     &realm.name,
                     &realm.display_name,
                     &realm.enabled,
-                    &realm.metadata.updated_by,
-                    &realm.metadata.updated_at,
-                    &realm.metadata.tenant,
+                    &metadata.updated_by,
+                    &metadata.updated_at,
+                    &metadata.tenant,
                     &realm.realm_id,
                 ],
             )
