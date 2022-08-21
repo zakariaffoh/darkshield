@@ -1,6 +1,12 @@
 use async_trait::async_trait;
-use models::entities::authz_models::{GroupModel, RoleModel};
+use models::entities::authz::{GroupModel, RoleModel};
 use shaku::Interface;
+
+use std::sync::Arc;
+
+use shaku::Component;
+
+use crate::providers::rds::client::postgres_client::IDataBaseManager;
 
 #[async_trait]
 pub trait IRoleProvider: Interface {
@@ -9,7 +15,7 @@ pub trait IRoleProvider: Interface {
     async fn load_roles_by_ids(
         &self,
         realm_id: &str,
-        roles_ids: Vec<String>,
+        roles_ids: &Vec<String>,
     ) -> Result<Vec<RoleModel>, String>;
     async fn load_roles_by_realm(&self, realm_id: &str) -> Result<Vec<RoleModel>, String>;
     async fn load_role_by_name(&self, realm_id: &str, role_name: &str)

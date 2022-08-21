@@ -28,7 +28,7 @@ pub struct RealmService {
 impl IRealmService for RealmService {
     async fn create_realm(&self, realm: &RealmCreateModel) -> ApiResult<RealmModel> {
         let existing_realm = self.realm_provider.load_realm("", &realm.realm_id).await;
-        if let Some(_) = existing_realm {
+        if let Ok(_) = existing_realm {
             return ApiResult::from_error(409, "500", "realm already exists");
         }
 

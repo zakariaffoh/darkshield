@@ -3,7 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use models::{
     auditable::AuditableModel,
-    entities::authz_models::{GroupModel, RoleModel},
+    entities::authz::{GroupModel, RoleModel},
 };
 use shaku::Component;
 use tokio_postgres::Row;
@@ -23,7 +23,7 @@ use crate::providers::{
 #[shaku(interface = IRoleProvider)]
 pub struct RdsRoleProvider {
     #[shaku(inject)]
-    database_manager: Arc<dyn IDataBaseManager>,
+    pub database_manager: Arc<dyn IDataBaseManager>,
 }
 
 impl RdsRoleProvider {
@@ -35,14 +35,14 @@ impl RdsRoleProvider {
             description: row.get("description"),
             is_client_role: row.get("is_client_role"),
             display_name: row.get("display_name"),
-            metadata: AuditableModel {
+            metadata: Some(AuditableModel {
                 tenant: row.get("tenant"),
                 created_by: row.get("created_by"),
                 updated_by: row.get("updated_by"),
                 created_at: row.get("created_at"),
                 updated_at: row.get("updated_at"),
                 version: row.get("version"),
-            },
+            }),
         }
     }
 }
@@ -64,6 +64,8 @@ impl IRoleProvider for RdsRoleProvider {
 
         let client = client.unwrap();
         let create_role_stmt = client.prepare_cached(&create_role_sql).await.unwrap();
+        let metadata = role_model.metadata.as_ref().unwrap();
+
         let response = client
             .execute(
                 &create_role_stmt,
@@ -74,10 +76,10 @@ impl IRoleProvider for RdsRoleProvider {
                     &role_model.description,
                     &role_model.display_name,
                     &role_model.is_client_role,
-                    &role_model.metadata.tenant,
-                    &role_model.metadata.created_by,
-                    &role_model.metadata.created_at,
-                    &role_model.metadata.version,
+                    &metadata.tenant,
+                    &metadata.created_by,
+                    &metadata.created_at,
+                    &metadata.version,
                 ],
             )
             .await;
@@ -106,6 +108,8 @@ impl IRoleProvider for RdsRoleProvider {
 
         let client = client.unwrap();
         let update_role_stmt = client.prepare_cached(&update_role_sql).await.unwrap();
+        let metadata = role_model.metadata.as_ref().unwrap();
+
         let response = client
             .execute(
                 &update_role_stmt,
@@ -114,9 +118,9 @@ impl IRoleProvider for RdsRoleProvider {
                     &role_model.display_name,
                     &role_model.description,
                     &role_model.is_client_role,
-                    &role_model.metadata.updated_by,
-                    &role_model.metadata.updated_at,
-                    &role_model.metadata.tenant,
+                    &metadata.updated_by,
+                    &metadata.updated_at,
+                    &metadata.tenant,
                     &role_model.role_id,
                     &role_model.realm_id,
                 ],
@@ -131,7 +135,7 @@ impl IRoleProvider for RdsRoleProvider {
     async fn load_roles_by_ids(
         &self,
         realm_id: &str,
-        roles_ids: Vec<String>,
+        roles_ids: &Vec<String>,
     ) -> Result<Vec<RoleModel>, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
@@ -149,9 +153,8 @@ impl IRoleProvider for RdsRoleProvider {
         let client = client.unwrap();
         let load_roles_stmt = client.prepare_cached(&load_roles_sql).await.unwrap();
         let result = client
-            .query_one(&load_roles_stmt, &[&realm_id, &roles_ids])
+            .query(&load_roles_stmt, &[&realm_id, &roles_ids])
             .await;
-        let result = client.query(&load_roles_stmt, &[]).await;
         match result {
             Ok(rows) => Ok(rows
                 .into_iter()
@@ -334,14 +337,14 @@ impl RdsGroupProvider {
             is_default: row.get("is_default"),
             display_name: row.get("display_name"),
             roles: None,
-            metadata: AuditableModel {
+            metadata: Some(AuditableModel {
                 tenant: row.get("tenant"),
                 created_by: row.get("created_by"),
                 updated_by: row.get("updated_by"),
                 created_at: row.get("created_at"),
                 updated_at: row.get("updated_at"),
                 version: row.get("version"),
-            },
+            }),
         }
     }
 }

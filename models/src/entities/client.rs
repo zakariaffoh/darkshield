@@ -1,20 +1,235 @@
-use std::iter::Map;
+use super::authz::RoleModel;
+use crate::auditable::AuditableModel;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
-#[derive(Debug)]
-#[allow(dead_code)]
-pub struct ClientModel {}
-
-#[derive(Debug)]
-#[allow(dead_code)]
-pub struct ClientProtocolMapper {
-    mapper_id: String,
-    realm_id: String,
-    mapper: String,
-    description: String,
-    protocol: String,
-    configs: Map<String, String>,
+#[derive(Debug, Serialize, Deserialize)]
+pub enum ProtocolEnum {
+    OpendId,
 }
 
-#[derive(Debug)]
 #[allow(dead_code)]
-pub struct ClientScope {}
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ClientModel {
+    pub client_id: String,
+    pub realm_id: String,
+    pub name: String,
+    pub display_name: String,
+    pub description: String,
+    pub enabled: Option<bool>,
+    pub consent_required: Option<bool>,
+    pub root_url: Option<String>,
+    pub web_origins: Option<Vec<String>>,
+    pub redirect_uris: Option<Vec<String>>,
+    pub registration_token: Option<String>,
+    pub secret: Option<String>,
+
+    pub protocol: Option<ProtocolEnum>,
+    pub public_client: Option<bool>,
+    pub client_authenticator_type: Option<String>,
+    pub full_scope_allowed: Option<bool>,
+    pub authorization_code_flow_enabled: Option<bool>,
+    pub implicit_flow_enabled: Option<bool>,
+    pub direct_grants_enabled: Option<bool>,
+    pub standard_flow_enabled: Option<bool>,
+    pub bearer_only: Option<bool>,
+    pub front_channel_logout: Option<bool>,
+    pub is_surrogate_auth_required: Option<bool>,
+    pub not_before: Option<usize>,
+    pub attributes: Option<HashMap<String, String>>,
+    pub service_account_enabled: Option<bool>,
+    pub auth_flow_binding_overrides: Option<HashMap<String, String>>,
+    pub metadata: Option<AuditableModel>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ClientCreateModel {
+    pub client_id: String,
+    pub realm_id: String,
+    pub name: String,
+    pub display_name: String,
+    pub description: String,
+    pub enabled: Option<bool>,
+}
+
+impl Into<ClientModel> for ClientCreateModel {
+    fn into(self) -> ClientModel {
+        ClientModel {
+            client_id: self.client_id,
+            realm_id: self.realm_id,
+            name: self.name,
+            display_name: self.display_name,
+            description: self.description,
+            enabled: self.enabled,
+            consent_required: None,
+            root_url: None,
+            web_origins: None,
+            redirect_uris: None,
+            registration_token: None,
+            secret: None,
+            protocol: None,
+            public_client: None,
+            client_authenticator_type: None,
+            full_scope_allowed: None,
+            authorization_code_flow_enabled: None,
+            implicit_flow_enabled: None,
+            direct_grants_enabled: None,
+            standard_flow_enabled: None,
+            bearer_only: None,
+            front_channel_logout: None,
+            is_surrogate_auth_required: None,
+            not_before: None,
+            attributes: None,
+            service_account_enabled: None,
+            auth_flow_binding_overrides: None,
+            metadata: None,
+        }
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ClientUpdateModel {
+    pub client_id: String,
+    pub realm_id: String,
+    pub name: String,
+    pub display_name: String,
+    pub description: String,
+    pub enabled: Option<bool>,
+
+    pub consent_required: Option<bool>,
+    pub root_url: Option<String>,
+    pub web_origins: Option<Vec<String>>,
+    pub redirect_uris: Option<Vec<String>>,
+    pub registration_token: Option<String>,
+    pub secret: Option<String>,
+
+    pub protocol: Option<ProtocolEnum>,
+    pub public_client: Option<bool>,
+    pub client_authenticator_type: Option<String>,
+    pub full_scope_allowed: Option<bool>,
+    pub authorization_code_flow_enabled: Option<bool>,
+    pub implicit_flow_enabled: Option<bool>,
+    pub direct_grants_enabled: Option<bool>,
+    pub standard_flow_enabled: Option<bool>,
+    pub bearer_only: Option<bool>,
+    pub front_channel_logout: Option<bool>,
+    pub is_surrogate_auth_required: Option<bool>,
+    pub not_before: Option<usize>,
+    pub attributes: Option<HashMap<String, String>>,
+    pub service_account_enabled: Option<bool>,
+    pub auth_flow_binding_overrides: Option<HashMap<String, String>>,
+    pub metadata: Option<AuditableModel>,
+}
+
+impl Into<ClientModel> for ClientUpdateModel {
+    fn into(self) -> ClientModel {
+        ClientModel {
+            client_id: self.client_id,
+            realm_id: self.realm_id,
+            name: self.name,
+            display_name: self.display_name,
+            description: self.description,
+            enabled: self.enabled,
+            consent_required: self.consent_required,
+            root_url: self.root_url,
+            web_origins: self.web_origins,
+            redirect_uris: self.redirect_uris,
+            registration_token: self.registration_token,
+            secret: self.secret,
+
+            protocol: self.protocol,
+            public_client: self.public_client,
+            client_authenticator_type: self.client_authenticator_type,
+            full_scope_allowed: self.full_scope_allowed,
+            authorization_code_flow_enabled: self.authorization_code_flow_enabled,
+            implicit_flow_enabled: self.implicit_flow_enabled,
+            direct_grants_enabled: self.direct_grants_enabled,
+            standard_flow_enabled: self.standard_flow_enabled,
+            bearer_only: self.bearer_only,
+            front_channel_logout: self.front_channel_logout,
+            is_surrogate_auth_required: self.is_surrogate_auth_required,
+            not_before: self.not_before,
+            attributes: self.attributes,
+            service_account_enabled: self.service_account_enabled,
+            auth_flow_binding_overrides: self.auth_flow_binding_overrides,
+            metadata: None,
+        }
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ClientScopeModel {
+    pub client_scope_id: String,
+    pub realm_id: String,
+    pub name: String,
+    pub description: String,
+    pub protocol: ProtocolEnum,
+    pub roles: Option<Vec<RoleModel>>,
+    pub protocol_mappers: Option<Vec<ProtocolMapperModel>>,
+    pub default_scope: Option<bool>,
+    pub attributes: Option<HashMap<String, String>>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ProtocolMapperModel {
+    pub mapper_id: String,
+    pub realm_id: String,
+    pub mapper: String,
+    pub description: String,
+    pub protocol: ProtocolEnum,
+    pub configs: Option<HashMap<String, String>>,
+    pub metadata: Option<AuditableModel>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ProtocolMapperCreateModel {
+    pub realm_id: String,
+    pub mapper: String,
+    pub description: String,
+    pub protocol: ProtocolEnum,
+    pub configs: Option<HashMap<String, String>>,
+}
+
+impl Into<ProtocolMapperModel> for ProtocolMapperCreateModel {
+    fn into(self) -> ProtocolMapperModel {
+        ProtocolMapperModel {
+            mapper_id: uuid::Uuid::new_v4().to_string(),
+            realm_id: self.realm_id,
+            mapper: self.mapper,
+            description: self.description,
+            protocol: self.protocol,
+            configs: self.configs,
+            metadata: None,
+        }
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ProtocolMapperUpdateModel {
+    pub mapper_id: String,
+    pub realm_id: String,
+    pub mapper: String,
+    pub description: String,
+    pub protocol: ProtocolEnum,
+    pub configs: Option<HashMap<String, String>>,
+}
+
+impl Into<ProtocolMapperModel> for ProtocolMapperUpdateModel {
+    fn into(self) -> ProtocolMapperModel {
+        ProtocolMapperModel {
+            mapper_id: self.mapper_id,
+            realm_id: self.realm_id,
+            mapper: self.mapper,
+            description: self.description,
+            protocol: self.protocol,
+            configs: self.configs,
+            metadata: None,
+        }
+    }
+}
