@@ -12,12 +12,12 @@ pub struct AuditableModel {
 }
 
 impl AuditableModel {
-    pub fn from_creator(tenant: String, created_by: String, created_at: f64) -> Option<Self> {
+    pub fn from_creator(tenant: String, created_by: String) -> Option<Self> {
         Some(Self {
             tenant: tenant,
             created_by: created_by,
             updated_by: "".to_owned(),
-            created_at: created_at,
+            created_at: 0.0,
             updated_at: 0.0,
             version: 1,
         })

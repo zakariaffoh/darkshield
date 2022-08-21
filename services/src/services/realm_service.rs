@@ -12,8 +12,8 @@ use store::providers::interfaces::realm_provider::IRealmProvider;
 
 #[async_trait]
 pub trait IRealmService: Interface {
-    async fn create_realm(&self, realm: &RealmCreateModel) -> ApiResult<RealmModel>;
-    async fn udpate_realm(&self, realm: &RealmUpdateModel) -> ApiResult<RealmModel>;
+    async fn create_realm(&self, realm: RealmModel) -> ApiResult<RealmModel>;
+    async fn udpate_realm(&self, realm: RealmModel) -> ApiResult<RealmModel>;
 }
 
 #[allow(dead_code)]
@@ -26,30 +26,19 @@ pub struct RealmService {
 
 #[async_trait]
 impl IRealmService for RealmService {
-    async fn create_realm(&self, realm: &RealmCreateModel) -> ApiResult<RealmModel> {
+    async fn create_realm(&self, realm: RealmModel) -> ApiResult<RealmModel> {
         let existing_realm = self.realm_provider.load_realm("", &realm.realm_id).await;
         if let Ok(_) = existing_realm {
             return ApiResult::from_error(409, "500", "realm already exists");
         }
-
-        let response = models::entities::realm::RealmModel {
-            realm_id: realm.realm_id.to_owned(),
-            name: realm.name.to_owned(),
-            display_name: realm.display_name.to_owned(),
-            enabled: realm.enabled,
-            metadata: AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned(), 0.0),
-        };
-        ApiResult::from_data(response)
+        let mut realm = realm;
+        realm.metadata = AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
+        ApiResult::from_data(realm)
     }
 
-    async fn udpate_realm(&self, realm: &RealmUpdateModel) -> ApiResult<RealmModel> {
-        let response = models::entities::realm::RealmModel {
-            realm_id: realm.realm_id.to_owned(),
-            name: realm.name.to_owned(),
-            display_name: realm.display_name.to_owned(),
-            enabled: realm.enabled,
-            metadata: AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned(), 0.0),
-        };
-        ApiResult::from_data(response)
+    async fn udpate_realm(&self, realm: RealmModel) -> ApiResult<RealmModel> {
+        let mut realm = realm;
+        realm.metadata = AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
+        ApiResult::from_data(realm)
     }
 }
