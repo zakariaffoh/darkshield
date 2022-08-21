@@ -50,8 +50,11 @@ impl RdsRoleProvider {
 #[allow(dead_code)]
 #[async_trait]
 impl IRoleProvider for RdsRoleProvider {
-    async fn create_role(&self, role_model: &RoleModel) {
-        let client = self.database_manager.connection().await.unwrap();
+    async fn create_role(&self, role_model: &RoleModel) -> Result<(), String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
         let create_role_sql = InsertRequestBuilder::new()
             .table_name(authz_tables::ROLE_TABLE.table_name.clone())
             .columns(authz_tables::ROLE_TABLE.insert_columns.clone())
@@ -59,8 +62,9 @@ impl IRoleProvider for RdsRoleProvider {
             .sql_query()
             .unwrap();
 
+        let client = client.unwrap();
         let create_role_stmt = client.prepare_cached(&create_role_sql).await.unwrap();
-        client
+        let response = client
             .execute(
                 &create_role_stmt,
                 &[
@@ -76,12 +80,19 @@ impl IRoleProvider for RdsRoleProvider {
                     &role_model.metadata.version,
                 ],
             )
-            .await
-            .unwrap();
+            .await;
+
+        match response {
+            Err(err) => Err(err.to_string()),
+            Ok(_) => Ok(()),
+        }
     }
 
-    async fn update_role(&self, role_model: &RoleModel) {
-        let client = self.database_manager.connection().await.unwrap();
+    async fn update_role(&self, role_model: &RoleModel) -> Result<(), String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
         let update_role_sql = UpdateRequestBuilder::new()
             .table_name(authz_tables::ROLE_TABLE.table_name.clone())
             .columns(authz_tables::ROLE_TABLE.update_columns.clone())
@@ -93,8 +104,9 @@ impl IRoleProvider for RdsRoleProvider {
             .sql_query()
             .unwrap();
 
+        let client = client.unwrap();
         let update_role_stmt = client.prepare_cached(&update_role_sql).await.unwrap();
-        client
+        let response = client
             .execute(
                 &update_role_stmt,
                 &[
@@ -109,57 +121,79 @@ impl IRoleProvider for RdsRoleProvider {
                     &role_model.realm_id,
                 ],
             )
-            .await
-            .unwrap();
+            .await;
+        match response {
+            Err(err) => Err(err.to_string()),
+            Ok(_) => Ok(()),
+        }
     }
 
-    async fn load_roles_by_ids(&self, realm_id: &str, roles_ids: Vec<String>) -> Vec<RoleModel> {
-        let client = self.database_manager.connection().await.unwrap();
+    async fn load_roles_by_ids(
+        &self,
+        realm_id: &str,
+        roles_ids: Vec<String>,
+    ) -> Result<Vec<RoleModel>, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
         let load_roles_sql = SelectRequestBuilder::new()
             .table_name(authz_tables::ROLE_TABLE.table_name.clone())
             .where_clauses(vec![
                 SqlCriteriaBuilder::is_equals("realm_id".to_string()),
-                SqlCriteriaBuilder::is_in("roles_ids".to_string(), roles_ids.len() as u16),
+                SqlCriteriaBuilder::is_in("roles_id".to_string(), roles_ids.len() as u16),
             ])
             .sql_query()
             .unwrap();
 
+        let client = client.unwrap();
         let load_roles_stmt = client.prepare_cached(&load_roles_sql).await.unwrap();
         let result = client
             .query_one(&load_roles_stmt, &[&realm_id, &roles_ids])
             .await;
         let result = client.query(&load_roles_stmt, &[]).await;
         match result {
-            Ok(rows) => rows
+            Ok(rows) => Ok(rows
                 .into_iter()
                 .map(|row| self.read_role_record(row))
-                .collect(),
-            Err(_) => Vec::new(),
+                .collect()),
+            Err(err) => Err(err.to_string()),
         }
     }
 
-    async fn load_roles_by_realm(&self, realm_id: &str) -> Vec<RoleModel> {
-        let client = self.database_manager.connection().await.unwrap();
+    async fn load_roles_by_realm(&self, realm_id: &str) -> Result<Vec<RoleModel>, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
         let load_roles_sql = SelectRequestBuilder::new()
             .table_name(authz_tables::ROLE_TABLE.table_name.clone())
             .where_clauses(vec![SqlCriteriaBuilder::is_equals("realm_id".to_string())])
             .sql_query()
             .unwrap();
 
+        let client = client.unwrap();
         let load_roles_stmt = client.prepare_cached(&load_roles_sql).await.unwrap();
         let result = client.query_one(&load_roles_stmt, &[&realm_id]).await;
         let result = client.query(&load_roles_stmt, &[]).await;
         match result {
-            Ok(rows) => rows
+            Ok(rows) => Ok(rows
                 .into_iter()
                 .map(|row| self.read_role_record(row))
-                .collect(),
-            Err(_) => Vec::new(),
+                .collect()),
+            Err(err) => Err(err.to_string()),
         }
     }
 
-    async fn load_role_by_name(&self, realm_id: &str, role_name: &str) -> Option<RoleModel> {
-        let client = self.database_manager.connection().await.unwrap();
+    async fn load_role_by_name(
+        &self,
+        realm_id: &str,
+        role_name: &str,
+    ) -> Result<RoleModel, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
         let load_realm_sql = SelectRequestBuilder::new()
             .table_name(authz_tables::ROLE_TABLE.table_name.clone())
             .where_clauses(vec![
@@ -169,18 +203,22 @@ impl IRoleProvider for RdsRoleProvider {
             .sql_query()
             .unwrap();
 
+        let client = client.unwrap();
         let load_realm_stmt = client.prepare_cached(&load_realm_sql).await.unwrap();
         let result = client
             .query_one(&load_realm_stmt, &[&realm_id, &role_name])
             .await;
         match result {
-            Ok(row) => Some(self.read_role_record(row)),
-            Err(_) => None,
+            Ok(row) => Ok(self.read_role_record(row)),
+            Err(err) => Err(err.to_string()),
         }
     }
 
     async fn delete_role(&self, realm_id: &str, role_id: &str) -> Result<(), String> {
-        let client = self.database_manager.connection().await.unwrap();
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
         let delete_role_sql = DeleteQueryBuilder::new()
             .table_name(authz_tables::ROLE_TABLE.table_name.clone())
             .where_clauses(vec![
@@ -190,6 +228,7 @@ impl IRoleProvider for RdsRoleProvider {
             .sql_query()
             .unwrap();
 
+        let client = client.unwrap();
         let delete_role_stmt = client.prepare_cached(&delete_role_sql).await.unwrap();
         let result = client
             .execute(&delete_role_stmt, &[&realm_id, &role_id])
@@ -200,8 +239,11 @@ impl IRoleProvider for RdsRoleProvider {
         }
     }
 
-    async fn load_realm_role(&self, realm_id: &str, name: &str) -> Option<RoleModel> {
-        let client = self.database_manager.connection().await.unwrap();
+    async fn load_realm_role(&self, realm_id: &str, name: &str) -> Result<RoleModel, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
         let load_realm_sql = SelectRequestBuilder::new()
             .table_name(authz_tables::ROLE_TABLE.table_name.clone())
             .where_clauses(vec![
@@ -212,18 +254,22 @@ impl IRoleProvider for RdsRoleProvider {
             .sql_query()
             .unwrap();
 
+        let client = client.unwrap();
         let load_realm_stmt = client.prepare_cached(&load_realm_sql).await.unwrap();
         let result = client
             .query_one(&load_realm_stmt, &[&realm_id, &name, &false])
             .await;
         match result {
-            Ok(row) => Some(self.read_role_record(row)),
-            Err(_) => None,
+            Ok(row) => Ok(self.read_role_record(row)),
+            Err(err) => Err(err.to_string()),
         }
     }
 
-    async fn load_role_by_id(&self, realm_id: &str, role_id: &str) -> Option<RoleModel> {
-        let client = self.database_manager.connection().await.unwrap();
+    async fn load_role_by_id(&self, realm_id: &str, role_id: &str) -> Result<RoleModel, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
         let load_realm_sql = SelectRequestBuilder::new()
             .table_name(authz_tables::ROLE_TABLE.table_name.clone())
             .where_clauses(vec![
@@ -233,18 +279,22 @@ impl IRoleProvider for RdsRoleProvider {
             .sql_query()
             .unwrap();
 
+        let client = client.unwrap();
         let load_realm_stmt = client.prepare_cached(&load_realm_sql).await.unwrap();
         let result = client
             .query_one(&load_realm_stmt, &[&realm_id, &role_id])
             .await;
         match result {
-            Ok(row) => Some(self.read_role_record(row)),
-            Err(_) => None,
+            Ok(row) => Ok(self.read_role_record(row)),
+            Err(err) => Err(err.to_string()),
         }
     }
 
     async fn exists_by_name(&self, realm_id: &str, name: &str) -> Result<bool, String> {
-        let client = self.database_manager.connection().await.unwrap();
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
         let load_realm_sql = SelectCountRequestBuilder::new()
             .table_name(authz_tables::ROLE_TABLE.table_name.clone())
             .where_clauses(vec![
@@ -254,6 +304,7 @@ impl IRoleProvider for RdsRoleProvider {
             .sql_query()
             .unwrap();
 
+        let client = client.unwrap();
         let load_realm_stmt = client.prepare_cached(&load_realm_sql).await.unwrap();
         let result = client
             .query_one(&load_realm_stmt, &[&realm_id, &name])
@@ -297,6 +348,9 @@ impl RdsGroupProvider {
 
 #[allow(dead_code)]
 #[async_trait]
+
 impl IGroupProvider for RdsGroupProvider {
-    async fn create_group(&self, _role_model: &GroupModel) {}
+    async fn create_group(&self, role_model: &GroupModel) -> Result<(), String> {
+        Ok(())
+    }
 }
