@@ -11,7 +11,7 @@ use crate::providers::{
         UpdateRequestBuilder,
     },
     interfaces::realm_provider::IRealmProvider,
-    rds::client::postgres_client::DataBaseManager,
+    rds::client::postgres_client::IDataBaseManager,
     rds::tables::realm_table,
 };
 
@@ -19,16 +19,11 @@ use crate::providers::{
 #[derive(Component)]
 #[shaku(interface = IRealmProvider)]
 pub struct RdsRealmProvider {
-    database_manager: Arc<DataBaseManager>,
+    #[shaku(inject)]
+    database_manager: Arc<dyn IDataBaseManager>,
 }
 
 impl RdsRealmProvider {
-    pub fn new(database_manager: Arc<DataBaseManager>) -> Self {
-        Self {
-            database_manager: database_manager,
-        }
-    }
-
     fn read_realm_record(&self, row: Row) -> RealmModel {
         RealmModel {
             realm_id: row.get("realm_id"),

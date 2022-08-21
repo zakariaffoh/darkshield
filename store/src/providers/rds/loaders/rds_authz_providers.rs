@@ -14,7 +14,7 @@ use crate::providers::{
         SqlCriteriaBuilder, UpdateRequestBuilder,
     },
     interfaces::authz_provider::{IGroupProvider, IRoleProvider},
-    rds::client::postgres_client::DataBaseManager,
+    rds::client::postgres_client::IDataBaseManager,
     rds::tables::authz_tables,
 };
 
@@ -22,16 +22,11 @@ use crate::providers::{
 #[derive(Component)]
 #[shaku(interface = IRoleProvider)]
 pub struct RdsRoleProvider {
-    database_manager: Arc<DataBaseManager>,
+    #[shaku(inject)]
+    database_manager: Arc<dyn IDataBaseManager>,
 }
 
 impl RdsRoleProvider {
-    pub fn new(database_manager: Arc<DataBaseManager>) -> Self {
-        Self {
-            database_manager: database_manager,
-        }
-    }
-
     fn read_role_record(&self, row: Row) -> RoleModel {
         RoleModel {
             role_id: row.get("role_id"),
@@ -274,16 +269,11 @@ impl IRoleProvider for RdsRoleProvider {
 #[derive(Component)]
 #[shaku(interface = IGroupProvider)]
 pub struct RdsGroupProvider {
-    database_manager: Arc<DataBaseManager>,
+    #[shaku(inject)]
+    database_manager: Arc<dyn IDataBaseManager>,
 }
 
 impl RdsGroupProvider {
-    pub fn new(database_manager: Arc<DataBaseManager>) -> Self {
-        Self {
-            database_manager: database_manager,
-        }
-    }
-
     fn read_group_record(&self, row: Row) -> GroupModel {
         GroupModel {
             group_id: row.get("group_id"),
