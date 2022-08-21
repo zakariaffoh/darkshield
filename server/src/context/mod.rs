@@ -1,4 +1,3 @@
-use config::ConfigError;
 use deadpool_postgres::PoolConfig;
 use dotenv::dotenv;
 use serde::Deserialize;
@@ -18,6 +17,7 @@ pub struct EnvironmentConfig {
     pg_pool_timeouts_wait_nanos: u64,
     server_host: String,
     server_port: u16,
+    log_level: String,
 }
 
 #[allow(dead_code)]
@@ -44,6 +44,7 @@ impl EnvironmentConfig {
                 .unwrap(),
             server_host: env::var("DS_SEVER_HOST").unwrap(),
             server_port: env::var("DS_SEVER_PORT").unwrap().parse::<u16>().unwrap(),
+            log_level: env::var("RUST_LOG").unwrap(),
         }
     }
 
@@ -65,6 +66,10 @@ impl EnvironmentConfig {
 
     pub fn server_port(&self) -> u16 {
         self.server_port
+    }
+
+    pub fn log_level(&self) -> String {
+        self.log_level.clone()
     }
 }
 

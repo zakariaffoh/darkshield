@@ -1,8 +1,6 @@
 use crate::context::context::DarkShieldContext;
-use models::{
-    auditable::AuditableModel,
-    entities::realm::{RealmCreateModel, RealmUpdateModel},
-};
+use log;
+use models::entities::realm::{RealmCreateModel, RealmUpdateModel};
 use services::services::realm_service::IRealmService;
 use shaku::HasComponent;
 
@@ -18,6 +16,7 @@ pub async fn create_realm(
     realm: web::Json<RealmCreateModel>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
+    log::debug!("Processing create realm request {}", realm.realm_id);
     let realm_service: &dyn IRealmService = context.services().resolve_ref();
     let response = realm_service.create_realm(&realm.0).await;
     response

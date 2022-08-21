@@ -44,8 +44,12 @@ impl RdsRealmProvider {
 
 #[async_trait]
 impl IRealmProvider for RdsRealmProvider {
-    async fn create_realm(&self, realm: &RealmModel) {
-        let client = self.database_manager.connection().await.unwrap();
+    async fn create_realm(&self, realm: &RealmModel) -> Result<(), String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+
         let create_realm_sql = InsertRequestBuilder::new()
             .table_name(realm_table::REALM_TABLE.table_name.clone())
             .columns(realm_table::REALM_TABLE.insert_columns.clone())
@@ -53,6 +57,7 @@ impl IRealmProvider for RdsRealmProvider {
             .sql_query()
             .unwrap();
 
+        let client = client.unwrap();
         let create_realm_stmt = client.prepare_cached(&create_realm_sql).await.unwrap();
         client
             .execute(
@@ -70,10 +75,15 @@ impl IRealmProvider for RdsRealmProvider {
             )
             .await
             .unwrap();
+        Ok(())
     }
 
-    async fn update_realm(&self, realm: &RealmModel) {
-        let client = self.database_manager.connection().await.unwrap();
+    async fn update_realm(&self, realm: &RealmModel) -> Result<(), String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+
         let create_realm_sql = UpdateRequestBuilder::new()
             .table_name(realm_table::REALM_TABLE.table_name.clone())
             .columns(realm_table::REALM_TABLE.update_columns.clone())
@@ -85,6 +95,7 @@ impl IRealmProvider for RdsRealmProvider {
             .sql_query()
             .unwrap();
 
+        let client = client.unwrap();
         let update_realm_stmt = client.prepare_cached(&create_realm_sql).await.unwrap();
         client
             .execute(
@@ -101,10 +112,14 @@ impl IRealmProvider for RdsRealmProvider {
             )
             .await
             .unwrap();
+        Ok(())
     }
 
     async fn delete_realm(&self, tenant: &str, realm_id: &str) -> Result<(), String> {
-        let client = self.database_manager.connection().await.unwrap();
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
         let delete_realm_sql = DeleteQueryBuilder::new()
             .table_name(realm_table::REALM_TABLE.table_name.clone())
             .where_clauses(vec![
@@ -114,6 +129,7 @@ impl IRealmProvider for RdsRealmProvider {
             .sql_query()
             .unwrap();
 
+        let client = client.unwrap();
         let delete_realm_stmt = client.prepare_cached(&delete_realm_sql).await.unwrap();
         let result = client
             .execute(&delete_realm_stmt, &[&tenant, &realm_id])
@@ -124,8 +140,11 @@ impl IRealmProvider for RdsRealmProvider {
         }
     }
 
-    async fn load_realm(&self, tenant: &str, realm_id: &str) -> Option<RealmModel> {
-        let client = self.database_manager.connection().await.unwrap();
+    async fn load_realm(&self, tenant: &str, realm_id: &str) -> Result<RealmModel, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
         let load_realm_sql = SelectRequestBuilder::new()
             .table_name(realm_table::REALM_TABLE.table_name.clone())
             .where_clauses(vec![
@@ -135,52 +154,64 @@ impl IRealmProvider for RdsRealmProvider {
             .sql_query()
             .unwrap();
 
+        let client = client.unwrap();
         let load_realm_stmt = client.prepare_cached(&load_realm_sql).await.unwrap();
         let result = client
             .query_one(&load_realm_stmt, &[&tenant, &realm_id])
             .await;
         match result {
-            Ok(row) => Some(self.read_realm_record(row)),
-            Err(_) => None,
+            Ok(row) => Ok(self.read_realm_record(row)),
+            Err(err) => Err(err.to_string()),
         }
     }
 
-    async fn load_realms(&self) -> Vec<RealmModel> {
-        let client = self.database_manager.connection().await.unwrap();
+    async fn load_realms(&self) -> Result<Vec<RealmModel>, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
         let load_realm_sql = SelectRequestBuilder::new()
             .table_name(realm_table::REALM_TABLE.table_name.clone())
             .sql_query()
             .unwrap();
 
+        let client = client.unwrap();
         let load_realm_stmt = client.prepare_cached(&load_realm_sql).await.unwrap();
         let result = client.query(&load_realm_stmt, &[]).await;
         match result {
-            Ok(rows) => rows
+            Ok(rows) => Ok(rows
                 .into_iter()
                 .map(|row| self.read_realm_record(row))
-                .collect(),
-            Err(_) => Vec::new(),
+                .collect()),
+            Err(err) => Err(err.to_string()),
         }
     }
 
-    async fn load_realm_by_name(&self, name: &str) -> Option<RealmModel> {
-        let client = self.database_manager.connection().await.unwrap();
+    async fn load_realm_by_name(&self, name: &str) -> Result<RealmModel, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
         let load_realm_sql = SelectRequestBuilder::new()
             .table_name(realm_table::REALM_TABLE.table_name.clone())
             .where_clauses(vec![SqlCriteriaBuilder::is_equals("name".to_string())])
             .sql_query()
             .unwrap();
 
+        let client = client.unwrap();
         let load_realm_stmt = client.prepare_cached(&load_realm_sql).await.unwrap();
         let result = client.query_one(&load_realm_stmt, &[&name]).await;
         match result {
-            Ok(row) => Some(self.read_realm_record(row)),
-            Err(_) => None,
+            Ok(row) => Ok(self.read_realm_record(row)),
+            Err(err) => Err(err.to_string()),
         }
     }
 
-    async fn load_realm_by_display_name(&self, display_name: &str) -> Option<RealmModel> {
-        let client = self.database_manager.connection().await.unwrap();
+    async fn load_realm_by_display_name(&self, display_name: &str) -> Result<RealmModel, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
         let load_realm_sql = SelectRequestBuilder::new()
             .table_name(realm_table::REALM_TABLE.table_name.clone())
             .where_clauses(vec![SqlCriteriaBuilder::is_equals(
@@ -189,11 +220,12 @@ impl IRealmProvider for RdsRealmProvider {
             .sql_query()
             .unwrap();
 
+        let client = client.unwrap();
         let load_realm_stmt = client.prepare_cached(&load_realm_sql).await.unwrap();
         let result = client.query_one(&load_realm_stmt, &[&display_name]).await;
         match result {
-            Ok(row) => Some(self.read_realm_record(row)),
-            Err(_) => None,
+            Ok(row) => Ok(self.read_realm_record(row)),
+            Err(err) => Err(err.to_string()),
         }
     }
 }
