@@ -1,24 +1,16 @@
-use store::providers::rds::client::postgres_client::DataBaseManager;
+use services::catalog::catalog::DarkshieldServices;
 
 #[allow(dead_code)]
 pub struct DarkShieldContext {
-    database: DataBaseManager,
-    message: String,
+    services: DarkshieldServices,
 }
 
-#[allow(dead_code)]
 impl DarkShieldContext {
-    pub fn new(database: DataBaseManager) -> Self {
-        Self {
-            database: database,
-            message: "My Context".to_owned(),
-        }
+    pub fn new(services: DarkshieldServices) -> Self {
+        Self { services: services }
     }
 
-    pub fn database(&self) -> &DataBaseManager {
-        &self.database
-    }
-    pub fn message(&self) -> &String {
-        &self.message
+    pub fn services(&self) -> &DarkshieldServices {
+        &self.services
     }
 }

@@ -3,14 +3,30 @@ mod context;
 mod metrics;
 mod services;
 
-use crate::services::rds::database::rds_data_base;
+use ::services::catalog::catalog::DarkshieldServices;
 use actix_web::{middleware::Logger, web::Data, App, HttpServer};
-use context::context::DarkShieldContext;
+use context::{context::DarkShieldContext, EnvironmentConfig};
+use deadpool_postgres::{tokio_postgres, Runtime};
+use dotenv::dotenv;
+use store::providers::rds::client::postgres_client::{DataBaseManager, DataBaseManagerParameters};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let database = rds_data_base();
-    let darkshield_context = DarkShieldContext::new(database);
+    dotenv().ok();
+    let config = EnvironmentConfig::from_env();
+
+    let connection_pool = config
+        .database_config()
+        .create_pool(Some(Runtime::Tokio1), tokio_postgres::NoTls)
+        .unwrap();
+
+    let darkshield_services = DarkshieldServices::builder()
+        .with_component_parameters::<DataBaseManager>(DataBaseManagerParameters {
+            connection_pool: Some(connection_pool),
+        })
+        .build();
+
+    let darkshield_context = DarkShieldContext::new(darkshield_services);
     let context = Data::new(darkshield_context);
 
     HttpServer::new(move || {
@@ -19,7 +35,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(Logger::new("%a %{User-Agent}i"))
             .app_data(context.clone())
     })
-    .bind(("127.0.0.1", 8080))?
+    .bind((config.server_host(), config.server_port()))?
     .run()
     .await
 }
