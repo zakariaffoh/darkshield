@@ -161,9 +161,8 @@ impl IRealmProvider for RdsRealmProvider {
             .unwrap();
 
         let client = client.unwrap();
-        let load_realm_stmt = client.prepare_cached(&load_realm_sql).await.unwrap();
         let result = client
-            .query_opt(&load_realm_stmt, &[&tenant, &realm_id])
+            .query_opt(&load_realm_sql, &[&tenant, &realm_id])
             .await;
         match result {
             Ok(row) => {
