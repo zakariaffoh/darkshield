@@ -28,8 +28,10 @@ pub struct RealmService {
 impl IRealmService for RealmService {
     async fn create_realm(&self, realm: RealmModel) -> ApiResult<RealmModel> {
         let existing_realm = self.realm_provider.load_realm("", &realm.realm_id).await;
-        if let Ok(_) = existing_realm {
-            return ApiResult::from_error(409, "500", "realm already exists");
+        if let Ok(response) = existing_realm {
+            if response.is_some() {
+                return ApiResult::from_error(409, "500", "realm already exists");
+            }
         }
         let mut realm = realm;
         realm.metadata = AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
