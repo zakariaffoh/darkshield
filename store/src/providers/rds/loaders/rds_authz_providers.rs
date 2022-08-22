@@ -192,7 +192,7 @@ impl IRoleProvider for RdsRoleProvider {
         &self,
         realm_id: &str,
         role_name: &str,
-    ) -> Result<RoleModel, String> {
+    ) -> Result<Option<RoleModel>, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
@@ -207,12 +207,17 @@ impl IRoleProvider for RdsRoleProvider {
             .unwrap();
 
         let client = client.unwrap();
-        let load_realm_stmt = client.prepare_cached(&load_realm_sql).await.unwrap();
         let result = client
-            .query_one(&load_realm_stmt, &[&realm_id, &role_name])
+            .query_opt(&load_realm_sql, &[&realm_id, &role_name])
             .await;
         match result {
-            Ok(row) => Ok(self.read_role_record(row)),
+            Ok(row) => {
+                if let Some(r) = row {
+                    Ok(Some(self.read_role_record(r)))
+                } else {
+                    Ok(None)
+                }
+            }
             Err(err) => Err(err.to_string()),
         }
     }
@@ -242,7 +247,11 @@ impl IRoleProvider for RdsRoleProvider {
         }
     }
 
-    async fn load_realm_role(&self, realm_id: &str, name: &str) -> Result<RoleModel, String> {
+    async fn load_realm_role(
+        &self,
+        realm_id: &str,
+        name: &str,
+    ) -> Result<Option<RoleModel>, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
@@ -260,15 +269,25 @@ impl IRoleProvider for RdsRoleProvider {
         let client = client.unwrap();
         let load_realm_stmt = client.prepare_cached(&load_realm_sql).await.unwrap();
         let result = client
-            .query_one(&load_realm_stmt, &[&realm_id, &name, &false])
+            .query_opt(&load_realm_stmt, &[&realm_id, &name, &false])
             .await;
         match result {
-            Ok(row) => Ok(self.read_role_record(row)),
+            Ok(row) => {
+                if let Some(r) = row {
+                    Ok(Some(self.read_role_record(r)))
+                } else {
+                    Ok(None)
+                }
+            }
             Err(err) => Err(err.to_string()),
         }
     }
 
-    async fn load_role_by_id(&self, realm_id: &str, role_id: &str) -> Result<RoleModel, String> {
+    async fn load_role_by_id(
+        &self,
+        realm_id: &str,
+        role_id: &str,
+    ) -> Result<Option<RoleModel>, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
@@ -283,12 +302,17 @@ impl IRoleProvider for RdsRoleProvider {
             .unwrap();
 
         let client = client.unwrap();
-        let load_realm_stmt = client.prepare_cached(&load_realm_sql).await.unwrap();
         let result = client
-            .query_one(&load_realm_stmt, &[&realm_id, &role_id])
+            .query_opt(&load_realm_sql, &[&realm_id, &role_id])
             .await;
         match result {
-            Ok(row) => Ok(self.read_role_record(row)),
+            Ok(row) => {
+                if let Some(r) = row {
+                    Ok(Some(self.read_role_record(r)))
+                } else {
+                    Ok(None)
+                }
+            }
             Err(err) => Err(err.to_string()),
         }
     }

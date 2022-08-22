@@ -18,11 +18,22 @@ pub trait IRoleProvider: Interface {
         roles_ids: &Vec<String>,
     ) -> Result<Vec<RoleModel>, String>;
     async fn load_roles_by_realm(&self, realm_id: &str) -> Result<Vec<RoleModel>, String>;
-    async fn load_role_by_name(&self, realm_id: &str, role_name: &str)
-        -> Result<RoleModel, String>;
+    async fn load_role_by_name(
+        &self,
+        realm_id: &str,
+        role_name: &str,
+    ) -> Result<Option<RoleModel>, String>;
     async fn delete_role(&self, realm_id: &str, role_id: &str) -> Result<(), String>;
-    async fn load_realm_role(&self, realm_id: &str, name: &str) -> Result<RoleModel, String>;
-    async fn load_role_by_id(&self, realm_id: &str, role_id: &str) -> Result<RoleModel, String>;
+    async fn load_realm_role(
+        &self,
+        realm_id: &str,
+        name: &str,
+    ) -> Result<Option<RoleModel>, String>;
+    async fn load_role_by_id(
+        &self,
+        realm_id: &str,
+        role_id: &str,
+    ) -> Result<Option<RoleModel>, String>;
     async fn exists_by_name(&self, realm_id: &str, name: &str) -> Result<bool, String>;
 }
 
