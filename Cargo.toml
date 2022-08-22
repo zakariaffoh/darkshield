@@ -1,0 +1,13 @@
+[workspace]
+
+members = [
+    "commons",
+    "crypto",
+    "models",
+    "protocols",
+    "services",
+    "store",
+    "server",
+]
+
+
