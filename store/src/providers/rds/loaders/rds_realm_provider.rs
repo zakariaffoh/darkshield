@@ -146,7 +146,7 @@ impl IRealmProvider for RdsRealmProvider {
         }
     }
 
-    async fn load_realm(&self, tenant: &str, realm_id: &str) -> Result<RealmModel, String> {
+    async fn load_realm(&self, tenant: &str, realm_id: &str) -> Result<Option<RealmModel>, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
@@ -163,10 +163,16 @@ impl IRealmProvider for RdsRealmProvider {
         let client = client.unwrap();
         let load_realm_stmt = client.prepare_cached(&load_realm_sql).await.unwrap();
         let result = client
-            .query_one(&load_realm_stmt, &[&tenant, &realm_id])
+            .query_opt(&load_realm_stmt, &[&tenant, &realm_id])
             .await;
         match result {
-            Ok(row) => Ok(self.read_realm_record(row)),
+            Ok(row) => {
+                if let Some(r) = row {
+                    Ok(Some(self.read_realm_record(r)))
+                } else {
+                    Ok(None)
+                }
+            }
             Err(err) => Err(err.to_string()),
         }
     }
@@ -193,7 +199,7 @@ impl IRealmProvider for RdsRealmProvider {
         }
     }
 
-    async fn load_realm_by_name(&self, name: &str) -> Result<RealmModel, String> {
+    async fn load_realm_by_name(&self, name: &str) -> Result<Option<RealmModel>, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
@@ -206,14 +212,23 @@ impl IRealmProvider for RdsRealmProvider {
 
         let client = client.unwrap();
         let load_realm_stmt = client.prepare_cached(&load_realm_sql).await.unwrap();
-        let result = client.query_one(&load_realm_stmt, &[&name]).await;
+        let result = client.query_opt(&load_realm_stmt, &[&name]).await;
         match result {
-            Ok(row) => Ok(self.read_realm_record(row)),
+            Ok(row) => {
+                if let Some(r) = row {
+                    Ok(Some(self.read_realm_record(r)))
+                } else {
+                    Ok(None)
+                }
+            }
             Err(err) => Err(err.to_string()),
         }
     }
 
-    async fn load_realm_by_display_name(&self, display_name: &str) -> Result<RealmModel, String> {
+    async fn load_realm_by_display_name(
+        &self,
+        display_name: &str,
+    ) -> Result<Option<RealmModel>, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
@@ -228,9 +243,15 @@ impl IRealmProvider for RdsRealmProvider {
 
         let client = client.unwrap();
         let load_realm_stmt = client.prepare_cached(&load_realm_sql).await.unwrap();
-        let result = client.query_one(&load_realm_stmt, &[&display_name]).await;
+        let result = client.query_opt(&load_realm_stmt, &[&display_name]).await;
         match result {
-            Ok(row) => Ok(self.read_realm_record(row)),
+            Ok(row) => {
+                if let Some(r) = row {
+                    Ok(Some(self.read_realm_record(r)))
+                } else {
+                    Ok(None)
+                }
+            }
             Err(err) => Err(err.to_string()),
         }
     }
