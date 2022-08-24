@@ -68,11 +68,11 @@ impl IRealmProvider for RdsRealmProvider {
             .execute(
                 &create_realm_stmt,
                 &[
+                    &metadata.tenant,
                     &realm.realm_id,
                     &realm.name,
                     &realm.display_name,
                     &realm.enabled,
-                    &metadata.tenant,
                     &metadata.created_by,
                     &metadata.created_at,
                     &metadata.version,
@@ -92,10 +92,7 @@ impl IRealmProvider for RdsRealmProvider {
         let create_realm_sql = UpdateRequestBuilder::new()
             .table_name(realm_table::REALM_TABLE.table_name.clone())
             .columns(realm_table::REALM_TABLE.update_columns.clone())
-            .where_clauses(vec![
-                SqlCriteriaBuilder::is_equals("tenant".to_string()),
-                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
-            ])
+            .where_clauses(vec![SqlCriteriaBuilder::is_equals("realm_id".to_string())])
             .manage_version(true)
             .sql_query()
             .unwrap();
@@ -112,7 +109,6 @@ impl IRealmProvider for RdsRealmProvider {
                     &realm.enabled,
                     &metadata.updated_by,
                     &metadata.updated_at,
-                    &metadata.tenant,
                     &realm.realm_id,
                 ],
             )
@@ -121,7 +117,7 @@ impl IRealmProvider for RdsRealmProvider {
         Ok(())
     }
 
-    async fn delete_realm(&self, tenant: &str, realm_id: &str) -> Result<(), String> {
+    async fn delete_realm(&self, realm_id: &str) -> Result<(), String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
@@ -137,33 +133,26 @@ impl IRealmProvider for RdsRealmProvider {
 
         let client = client.unwrap();
         let delete_realm_stmt = client.prepare_cached(&delete_realm_sql).await.unwrap();
-        let result = client
-            .execute(&delete_realm_stmt, &[&tenant, &realm_id])
-            .await;
+        let result = client.execute(&delete_realm_stmt, &[&realm_id]).await;
         match result {
             Ok(_) => Ok(()),
             Err(error) => Err(error.to_string()),
         }
     }
 
-    async fn load_realm(&self, tenant: &str, realm_id: &str) -> Result<Option<RealmModel>, String> {
+    async fn load_realm(&self, realm_id: &str) -> Result<Option<RealmModel>, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
         }
         let load_realm_sql = SelectRequestBuilder::new()
             .table_name(realm_table::REALM_TABLE.table_name.clone())
-            .where_clauses(vec![
-                SqlCriteriaBuilder::is_equals("tenant".to_string()),
-                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
-            ])
+            .where_clauses(vec![SqlCriteriaBuilder::is_equals("realm_id".to_string())])
             .sql_query()
             .unwrap();
 
         let client = client.unwrap();
-        let result = client
-            .query_opt(&load_realm_sql, &[&tenant, &realm_id])
-            .await;
+        let result = client.query_opt(&load_realm_sql, &[&realm_id]).await;
         match result {
             Ok(row) => {
                 if let Some(r) = row {

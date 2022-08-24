@@ -2,12 +2,6 @@ use async_trait::async_trait;
 use models::entities::authz::{GroupModel, RoleModel};
 use shaku::Interface;
 
-use std::sync::Arc;
-
-use shaku::Component;
-
-use crate::providers::rds::client::postgres_client::IDataBaseManager;
-
 #[async_trait]
 pub trait IRoleProvider: Interface {
     async fn create_role(&self, role_model: &RoleModel) -> Result<(), String>;

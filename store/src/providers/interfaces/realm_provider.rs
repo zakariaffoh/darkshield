@@ -10,9 +10,9 @@ pub trait IRealmProvider: Interface {
 
     async fn load_realms(&self) -> Result<Vec<RealmModel>, String>;
 
-    async fn delete_realm(&self, tenant: &str, realm_id: &str) -> Result<(), String>;
+    async fn delete_realm(&self, realm_id: &str) -> Result<(), String>;
 
-    async fn load_realm(&self, tenant: &str, realm_id: &str) -> Result<Option<RealmModel>, String>;
+    async fn load_realm(&self, realm_id: &str) -> Result<Option<RealmModel>, String>;
 
     async fn load_realm_by_name(&self, name: &str) -> Result<Option<RealmModel>, String>;
 

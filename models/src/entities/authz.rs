@@ -26,7 +26,6 @@ pub struct RoleCreateModel {
     pub description: String,
     pub is_client_role: bool,
     pub display_name: String,
-    pub metadata: AuditableModel,
 }
 
 impl Into<RoleModel> for RoleCreateModel {
@@ -52,7 +51,6 @@ pub struct RoleUpdateModel {
     pub description: String,
     pub is_client_role: bool,
     pub display_name: String,
-    pub metadata: AuditableModel,
 }
 
 impl Into<RoleModel> for RoleUpdateModel {
@@ -91,7 +89,6 @@ pub struct GroupCreateModel {
     pub display_name: String,
     pub description: String,
     pub is_default: bool,
-    pub metadata: Option<AuditableModel>,
 }
 
 impl Into<GroupModel> for GroupCreateModel {
@@ -119,7 +116,6 @@ pub struct GroupUpdateModel {
     pub display_name: String,
     pub description: String,
     pub is_default: bool,
-    pub metadata: Option<AuditableModel>,
 }
 
 impl Into<GroupModel> for GroupUpdateModel {
