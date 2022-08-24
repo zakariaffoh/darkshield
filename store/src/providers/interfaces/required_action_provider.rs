@@ -30,6 +30,12 @@ pub trait IRequiredActionProvider: Interface {
         realm_id: &str,
     ) -> Result<Vec<RequiredActionModel>, String>;
 
+    async fn load_required_actions_by_action_list(
+        &self,
+        realm_id: &str,
+        actions: &Vec<RequiredActionEnum>,
+    ) -> Result<Vec<RequiredActionModel>, String>;
+
     async fn load_required_action_by_action(
         &self,
         realm_id: &str,

@@ -1,8 +1,9 @@
+use postgres_types::{FromSql, ToSql};
 use serde::{Deserialize, Serialize};
 
 use crate::auditable::AuditableModel;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSql, FromSql)]
 pub enum RequiredActionEnum {
     ResetPassword,
     UpdatePassword,

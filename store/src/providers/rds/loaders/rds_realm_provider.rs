@@ -133,9 +133,7 @@ impl IRealmProvider for RdsRealmProvider {
 
         let client = client.unwrap();
         let delete_realm_stmt = client.prepare_cached(&delete_realm_sql).await.unwrap();
-        let result = client
-            .execute(&delete_realm_stmt, &[&tenant, &realm_id])
-            .await;
+        let result = client.execute(&delete_realm_stmt, &[&realm_id]).await;
         match result {
             Ok(_) => Ok(()),
             Err(error) => Err(error.to_string()),

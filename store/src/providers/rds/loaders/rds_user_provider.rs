@@ -1,6 +1,5 @@
 use async_trait::async_trait;
 use models::auditable::AuditableModel;
-use models::entities::realm::RealmModel;
 use models::entities::user::UserModel;
 use tokio_postgres::Row;
 
@@ -61,7 +60,7 @@ impl IUserProvider for RdsUserProvider {
         if let Err(err) = client {
             return Err(err);
         }
-        let create_role_sql = InsertRequestBuilder::new()
+        let create_user_sql = InsertRequestBuilder::new()
             .table_name(user_table::USER_TABLE.table_name.clone())
             .columns(user_table::USER_TABLE.insert_columns.clone())
             .resolve_conflict(false)
@@ -69,12 +68,10 @@ impl IUserProvider for RdsUserProvider {
             .unwrap();
 
         let client = client.unwrap();
-        let create_role_stmt = client.prepare_cached(&create_role_sql).await.unwrap();
         let metadata = user.metadata.as_ref().unwrap();
-
         let response = client
             .execute(
-                &create_role_stmt,
+                &create_user_sql,
                 &[
                     &user.realm_id,
                     &user.user_name,
@@ -106,7 +103,7 @@ impl IUserProvider for RdsUserProvider {
         if let Err(err) = client {
             return Err(err);
         }
-        let create_role_sql = UpdateRequestBuilder::new()
+        let update_role_sql = UpdateRequestBuilder::new()
             .table_name(user_table::USER_TABLE.table_name.clone())
             .columns(user_table::USER_TABLE.update_columns.clone())
             .manage_version(true)
@@ -114,12 +111,11 @@ impl IUserProvider for RdsUserProvider {
             .unwrap();
 
         let client = client.unwrap();
-        let update_role_stmt = client.prepare_cached(&create_role_sql).await.unwrap();
         let metadata = user.metadata.as_ref().unwrap();
 
         let response = client
             .execute(
-                &update_role_stmt,
+                &update_role_sql,
                 &[
                     &user.enabled,
                     &user.email,
@@ -161,9 +157,8 @@ impl IUserProvider for RdsUserProvider {
             .unwrap();
 
         let client = client.unwrap();
-        let load_user_stmt = client.prepare_cached(&load_user_sql).await.unwrap();
         let result = client
-            .query_one(&load_user_stmt, &[&realm_id, &user_name])
+            .query_one(&load_user_sql, &[&realm_id, &user_name])
             .await;
         match result {
             Ok(row) => Ok(row.get::<usize, u32>(0) as u32 > 0),
@@ -186,10 +181,7 @@ impl IUserProvider for RdsUserProvider {
             .unwrap();
 
         let client = client.unwrap();
-        let load_user_stmt = client.prepare_cached(&load_user_sql).await.unwrap();
-        let result = client
-            .query_one(&load_user_stmt, &[&realm_id, &email])
-            .await;
+        let result = client.query_one(&load_user_sql, &[&realm_id, &email]).await;
         match result {
             Ok(row) => Ok(row.get::<usize, u32>(0) as u32 > 0),
             Err(error) => Err(error.to_string()),
@@ -201,7 +193,7 @@ impl IUserProvider for RdsUserProvider {
         realm_id: &str,
         user_name: &str,
         email: &str,
-    ) -> Result<Option<RealmModel>, String> {
+    ) -> Result<Option<UserModel>, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
@@ -213,7 +205,7 @@ impl IUserProvider for RdsUserProvider {
             .await
             .unwrap();
         let result = client
-            .query_opt(&load_user_stmt, &[&realm_id, &email])
+            .query_opt(&load_user_stmt, &[&realm_id, &user_name, &email])
             .await;
         match result {
             Ok(row) => {
@@ -230,8 +222,8 @@ impl IUserProvider for RdsUserProvider {
     async fn load_user_by_user_name(
         &self,
         realm_id: &str,
-        email: &str,
-    ) -> Result<Option<RealmModel>, String> {
+        user_name: &str,
+    ) -> Result<Option<UserModel>, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
@@ -240,7 +232,7 @@ impl IUserProvider for RdsUserProvider {
             .table_name(user_table::USER_TABLE.table_name.clone())
             .where_clauses(vec![
                 SqlCriteriaBuilder::is_equals("realm_id".to_string()),
-                SqlCriteriaBuilder::is_equals("email".to_string()),
+                SqlCriteriaBuilder::is_equals("user_name".to_string()),
             ])
             .sql_query()
             .unwrap();
@@ -248,12 +240,12 @@ impl IUserProvider for RdsUserProvider {
         let client = client.unwrap();
         let load_user_stmt = client.prepare_cached(&load_user_sql).await.unwrap();
         let result = client
-            .query_opt(&load_user_stmt, &[&realm_id, &email])
+            .query_opt(&load_user_stmt, &[&realm_id, &user_name])
             .await;
         match result {
             Ok(row) => {
                 if let Some(r) = row {
-                    Ok(Some(self.read_realm_record(r)))
+                    Ok(Some(self.read_user_record(r)))
                 } else {
                     Ok(None)
                 }

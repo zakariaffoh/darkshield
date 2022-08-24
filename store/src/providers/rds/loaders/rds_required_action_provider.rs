@@ -1,8 +1,6 @@
 use async_trait::async_trait;
 use models::auditable::AuditableModel;
-use models::entities::realm::RealmModel;
 use models::entities::required_action::{RequiredActionEnum, RequiredActionModel};
-use models::entities::user::UserModel;
 use tokio_postgres::Row;
 
 use std::collections::HashMap;
@@ -109,7 +107,7 @@ impl IRequiredActionProvider for RdsRequiredActionProvider {
         let create_required_action_sql = UpdateRequestBuilder::new()
             .table_name(action_table::REQUIRED_ACTIONS_TABLE.table_name.clone())
             .columns(action_table::REQUIRED_ACTIONS_TABLE.update_columns.clone())
-            .resolve_conflict(false)
+            .manage_version(true)
             .sql_query()
             .unwrap();
 
@@ -244,6 +242,41 @@ impl IRequiredActionProvider for RdsRequiredActionProvider {
             .unwrap();
         let result = client
             .query(&load_required_actions_stmt, &[&realm_id])
+            .await;
+        match result {
+            Ok(rows) => Ok(rows
+                .into_iter()
+                .map(|row| self.read_required_action_record(row))
+                .collect()),
+            Err(err) => Err(err.to_string()),
+        }
+    }
+
+    async fn load_required_actions_by_action_list(
+        &self,
+        realm_id: &str,
+        actions: &Vec<RequiredActionEnum>,
+    ) -> Result<Vec<RequiredActionModel>, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let load_required_actions_sql = SelectRequestBuilder::new()
+            .table_name(action_table::REQUIRED_ACTIONS_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_in("action".to_string(), actions.len() as u16),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let client = client.unwrap();
+        let load_required_actions_stmt = client
+            .prepare_cached(&load_required_actions_sql)
+            .await
+            .unwrap();
+        let result = client
+            .query(&load_required_actions_stmt, &[&realm_id, &actions])
             .await;
         match result {
             Ok(rows) => Ok(rows

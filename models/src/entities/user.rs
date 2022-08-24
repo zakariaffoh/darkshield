@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 
+use postgres_types::{FromSql, ToSql};
 use serde::{Deserialize, Serialize};
 
 use crate::auditable::AuditableModel;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSql, FromSql)]
 pub enum UserStorageEnum {
     Local,
     Ldap,
@@ -19,9 +20,9 @@ pub struct UserModel {
     pub email: String,
     pub email_verified: Option<bool>,
     pub required_actions: Option<Vec<String>>,
-    pub not_before: Option<usize>,
+    pub not_before: Option<i64>,
     pub user_storage: Option<UserStorageEnum>,
-    pub attributes: Option<HashMap<String, String>>,
+    pub attributes: Option<HashMap<String, Option<String>>>,
     pub is_service_account: Option<bool>,
     pub service_account_client_link: Option<String>,
     pub metadata: Option<AuditableModel>,
@@ -36,9 +37,9 @@ pub struct UserCreateModel {
     pub email: String,
     pub email_verified: Option<bool>,
     pub required_actions: Option<Vec<String>>,
-    pub not_before: Option<usize>,
+    pub not_before: Option<i64>,
     pub user_storage: Option<UserStorageEnum>,
-    pub attributes: Option<HashMap<String, String>>,
+    pub attributes: Option<HashMap<String, Option<String>>>,
     pub is_service_account: Option<bool>,
     pub service_account_client_link: Option<String>,
 }
@@ -70,8 +71,8 @@ pub struct UserUpdateModel {
     pub email: String,
     pub email_verified: Option<bool>,
     pub required_actions: Option<Vec<String>>,
-    pub not_before: Option<usize>,
-    pub attributes: Option<HashMap<String, String>>,
+    pub not_before: Option<i64>,
+    pub attributes: Option<HashMap<String, Option<String>>>,
     pub is_service_account: Option<bool>,
     pub service_account_client_link: Option<String>,
 }

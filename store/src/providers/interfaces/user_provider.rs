@@ -21,11 +21,11 @@ pub trait IUserProvider: Interface {
         realm_id: &str,
         user_name: &str,
         email: &str,
-    ) -> Result<Option<RealmModel>, String>;
+    ) -> Result<Option<UserModel>, String>;
 
     async fn load_user_by_user_name(
         &self,
         realm_id: &str,
         email: &str,
-    ) -> Result<Option<RealmModel>, String>;
+    ) -> Result<Option<UserModel>, String>;
 }

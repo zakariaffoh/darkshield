@@ -36,6 +36,6 @@ lazy_static! {
             "updated_at".to_owned()
         ]
     };
-    pub static ref SELECT_USER_BY_USER_NAME_EMAIL: &'static str =
-        "SELECT * FROM USERS WHERE user_name=$1 OR email=$2";
+    pub static ref SELECT_USER_BY_USER_NAME_EMAIL: String =
+        "SELECT * FROM USERS WHERE realm_id: $1 AND (user_name=$2 OR email=$3)".to_owned();
 }
