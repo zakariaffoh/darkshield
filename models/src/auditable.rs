@@ -22,4 +22,15 @@ impl AuditableModel {
             version: 1,
         })
     }
+
+    pub fn from_updator(tenant: String, updated_by: String) -> Option<Self> {
+        Some(Self {
+            tenant: tenant,
+            created_by: String::new(),
+            updated_by: updated_by,
+            created_at: 0.0,
+            updated_at: 0.0,
+            version: 1,
+        })
+    }
 }

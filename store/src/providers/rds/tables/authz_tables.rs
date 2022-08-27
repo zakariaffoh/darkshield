@@ -11,13 +11,41 @@ lazy_static! {
             "name".to_owned(),
             "display_name".to_owned(),
             "client_role".to_owned(),
-            "description".to_owned()
+            "description".to_owned(),
+            "created_by".to_owned(),
+            "created_at".to_owned(),
+            "version".to_owned(),
         ],
         update_columns: vec![
             "name".to_owned(),
             "display_name".to_owned(),
             "client_role".to_owned(),
             "description".to_owned(),
+            "updated_by".to_owned(),
+            "updated_at".to_owned()
+        ]
+    };
+
+
+    pub static ref GROUP_TABLE: RdsTable = RdsTable {
+        table_name: "GROUPS".to_owned(),
+        insert_columns: vec![
+            "tenant".to_owned(),
+            "group_id".to_owned(),
+            "realm_id".to_owned(),
+            "name".to_owned(),
+            "display_name".to_owned(),
+            "description".to_owned(),
+            "is_default".to_owned(),
+            "created_by".to_owned(),
+            "created_at".to_owned(),
+            "version".to_owned(),
+        ],
+        update_columns: vec![
+            "name".to_owned(),
+            "display_name".to_owned(),
+            "description".to_owned(),
+            "is_default".to_owned(),
             "updated_by".to_owned(),
             "updated_at".to_owned()
         ]

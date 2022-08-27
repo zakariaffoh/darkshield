@@ -1,14 +1,26 @@
 use postgres_types::{FromSql, ToSql};
 use serde::{Deserialize, Serialize};
-
+use std::fmt::{Display, Formatter, Result};
 use crate::auditable::AuditableModel;
 
-#[derive(Debug, Serialize, Deserialize, ToSql, FromSql)]
+#[derive(Debug, Serialize, Deserialize, ToSql, FromSql, PartialEq, Eq, Hash)]
 pub enum RequiredActionEnum {
     ResetPassword,
     UpdatePassword,
     VerifyEmail,
     ConfigureTotp,
+}
+
+impl Display for RequiredActionEnum {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        let printable = match *self {
+            RequiredActionEnum::ResetPassword => "ResetPassword",
+            RequiredActionEnum::UpdatePassword => "UpdatePassword",
+            RequiredActionEnum::VerifyEmail => "VerifyEmail",
+            RequiredActionEnum::ConfigureTotp => "ConfigureTotp",
+        };
+        write!(f, "{}", printable)
+    }
 }
 
 #[derive(Serialize, Deserialize)]

@@ -39,7 +39,7 @@ pub async fn update_realm(
 #[delete("/realm/{realm_id}")]
 pub async fn delete_realm(
     realm_id: web::Path<String>,
-    context: web::Data<DarkShieldContext>,
+    _context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     format!("delete realm {realm_id}")
 }
@@ -48,7 +48,7 @@ pub async fn delete_realm(
 #[get("/realm/{realm_id}")]
 pub async fn load_realm_by_id(
     realm_id: web::Path<String>,
-    context: web::Data<DarkShieldContext>,
+    _context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let path = realm_id.as_str();
     format!("delete realm {path}")
@@ -56,6 +56,6 @@ pub async fn load_realm_by_id(
 
 #[allow(dead_code)]
 #[get("/realm/load_all")]
-pub async fn load_realms(context: web::Data<DarkShieldContext>) -> impl Responder {
+pub async fn load_realms(_context: web::Data<DarkShieldContext>) -> impl Responder {
     format!("load all realms")
 }

@@ -76,3 +76,14 @@ pub struct UserUpdateModel {
     pub is_service_account: Option<bool>,
     pub service_account_client_link: Option<String>,
 }
+
+
+#[derive(Serialize, Deserialize)]
+pub struct UserConsentModel {
+    pub consent_id: String,
+    pub realm_id: String,
+    pub user_id: String,
+    pub granted_client_scopes: Vec<String>,
+    pub expiry_timestamp: Option<i64>,
+    pub last_updated_date_timestamp: Option<i64>,
+}

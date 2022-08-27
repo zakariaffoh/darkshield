@@ -7,7 +7,6 @@ use actix_web::{middleware, web::Data, App, HttpServer};
 use context::{context::DarkShieldContext, EnvironmentConfig};
 use deadpool_postgres::{tokio_postgres, Runtime};
 use dotenv::dotenv;
-use log;
 use store::providers::rds::client::postgres_client::{DataBaseManager, DataBaseManagerParameters};
 
 #[actix_web::main]

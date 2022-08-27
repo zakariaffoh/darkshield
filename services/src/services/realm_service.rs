@@ -1,8 +1,6 @@
 use async_trait::async_trait;
-use commons::api_result::ApiError;
 use commons::api_result::ApiResult;
 use models::auditable::AuditableModel;
-use models::entities::realm::*;
 use shaku::Component;
 use shaku::Interface;
 use std::sync::Arc;

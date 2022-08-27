@@ -1,4 +1,5 @@
-use crate::services::realm_service::RealmService;
+use crate::services::{realm_service::RealmService, authz_services::{RoleService, GroupService}, auth_services::RequiredActionService};
+#[allow(unused_extern_crates)]
 use shaku::{module, Component, HasComponent, Interface};
 
 use store::providers::rds::{
@@ -6,29 +7,28 @@ use store::providers::rds::{
     loaders::{
         rds_authz_providers::{RdsGroupProvider, RdsRoleProvider},
         rds_realm_provider::RdsRealmProvider,
+        rds_auth_providers::RdsRequiredActionProvider,
     },
 };
 
 module! {
      pub DarkshieldServices {
-        components = [DataBaseManager, RdsRealmProvider, RdsGroupProvider, RdsRoleProvider, RealmService],
+        components = [
+            DataBaseManager, 
+            RdsRealmProvider,
+            RdsGroupProvider, 
+            RdsRoleProvider, 
+            RdsRequiredActionProvider,
+            RealmService,
+            RoleService, 
+            GroupService,
+            RequiredActionService,
+        ],
         providers = [],
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::services::realm_service::IRealmService;
 
-    use super::*;
-    use store::providers::rds::client::postgres_client::DataBaseManagerParameters;
-
-    #[test]
-    fn test_build_services() {
-        let module = DarkshieldServices::builder()
-            .with_component_parameters::<DataBaseManager>(DataBaseManagerParameters {
-                connection_pool: None,
-            })
-            .build();
-    }
 }

@@ -28,12 +28,29 @@ pub trait IRoleProvider: Interface {
         realm_id: &str,
         role_id: &str,
     ) -> Result<Option<RoleModel>, String>;
+
     async fn exists_by_name(&self, realm_id: &str, name: &str) -> Result<bool, String>;
+    async fn count_roles(&self, realm_id: &str) -> Result<u32, String>;
 }
 
 #[async_trait]
 pub trait IGroupProvider: Interface {
     async fn create_group(&self, group_model: &GroupModel) -> Result<(), String>;
+    async fn update_group(&self, group_model: &GroupModel) -> Result<(), String>;
+    async fn delete_group(&self, realm_id: &str, group_id: &str) -> Result<(), String>;
+    async fn load_group_by_name(
+        &self,
+        realm_id: &str,
+        name: &str,
+    ) -> Result<Option<GroupModel>, String>;
+    async fn load_group_by_id(
+        &self,
+        realm_id: &str,
+        group_id: &str,
+    ) -> Result<Option<GroupModel>, String>;
+
+    async fn load_groups_by_realm(&self, realm_id: &str) -> Result<Vec<GroupModel>, String>;
+    async fn count_groups(&self, realm_id: &str) -> Result<u32, String>;
 }
 
 #[async_trait]

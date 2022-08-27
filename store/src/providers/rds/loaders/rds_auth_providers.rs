@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use models::auditable::AuditableModel;
-use models::entities::required_action::{RequiredActionEnum, RequiredActionModel};
+use models::entities::auth::{RequiredActionEnum, RequiredActionModel};
 use tokio_postgres::Row;
 
 use std::collections::HashMap;
@@ -9,7 +9,7 @@ use std::sync::Arc;
 use shaku::Component;
 
 use crate::providers::core::builder::{DeleteQueryBuilder, SelectCountRequestBuilder};
-use crate::providers::interfaces::required_action_provider::IRequiredActionProvider;
+use crate::providers::interfaces::auth_providers::IRequiredActionProvider;
 use crate::providers::rds::client::postgres_client::IDataBaseManager;
 
 use crate::providers::core::builder::{
@@ -145,8 +145,8 @@ impl IRequiredActionProvider for RdsRequiredActionProvider {
 
     async fn update_required_action_priority(
         &self,
-        realm_id: &str,
-        priority_map: &HashMap<String, String>,
+        _realm_id: &str,
+        _priority_map: &HashMap<String, String>,
     ) -> Result<bool, String> {
         Ok(true)
     }

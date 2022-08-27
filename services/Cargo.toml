@@ -11,3 +11,4 @@ models = { path = "../models", version = "0.1.0" }
 store = { path = "../store", version = "0.1.0" }
 shaku = "0.6.1"
 async-trait = "0.1.57"
+log = "0.4.17"

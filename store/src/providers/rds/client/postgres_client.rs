@@ -1,6 +1,5 @@
 use async_trait::async_trait;
-use deadpool_postgres::{Object, Pool, Runtime};
-use tokio_postgres::NoTls;
+use deadpool_postgres::{Object, Pool};
 
 use shaku::{Component, Interface};
 

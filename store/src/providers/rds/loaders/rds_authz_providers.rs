@@ -101,6 +101,7 @@ impl IRoleProvider for RdsRoleProvider {
             .where_clauses(vec![
                 SqlCriteriaBuilder::is_equals("tenant".to_string()),
                 SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("role_id".to_string()),
             ])
             .manage_version(true)
             .sql_query()
@@ -121,8 +122,8 @@ impl IRoleProvider for RdsRoleProvider {
                     &metadata.updated_by,
                     &metadata.updated_at,
                     &metadata.tenant,
-                    &role_model.role_id,
                     &role_model.realm_id,
+                    &role_model.role_id,
                 ],
             )
             .await;
@@ -177,8 +178,7 @@ impl IRoleProvider for RdsRoleProvider {
 
         let client = client.unwrap();
         let load_roles_stmt = client.prepare_cached(&load_roles_sql).await.unwrap();
-        let result = client.query_one(&load_roles_stmt, &[&realm_id]).await;
-        let result = client.query(&load_roles_stmt, &[]).await;
+        let result = client.query(&load_roles_stmt, &[&realm_id]).await;
         match result {
             Ok(rows) => Ok(rows
                 .into_iter()
@@ -341,6 +341,30 @@ impl IRoleProvider for RdsRoleProvider {
             Err(error) => Err(error.to_string()),
         }
     }
+
+    async fn count_roles(&self, realm_id: &str) -> Result<u32, String>{
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let count_role_sql = SelectCountRequestBuilder::new()
+            .table_name(authz_tables::ROLE_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let client = client.unwrap();
+        let count_roles_stmt = client.prepare_cached(&count_role_sql).await.unwrap();
+        let result = client
+            .query_one(&count_roles_stmt, &[&realm_id])
+            .await;
+        match result {
+            Ok(row) => Ok(row.get::<usize, u32>(0) as u32),
+            Err(error) => Err(error.to_string()),
+        }
+    }
 }
 
 #[allow(dead_code)]
@@ -352,7 +376,7 @@ pub struct RdsGroupProvider {
 }
 
 impl RdsGroupProvider {
-    fn _read_group_record(&self, row: Row) -> GroupModel {
+    fn read_group_record(&self, row: Row) -> GroupModel {
         GroupModel {
             group_id: row.get("group_id"),
             realm_id: row.get("realm_id"),
@@ -377,7 +401,228 @@ impl RdsGroupProvider {
 #[async_trait]
 
 impl IGroupProvider for RdsGroupProvider {
-    async fn create_group(&self, role_model: &GroupModel) -> Result<(), String> {
-        Ok(())
+    async fn create_group(&self, group_model: &GroupModel) -> Result<(), String>
+    {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let create_group_sql = InsertRequestBuilder::new()
+            .table_name(authz_tables::GROUP_TABLE.table_name.clone())
+            .columns(authz_tables::GROUP_TABLE.insert_columns.clone())
+            .resolve_conflict(false)
+            .sql_query()
+            .unwrap();
+
+        let client = client.unwrap();
+        let create_group_stmt = client.prepare_cached(&create_group_sql).await.unwrap();
+        let metadata = group_model.metadata.as_ref().unwrap();
+
+        let response = client
+            .execute(
+                &create_group_stmt,
+                &[
+                    &metadata.tenant,
+                    &group_model.group_id,
+                    &group_model.realm_id,
+                    &group_model.name,
+                    &group_model.description,
+                    &group_model.display_name,
+                    &group_model.is_default,
+                    &metadata.tenant,
+                    &metadata.created_by,
+                    &metadata.created_at,
+                    &metadata.version,
+                ],
+            )
+            .await;
+
+        match response {
+            Err(err) => Err(err.to_string()),
+            Ok(_) => Ok(()),
+        }
+    }
+
+    async fn update_group(&self, group_model: &GroupModel) -> Result<(), String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let update_group_sql = UpdateRequestBuilder::new()
+            .table_name(authz_tables::GROUP_TABLE.table_name.clone())
+            .columns(authz_tables::GROUP_TABLE.update_columns.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("group_id".to_string()),
+            ])
+            .manage_version(true)
+            .sql_query()
+            .unwrap();
+
+        let client = client.unwrap();
+        let update_group_stmt = client.prepare_cached(&update_group_sql).await.unwrap();
+        let metadata = group_model.metadata.as_ref().unwrap();
+
+        let response = client
+            .execute(
+                &update_group_stmt,
+                &[
+                    &group_model.name,
+                    &group_model.description,
+                    &group_model.display_name,
+                    &group_model.is_default,
+                    &metadata.updated_at,
+                    &metadata.updated_by,
+                    &group_model.realm_id,
+                    &group_model.group_id,
+                ],
+            )
+            .await;
+
+        match response {
+            Err(err) => Err(err.to_string()),
+            Ok(_) => Ok(()),
+        }
+    }
+
+    async fn delete_group(&self, realm_id: &str, group_id: &str) -> Result<(), String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let delete_group_sql = DeleteQueryBuilder::new()
+            .table_name(authz_tables::GROUP_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("group_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let client = client.unwrap();
+        let delete_group_stmt = client.prepare_cached(&delete_group_sql).await.unwrap();
+        let result = client
+            .execute(&delete_group_stmt, &[&realm_id, &group_id])
+            .await;
+        match result {
+            Ok(_) => Ok(()),
+            Err(error) => Err(error.to_string()),
+        }
+    }
+    async fn load_group_by_name(
+        &self,
+        realm_id: &str,
+        name: &str,
+    ) -> Result<Option<GroupModel>, String>
+    {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let load_realm_sql = SelectRequestBuilder::new()
+            .table_name(authz_tables::GROUP_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("name".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let client = client.unwrap();
+        let result = client
+            .query_opt(&load_realm_sql, &[&realm_id, &name])
+            .await;
+        match result {
+            Ok(row) => {
+                if let Some(r) = row {
+                    Ok(Some(self.read_group_record(r)))
+                } else {
+                    Ok(None)
+                }
+            }
+            Err(err) => Err(err.to_string()),
+        }
+    }
+
+    async fn load_group_by_id(
+        &self,
+        realm_id: &str,
+        group_id: &str,
+    ) -> Result<Option<GroupModel>, String>
+    {
+         let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let load_realm_sql = SelectRequestBuilder::new()
+            .table_name(authz_tables::GROUP_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("group_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let client = client.unwrap();
+        let result = client
+            .query_opt(&load_realm_sql, &[&realm_id, &group_id])
+            .await;
+        match result {
+            Ok(row) => {
+                if let Some(r) = row {
+                    Ok(Some(self.read_group_record(r)))
+                } else {
+                    Ok(None)
+                }
+            }
+            Err(err) => Err(err.to_string()),
+        }
+    }
+
+    async fn count_groups(&self, realm_id: &str) -> Result<u32, String>{
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let load_realm_sql = SelectCountRequestBuilder::new()
+            .table_name(authz_tables::GROUP_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let client = client.unwrap();
+        let count_group_stmt = client.prepare_cached(&load_realm_sql).await.unwrap();
+        let result = client
+            .query_one(&count_group_stmt, &[&realm_id])
+            .await;
+        match result {
+            Ok(row) => Ok(row.get::<usize, u32>(0) as u32),
+            Err(error) => Err(error.to_string()),
+        }
+    }
+
+    async fn load_groups_by_realm(&self, realm_id: &str) -> Result<Vec<GroupModel>, String>{
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let load_groups_sql = SelectRequestBuilder::new()
+            .table_name(authz_tables::GROUP_TABLE.table_name.clone())
+            .where_clauses(vec![SqlCriteriaBuilder::is_equals("realm_id".to_string())])
+            .sql_query()
+            .unwrap();
+
+        let client = client.unwrap();
+        let load_groups_stmt = client.prepare_cached(&load_groups_sql).await.unwrap();
+        let result = client.query(&load_groups_stmt, &[&realm_id]).await;
+        match result {
+            Ok(rows) => Ok(rows
+                .into_iter()
+                .map(|row| self.read_group_record(row))
+                .collect()),
+            Err(err) => Err(err.to_string()),
+        }
     }
 }

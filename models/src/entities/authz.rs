@@ -21,7 +21,6 @@ pub struct RoleModel {
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct RoleCreateModel {
-    pub realm_id: String,
     pub name: String,
     pub description: String,
     pub is_client_role: bool,
@@ -32,7 +31,7 @@ impl Into<RoleModel> for RoleCreateModel {
     fn into(self) -> RoleModel {
         RoleModel {
             role_id: uuid::Uuid::new_v4().to_string(),
-            realm_id: self.realm_id,
+            realm_id: String::new(),
             name: self.name,
             description: self.description,
             is_client_role: self.is_client_role,

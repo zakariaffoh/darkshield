@@ -1,0 +1,216 @@
+use async_trait::async_trait;
+use log;
+use commons::api_result::ApiResult;
+use models::auditable::AuditableModel;
+use models::entities::authz::GroupModel;
+use shaku::Component;
+use shaku::Interface;
+use store::providers::interfaces::authz_provider::IGroupProvider;
+use store::providers::interfaces::authz_provider::IRoleProvider;
+use std::sync::Arc;
+
+use models::entities::authz::RoleModel;
+
+#[async_trait]
+pub trait IRoleService: Interface {
+    async fn create_role(&self, realm: RoleModel) -> ApiResult<RoleModel>;
+    async fn update_role(&self, realm: RoleModel) -> ApiResult<()>;
+    async fn delete_role(&self, realm_id: &str, role_id:&str) -> ApiResult<bool>;
+    async fn load_role_by_id(&self, realm_id: &str, role_id:&str) -> ApiResult<Option<RoleModel>>;
+    async fn load_roles_by_realm(&self, realm_id: &str) -> ApiResult<Vec<RoleModel>>;
+    async fn count_roles_by_realm(&self, realm_id: &str) -> ApiResult<u32>;
+}
+
+#[allow(dead_code)]
+#[derive(Component)]
+#[shaku(interface = IRoleService)]
+pub struct RoleService {
+    #[shaku(inject)]
+    role_provider: Arc<dyn IRoleProvider>,
+}
+
+#[async_trait]
+impl IRoleService for RoleService {
+
+    async fn create_role(&self, role: RoleModel) -> ApiResult<RoleModel> {
+        let existing_role = self.role_provider.load_role_by_name(&role.realm_id, &role.name).await;
+        if let Ok(response) = existing_role {
+            if response.is_some() {
+                log::error!("role: {} already exists in realm: {}", &role.name, &role.realm_id);
+                return ApiResult::from_error(409, "500", "role already exists");
+            }
+        }
+        let mut role = role;
+        role.metadata = AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
+        let created_role = self.role_provider.create_role(&role).await;
+        match created_role {
+            Ok(_) => ApiResult::Data(role),
+            Err(_) => ApiResult::from_error(500, "500", "failed to create role"),
+        }
+    }
+
+    async fn update_role(&self, role: RoleModel) -> ApiResult<()> {
+        let existing_role = self.role_provider.load_role_by_id(&role.realm_id, &role.role_id).await;
+        if let Ok(response) = existing_role {
+            if response.is_none() {
+                log::error!("role: {} not found in realm: {}", &role.name, &role.realm_id);
+                return ApiResult::from_error(404, "404", "role not found");
+            }
+        }
+        let mut role = role;
+        role.metadata = AuditableModel::from_updator("tenant".to_owned(), "zaffoh".to_owned());
+        let updated_role = self.role_provider.update_role(&role).await;
+        match updated_role {
+            Ok(_) => ApiResult::Data(()),
+            Err(_) => ApiResult::from_error(500, "500", "failed to update role"),
+        }
+    }
+
+    async fn delete_role(&self, realm_id: &str, role_id:&str) -> ApiResult<bool> {
+        let existing_role = self.role_provider.load_role_by_id(&realm_id, &role_id).await;
+        if let Ok(response) = existing_role {
+            if response.is_none() {
+                log::error!("role: {} not found in realm: {}", &role_id, &realm_id);
+                return ApiResult::from_error(404, "404", "role not found");
+            }
+        }
+        let updated_role = self.role_provider.delete_role(&realm_id, &role_id).await;
+        match updated_role {
+            Ok(_) => ApiResult::Data(true),
+            Err(_) => ApiResult::from_error(500, "500", "failed to update role"),
+        }
+    }
+
+    async fn load_role_by_id(&self, realm_id: &str, role_id:&str) -> ApiResult<Option<RoleModel>>{
+        let loaded_role = self.role_provider.load_role_by_id(&realm_id, &role_id).await;
+        match loaded_role {
+            Ok(role) => ApiResult::from_data(role),
+            Err(err) => ApiResult::from_error(500, "500", &err)
+        }
+    }
+
+    async fn load_roles_by_realm(&self, realm_id: &str) -> ApiResult<Vec<RoleModel>>{
+        let loaded_roles = self.role_provider.load_roles_by_realm(&realm_id).await;
+        match loaded_roles {
+            Ok(roles) => {
+                log::info!("[{}] roles loaded for realm: {}", roles.len(), &realm_id);
+                ApiResult::from_data(roles)
+            }
+            Err(err) => {
+                log::error!("Failed to load roles from realm: {}", &realm_id);
+                ApiResult::from_error(500, "500", &err)
+            }
+        }
+    }
+
+    async fn count_roles_by_realm(&self, realm_id: &str) -> ApiResult<u32>{
+        let response = self.role_provider.count_roles(&realm_id).await;
+        match response {
+            Ok(count) => ApiResult::from_data(count),
+            Err(err) => ApiResult::from_error(500, "500", &err)
+        }
+    }
+}
+
+
+#[async_trait]
+pub trait IGroupService: Interface {
+    async fn create_group(&self, group: GroupModel) -> ApiResult<GroupModel>;
+    async fn udpate_group(&self, group: GroupModel) -> ApiResult<()>;
+    async fn delete_group(&self, realm_id: &str, group_id: &str) -> ApiResult<()>;
+    async fn load_group_by_id(&self, realm_id: &str, group_id: &str) -> ApiResult<Option<GroupModel>>;
+    async fn load_groups_by_realm(&self, realm_id: &str) -> ApiResult<Vec<GroupModel>>;
+    async fn count_groups(&self, realm_id: &str) -> ApiResult<u32>;
+}
+
+#[allow(dead_code)]
+#[derive(Component)]
+#[shaku(interface = IGroupService)]
+pub struct GroupService {
+    #[shaku(inject)]
+    group_provider: Arc<dyn IGroupProvider>,
+    role_provider: Arc<dyn IRoleProvider>,
+}
+
+#[async_trait]
+impl IGroupService for GroupService {
+
+    async fn create_group(&self, group: GroupModel) -> ApiResult<GroupModel> {
+        let existing_group = self.group_provider.load_group_by_name(&group.realm_id, &group.name).await;
+        if let Ok(response) = existing_group {
+            if response.is_some() {
+                log::error!("group: {} already exists in realm: {}", &group.name, &group.realm_id);
+                return ApiResult::from_error(409, "500", "role already exists");
+            }
+        }
+        let mut group = group;
+        group.metadata = AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
+        let created_group = self.group_provider.create_group(&group).await;
+        match created_group {
+            Ok(_) => ApiResult::Data(group),
+            Err(_) => ApiResult::from_error(500, "500", "failed to create group"),
+        }
+    }
+
+    async fn udpate_group(&self, group: GroupModel) -> ApiResult<()> {
+        let existing_group = self.group_provider.load_group_by_id(&group.realm_id, &group.group_id).await;
+        if let Ok(response) = existing_group {
+            if response.is_some() {
+                log::error!("group: {} already exists in realm: {}", &group.name, &group.realm_id);
+                return ApiResult::from_error(409, "500", "role already exists");
+            }
+        }
+        let mut group = group;
+        group.metadata = AuditableModel::from_updator("tenant".to_owned(), "zaffoh".to_owned());
+        let updated_group = self.group_provider.create_group(&group).await;
+        match updated_group {
+            Ok(_) => ApiResult::Data(()),
+            Err(_) => ApiResult::from_error(500, "500", "failed to update group"),
+        }
+    }
+
+    async fn delete_group(&self, realm_id: &str, group_id: &str) -> ApiResult<()>{
+        let existing_group = self.group_provider.load_group_by_id(&realm_id, &group_id).await;
+        if let Ok(response) = existing_group {
+            if response.is_none() {
+                log::error!("group: {} not found in realm: {}", &group_id, &realm_id);
+                return ApiResult::from_error(404, "404", "role not found");
+            }
+        }
+        let result = self.group_provider.delete_group(&realm_id, &group_id).await;
+        match result {
+            Ok(_) => ApiResult::Data(()),
+            Err(_) => ApiResult::from_error(500, "500", "failed to update role"),
+        }
+    }
+
+    async fn load_group_by_id(&self, realm_id: &str, group_id: &str) -> ApiResult<Option<GroupModel>> {
+        let loaded_group = self.group_provider.load_group_by_id(&realm_id, &group_id).await;
+        match loaded_group {
+            Ok(group) => ApiResult::from_data(group),
+            Err(err) => ApiResult::from_error(500, "500", &err)
+        }
+    }
+
+    async fn load_groups_by_realm(&self, realm_id: &str) -> ApiResult<Vec<GroupModel>>{
+        let loaded_groups = self.group_provider.load_groups_by_realm(&realm_id).await;
+        match loaded_groups {
+            Ok(groups) => {
+                log::info!("[{}] groups loaded for realm: {}", groups.len(), &realm_id);
+                ApiResult::from_data(groups)
+            }
+            Err(err) => {
+                log::error!("Failed to load group from realm: {}", &realm_id);
+                ApiResult::from_error(500, "500", &err)
+            }
+        }
+    }
+
+    async fn count_groups(&self, realm_id: &str) -> ApiResult<u32>{
+        let response = self.group_provider.count_groups(&realm_id).await;
+        match response {
+            Ok(count) => ApiResult::from_data(count),
+            Err(err) => ApiResult::from_error(500, "500", &err)
+        }
+    }
+}

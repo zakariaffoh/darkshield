@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use models::entities::{realm::RealmModel, user::UserModel};
+use models::entities::{user::UserModel};
 use shaku::Interface;
 
 #[async_trait]

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use async_trait::async_trait;
-use models::entities::required_action::{RequiredActionEnum, RequiredActionModel};
+use models::entities::auth::{RequiredActionEnum, RequiredActionModel};
 use shaku::Interface;
 
 #[async_trait]
