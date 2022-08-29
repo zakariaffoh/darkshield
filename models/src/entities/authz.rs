@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::auditable::AuditableModel;
 use serde::{Deserialize, Serialize};
 use uuid;
@@ -127,6 +129,52 @@ impl Into<GroupModel> for GroupUpdateModel {
             roles: None,
             display_name: self.display_name,
             is_default: self.is_default,
+            metadata: None,
+        }
+    }
+}
+
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct IdentityProviderModel {
+    pub internal_id: String,
+    pub provider_id: String,
+    pub realm_id: String,
+    pub name: String,
+    pub display_name: String,
+    pub description: String,
+    pub enabled: Option<bool>,
+    pub trust_email: Option<bool>,
+    pub configs: Option<HashMap<String, Option<String>>>,
+    pub metadata: Option<AuditableModel>,
+}
+
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct IdentityProviderMutationModel {
+    pub provider_id: String,
+    pub name: String,
+    pub display_name: String,
+    pub description: String,
+    pub enabled: Option<bool>,
+    pub trust_email: Option<bool>,
+    pub configs: Option<HashMap<String, Option<String>>>,
+}
+
+impl Into<IdentityProviderModel> for IdentityProviderMutationModel {
+    fn into(self) -> IdentityProviderModel {
+        IdentityProviderModel {
+            internal_id: uuid::Uuid::new_v4().to_string(),
+            provider_id: self.provider_id,
+            realm_id: String::new(),
+            name: self.name,
+            display_name: self.display_name,
+            description: self.description,
+            enabled:  self.enabled,
+            trust_email: self.trust_email,
+            configs: self.configs,
             metadata: None,
         }
     }

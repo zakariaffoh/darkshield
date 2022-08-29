@@ -1,6 +1,6 @@
 use actix_web::{web, HttpResponse};
 
-use super::{metrics_api::metrics_handler, admin::{realm_api, role_api, group_api}};
+use super::{metrics_api::metrics_handler, admin::realm::realm_api, admin::authz::*};
 
 pub fn register_apis(api_config: &mut web::ServiceConfig) {
     api_config
