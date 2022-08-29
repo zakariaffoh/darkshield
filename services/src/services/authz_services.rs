@@ -1,15 +1,14 @@
-use async_trait::async_trait;
+use std::sync::Arc;
 use log;
-use commons::api_result::ApiResult;
-use models::auditable::AuditableModel;
-use models::entities::authz::GroupModel;
 use shaku::Component;
 use shaku::Interface;
+use async_trait::async_trait;
+use models::entities::authz::*;
+use commons::api_result::ApiResult;
+use models::auditable::AuditableModel;
 use store::providers::interfaces::authz_provider::IGroupProvider;
+use store::providers::interfaces::authz_provider::IIdentityProvider;
 use store::providers::interfaces::authz_provider::IRoleProvider;
-use std::sync::Arc;
-
-use models::entities::authz::RoleModel;
 
 #[async_trait]
 pub trait IRoleService: Interface {
@@ -211,6 +210,118 @@ impl IGroupService for GroupService {
         match response {
             Ok(count) => ApiResult::from_data(count),
             Err(err) => ApiResult::from_error(500, "500", &err)
+        }
+    }
+}
+
+
+#[async_trait]
+pub trait IIdentityProviderService: Interface {
+    async fn create_identity_provider(&self, idp: IdentityProviderModel) -> ApiResult<IdentityProviderModel>;
+    async fn udpate_identity_provider(&self, idp: IdentityProviderModel) -> ApiResult<()>;
+    async fn load_identity_provider(&self, realm_id: &str, internal_id: &str) -> ApiResult<Option<IdentityProviderModel>>;
+    async fn load_identity_providers_by_realm(&self, realm_id: &str) -> ApiResult<Vec<IdentityProviderModel>>;
+    async fn delete_identity_provider(&self, realm_id: &str, internal_id: &str) -> ApiResult<()>;
+    async fn exists_by_alias(&self, realm_id: &str, alias: &str) -> ApiResult<bool>;
+}
+
+#[allow(dead_code)]
+#[derive(Component)]
+#[shaku(interface = IIdentityProviderService)]
+pub struct IdentityProviderService {
+    #[shaku(inject)]
+    identity_provider: Arc<dyn IIdentityProvider>,
+}
+
+#[async_trait]
+impl IIdentityProviderService for IdentityProviderService {
+
+    async fn create_identity_provider(&self, idp: IdentityProviderModel) -> ApiResult<IdentityProviderModel>{
+        let existing_idp = self.identity_provider.load_identity_provider_by_internal_id(&idp.realm_id, &idp.internal_id).await;
+        if let Ok(response) = existing_idp {
+            if response.is_some() {
+                log::error!("identity privider: {} already exists in realm: {}", &idp.name, &idp.realm_id);
+                return ApiResult::from_error(409, "500", "identity privider already exists");
+            }
+        }
+        let mut idp = idp;
+        idp.metadata = AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
+        let created_idp = self.identity_provider.create_identity_provider(&idp).await;
+        match created_idp {
+            Ok(_) => ApiResult::Data(idp),
+            Err(_) => ApiResult::from_error(500, "500", "failed to create identity privider"),
+        }
+    }
+
+    async fn udpate_identity_provider(&self, idp: IdentityProviderModel) -> ApiResult<()>{
+        let existing_idp = self.identity_provider.load_identity_provider_by_internal_id(&idp.realm_id, &idp.internal_id).await;
+        if let Ok(response) = existing_idp {
+            if response.is_none() {
+                log::error!("identity provider: {} already exists in realm: {}", &idp.internal_id, &idp.realm_id);
+                return ApiResult::from_error(409, "500", "identity provider already exists");
+            }
+            let existing_idp = response.unwrap();
+            if existing_idp.name != idp.name {
+                let has_alias = self.identity_provider.exists_by_alias(&idp.realm_id, &idp.internal_id).await;
+                if let Ok(res) = has_alias{
+                    if res {
+                        log::error!("identity provider with name: {} already exists in realm: {}", &idp.name, &idp.realm_id);
+                        return ApiResult::from_error(409, "500", &format!("identity provider already for alias {0}", &idp.name));
+                    }
+                }
+            }
+        }
+        let mut idp = idp;
+        idp.metadata = AuditableModel::from_updator("tenant".to_owned(), "zaffoh".to_owned());
+        let updated_idp = self.identity_provider.udpate_identity_provider(&idp).await;
+        match updated_idp {
+            Ok(_) => ApiResult::Data(()),
+            Err(_) => ApiResult::from_error(500, "500", "failed to update identity provider"),
+        }
+    }
+
+    async fn load_identity_provider(&self, realm_id: &str, internal_id: &str) -> ApiResult<Option<IdentityProviderModel>>{
+        let loaded_idp = self.identity_provider.load_identity_provider_by_internal_id(&realm_id, &internal_id).await;
+        match loaded_idp {
+            Ok(idp) => ApiResult::from_data(idp),
+            Err(err) => ApiResult::from_error(500, "500", &err)
+        }
+    }
+
+    async fn load_identity_providers_by_realm(&self, realm_id: &str) -> ApiResult<Vec<IdentityProviderModel>>{
+        let loaded_idps = self.identity_provider.load_identity_provider_by_realm(&realm_id).await;
+        match loaded_idps {
+            Ok(idps) => {
+                log::info!("[{}] identity providers loaded for realm: {}", idps.len(), &realm_id);
+                ApiResult::from_data(idps)
+            }
+            Err(err) => {
+                log::error!("Failed to load identity providers from realm: {}", &realm_id);
+                ApiResult::from_error(500, "500", &err)
+            }
+        }
+    }
+
+    async fn delete_identity_provider(&self, realm_id: &str, internal_id: &str) -> ApiResult<()>{
+        let existing_idp = self.identity_provider.load_identity_provider_by_internal_id(&realm_id, &internal_id).await;
+        if let Ok(response) = existing_idp {
+            if response.is_none() {
+                log::error!("identity provider: {} not found in realm: {}", &internal_id, &realm_id);
+                return ApiResult::from_error(404, "404", "identity provider not found");
+            }
+        }
+        let updated_idp = self.identity_provider.remove_identity_provider(&realm_id, &internal_id).await;
+        match updated_idp {
+            Ok(_) => ApiResult::Data(()),
+            Err(_) => ApiResult::from_error(500, "500", "failed to update identity provider"),
+        }
+    }
+
+    async fn exists_by_alias(&self, realm_id: &str, alias: &str) -> ApiResult<bool>{
+        let existing_idp = self.identity_provider.exists_by_alias(&realm_id, &alias).await;
+        match existing_idp {
+            Ok(res) => ApiResult::Data(res),
+            Err(_) => ApiResult::from_error(500, "500", "failed check identity provider"),
         }
     }
 }

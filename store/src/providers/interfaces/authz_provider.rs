@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use models::entities::authz::{GroupModel, RoleModel};
+use models::entities::authz::{GroupModel, RoleModel, IdentityProviderModel};
 use shaku::Interface;
 
 #[async_trait]
@@ -55,3 +55,27 @@ pub trait IGroupProvider: Interface {
 
 #[async_trait]
 pub trait IScopeProvider: Interface {}
+
+
+
+#[async_trait]
+pub trait IIdentityProvider: Interface {
+    async fn create_identity_provider(&self, idp: &IdentityProviderModel)  -> Result<(), String>;
+    
+    async fn udpate_identity_provider(&self, idp: &IdentityProviderModel)  -> Result<(), String>;
+
+    async fn load_identity_provider_by_internal_id(
+        &self,
+        realm_id: &str,
+        internal_id: &str,
+    ) -> Result<Option<IdentityProviderModel>, String>;
+
+    async fn load_identity_provider_by_realm(
+        &self,
+        realm_id: &str,
+    ) -> Result<Vec<IdentityProviderModel>, String>;
+
+    async fn remove_identity_provider(&self, realm_id: &str, provider_id: &str) -> Result<bool, String>;
+
+    async fn exists_by_alias(&self, realm_id: &str, provider_id: &str) -> Result<bool, String>;
+}
