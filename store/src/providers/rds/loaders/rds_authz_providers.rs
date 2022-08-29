@@ -637,7 +637,7 @@ impl RdsIdentityProvider {
         IdentityProviderModel {
             internal_id: row.get("internal_id"),
             provider_id: row.get("provider_id"),
-            realm_id: row.get("provider_id"),
+            realm_id: row.get("realm_id"),
             name: row.get("name"),
             description: row.get("description"),
             display_name: row.get("display_name"),
