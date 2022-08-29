@@ -1,9 +1,10 @@
-use super::authz::RoleModel;
+use std::collections::HashMap;
+use postgres_types::{FromSql, ToSql};
 use crate::auditable::AuditableModel;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use super::authz::RoleModel;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSql, FromSql, PartialEq, Eq, Hash)]
 pub enum ProtocolEnum {
     OpendId,
 }
@@ -38,7 +39,7 @@ pub struct ClientModel {
     pub not_before: Option<usize>,
     pub attributes: Option<HashMap<String, String>>,
     pub service_account_enabled: Option<bool>,
-    pub auth_flow_binding_overrides: Option<HashMap<String, String>>,
+    pub auth_flow_binding_overrides: Option<HashMap<String, Option<String>>>,
     pub metadata: Option<AuditableModel>,
 }
 
@@ -91,8 +92,6 @@ impl Into<ClientModel> for ClientCreateModel {
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ClientUpdateModel {
-    pub client_id: String,
-    pub realm_id: String,
     pub name: String,
     pub display_name: String,
     pub description: String,
@@ -119,15 +118,15 @@ pub struct ClientUpdateModel {
     pub not_before: Option<usize>,
     pub attributes: Option<HashMap<String, String>>,
     pub service_account_enabled: Option<bool>,
-    pub auth_flow_binding_overrides: Option<HashMap<String, String>>,
+    pub auth_flow_binding_overrides: Option<HashMap<String, Option<String>>>,
     pub metadata: Option<AuditableModel>,
 }
 
 impl Into<ClientModel> for ClientUpdateModel {
     fn into(self) -> ClientModel {
         ClientModel {
-            client_id: self.client_id,
-            realm_id: self.realm_id,
+            client_id: String::new(),
+            realm_id: String::new(),
             name: self.name,
             display_name: self.display_name,
             description: self.description,
@@ -170,7 +169,35 @@ pub struct ClientScopeModel {
     pub roles: Option<Vec<RoleModel>>,
     pub protocol_mappers: Option<Vec<ProtocolMapperModel>>,
     pub default_scope: Option<bool>,
-    pub attributes: Option<HashMap<String, String>>,
+    pub attributes: Option<HashMap<String, Option<String>>>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ClientScopeMutationModel {
+    pub name: String,
+    pub description: String,
+    pub protocol: ProtocolEnum,
+    pub roles: Option<Vec<RoleModel>>,
+    pub protocol_mappers: Option<Vec<ProtocolMapperModel>>,
+    pub default_scope: Option<bool>,
+    pub attributes: Option<HashMap<String, Option<String>>>,
+}
+
+impl Into<ClientScopeModel> for ClientScopeMutationModel {
+    fn into(self) -> ClientScopeModel {
+        ClientScopeModel {
+            client_scope_id: String::new(),
+            realm_id: String::new(),
+            name: self.name,
+            description: self.description,
+            protocol: self.protocol,
+            roles: self.roles,
+            protocol_mappers: self.protocol_mappers,
+            default_scope: self.default_scope,
+            attributes: self.attributes,
+        }
+    }
 }
 
 #[allow(dead_code)]
@@ -181,25 +208,24 @@ pub struct ProtocolMapperModel {
     pub mapper: String,
     pub description: String,
     pub protocol: ProtocolEnum,
-    pub configs: Option<HashMap<String, String>>,
+    pub configs: Option<HashMap<String, Option<String>>>,
     pub metadata: Option<AuditableModel>,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ProtocolMapperCreateModel {
-    pub realm_id: String,
+pub struct ProtocolMapperMutationModel {
     pub mapper: String,
     pub description: String,
     pub protocol: ProtocolEnum,
-    pub configs: Option<HashMap<String, String>>,
+    pub configs: Option<HashMap<String, Option<String>>>,
 }
 
-impl Into<ProtocolMapperModel> for ProtocolMapperCreateModel {
+impl Into<ProtocolMapperModel> for ProtocolMapperMutationModel {
     fn into(self) -> ProtocolMapperModel {
         ProtocolMapperModel {
-            mapper_id: uuid::Uuid::new_v4().to_string(),
-            realm_id: self.realm_id,
+            mapper_id: String::new(),
+            realm_id: String::new(),
             mapper: self.mapper,
             description: self.description,
             protocol: self.protocol,
