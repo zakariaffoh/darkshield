@@ -1,8 +1,5 @@
 use crate::services::{realm_service::RealmService, authz_services::*, auth_services::*};
-use crate::services::authz_services::*;
-use crate::services::auth_services::*;
 
-#[allow(unused_extern_crates)]
 use shaku::{module, Component, HasComponent, Interface};
 
 use store::providers::rds::{

@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use log;
+use uuid;
 use shaku::Component;
 use shaku::Interface;
 use async_trait::async_trait;
@@ -40,6 +41,7 @@ impl IRoleService for RoleService {
             }
         }
         let mut role = role;
+        role.role_id = uuid::Uuid::new_v4().to_string();
         role.metadata = AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
         let created_role = self.role_provider.create_role(&role).await;
         match created_role {
@@ -143,6 +145,7 @@ impl IGroupService for GroupService {
             }
         }
         let mut group = group;
+        group.group_id = uuid::Uuid::new_v4().to_string();
         group.metadata = AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
         let created_group = self.group_provider.create_group(&group).await;
         match created_group {
@@ -245,6 +248,7 @@ impl IIdentityProviderService for IdentityProviderService {
             }
         }
         let mut idp = idp;
+        idp.internal_id = uuid::Uuid::new_v4().to_string();
         idp.metadata = AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
         let created_idp = self.identity_provider.create_identity_provider(&idp).await;
         match created_idp {

@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use crate::auditable::AuditableModel;
 use serde::{Deserialize, Serialize};
-use uuid;
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
@@ -22,43 +21,18 @@ pub struct RoleModel {
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
-pub struct RoleCreateModel {
+pub struct RoleMutationModel {
     pub name: String,
     pub description: String,
     pub is_client_role: bool,
     pub display_name: String,
 }
 
-impl Into<RoleModel> for RoleCreateModel {
+impl Into<RoleModel> for RoleMutationModel {
     fn into(self) -> RoleModel {
         RoleModel {
-            role_id: uuid::Uuid::new_v4().to_string(),
+            role_id: String::new(),
             realm_id: String::new(),
-            name: self.name,
-            description: self.description,
-            is_client_role: self.is_client_role,
-            display_name: self.display_name,
-            metadata: None,
-        }
-    }
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Deserialize)]
-pub struct RoleUpdateModel {
-    pub role_id: String,
-    pub realm_id: String,
-    pub name: String,
-    pub description: String,
-    pub is_client_role: bool,
-    pub display_name: String,
-}
-
-impl Into<RoleModel> for RoleUpdateModel {
-    fn into(self) -> RoleModel {
-        RoleModel {
-            role_id: self.role_id,
-            realm_id: self.realm_id,
             name: self.name,
             description: self.description,
             is_client_role: self.is_client_role,
@@ -83,8 +57,7 @@ pub struct GroupModel {
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
-pub struct GroupCreateModel {
-    pub realm_id: String,
+pub struct GroupMutationModel {
     pub name: String,
     pub roles: Option<Vec<RoleModel>>,
     pub display_name: String,
@@ -92,11 +65,11 @@ pub struct GroupCreateModel {
     pub is_default: bool,
 }
 
-impl Into<GroupModel> for GroupCreateModel {
+impl Into<GroupModel> for GroupMutationModel {
     fn into(self) -> GroupModel {
         GroupModel {
             group_id: uuid::Uuid::new_v4().to_string(),
-            realm_id: self.realm_id,
+            realm_id: String::new(),
             name: self.name,
             description: self.description,
             roles: None,
@@ -106,34 +79,6 @@ impl Into<GroupModel> for GroupCreateModel {
         }
     }
 }
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize)]
-pub struct GroupUpdateModel {
-    pub group_id: String,
-    pub realm_id: String,
-    pub name: String,
-    pub roles: Option<Vec<RoleModel>>,
-    pub display_name: String,
-    pub description: String,
-    pub is_default: bool,
-}
-
-impl Into<GroupModel> for GroupUpdateModel {
-    fn into(self) -> GroupModel {
-        GroupModel {
-            group_id: self.group_id,
-            realm_id: self.realm_id,
-            name: self.name,
-            description: self.description,
-            roles: None,
-            display_name: self.display_name,
-            is_default: self.is_default,
-            metadata: None,
-        }
-    }
-}
-
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
@@ -166,9 +111,9 @@ pub struct IdentityProviderMutationModel {
 impl Into<IdentityProviderModel> for IdentityProviderMutationModel {
     fn into(self) -> IdentityProviderModel {
         IdentityProviderModel {
-            internal_id: uuid::Uuid::new_v4().to_string(),
-            provider_id: self.provider_id,
             realm_id: String::new(),
+            internal_id: String::new(),
+            provider_id: self.provider_id,
             name: self.name,
             display_name: self.display_name,
             description: self.description,

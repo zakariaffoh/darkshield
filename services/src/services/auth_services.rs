@@ -1,4 +1,5 @@
 use log;
+use uuid;
 use models::entities::auth::AuthenticationExecutionModel;
 use models::entities::auth::AuthenticatorConfigModel;
 use store::providers::interfaces::auth_providers::IAuthenticationExecutionProvider;
@@ -47,6 +48,7 @@ impl IRequiredActionService for RequiredActionService {
             }
         }
         let mut action = action;
+        action.action_id = uuid::Uuid::new_v4().to_string();
         action.metadata = AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
         let created_action = self.required_action_provider.register_required_action(&action).await;
         match created_action {
@@ -192,6 +194,7 @@ impl IAuthenticationFlowService for AuthenticationFlowService{
             }
         }
         let mut flow = flow;
+        flow.flow_id = uuid::Uuid::new_v4().to_string();
         flow.metadata = AuditableModel::from_updator("tenant".to_owned(), "zaffoh".to_owned());
         let updated_flow = self.authentication_flow_provider.update_authentication_flow(&flow).await;
         match updated_flow {
@@ -275,6 +278,7 @@ impl IAuthenticationExecutionService for AuthenticationExecutionService {
             }
         }
         let mut execution = execution;
+        execution.execution_id = uuid::Uuid::new_v4().to_string();
         execution.metadata = AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
         let created_execution = self.authentication_execution_provider.create_authentication_execution(&execution).await;
         match created_execution {
@@ -374,6 +378,7 @@ impl IAuthenticatorConfigService for AuthenticatorConfigService{
             }
         }
         let mut config = config;
+        config.config_id = uuid::Uuid::new_v4().to_string();
         config.metadata = AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
         let created_config = self.authenticator_config_provider.create_authenticator_config(&config).await;
         match created_config {

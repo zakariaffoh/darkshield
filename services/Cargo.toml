@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 commons = { path = "../commons", version = "0.1.0" }
 models = { path = "../models", version = "0.1.0" }
@@ -12,3 +11,10 @@ store = { path = "../store", version = "0.1.0" }
 shaku = "0.6.1"
 async-trait = "0.1.57"
 log = "0.4.17"
+[dependencies.uuid]
+version = "1.1.2"
+features = [
+    "v4",                # Lets you generate random UUIDs
+    "fast-rng",          # Use a faster (but still sufficiently random) RNG
+    "macro-diagnostics", # Enable better diagnostics for compile-time UUIDs
+]
