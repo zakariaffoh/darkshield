@@ -1,10 +1,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use models::{
-    auditable::AuditableModel,
-    entities::authz::*,
-};
+use models::{auditable::AuditableModel, entities::authz::*};
 use shaku::Component;
 use tokio_postgres::Row;
 
@@ -23,7 +20,7 @@ pub struct RdsRoleProvider {
 }
 
 impl RdsRoleProvider {
-    fn read_role_record(&self, row: Row) -> RoleModel {
+    pub fn read_role_record(&self, row: Row) -> RoleModel {
         RoleModel {
             role_id: row.get("role_id"),
             realm_id: row.get("realm_id"),
@@ -338,24 +335,20 @@ impl IRoleProvider for RdsRoleProvider {
         }
     }
 
-    async fn count_roles(&self, realm_id: &str) -> Result<u32, String>{
+    async fn count_roles(&self, realm_id: &str) -> Result<u32, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
         }
         let count_role_sql = SelectCountRequestBuilder::new()
             .table_name(authz_tables::ROLE_TABLE.table_name.clone())
-            .where_clauses(vec![
-                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
-            ])
+            .where_clauses(vec![SqlCriteriaBuilder::is_equals("realm_id".to_string())])
             .sql_query()
             .unwrap();
 
         let client = client.unwrap();
         let count_roles_stmt = client.prepare_cached(&count_role_sql).await.unwrap();
-        let result = client
-            .query_one(&count_roles_stmt, &[&realm_id])
-            .await;
+        let result = client.query_one(&count_roles_stmt, &[&realm_id]).await;
         match result {
             Ok(row) => Ok(row.get::<usize, u32>(0) as u32),
             Err(error) => Err(error.to_string()),
@@ -397,8 +390,7 @@ impl RdsGroupProvider {
 #[async_trait]
 
 impl IGroupProvider for RdsGroupProvider {
-    async fn create_group(&self, group_model: &GroupModel) -> Result<(), String>
-    {
+    async fn create_group(&self, group_model: &GroupModel) -> Result<(), String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
@@ -509,8 +501,7 @@ impl IGroupProvider for RdsGroupProvider {
         &self,
         realm_id: &str,
         name: &str,
-    ) -> Result<Option<GroupModel>, String>
-    {
+    ) -> Result<Option<GroupModel>, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
@@ -525,9 +516,7 @@ impl IGroupProvider for RdsGroupProvider {
             .unwrap();
 
         let client = client.unwrap();
-        let result = client
-            .query_opt(&load_realm_sql, &[&realm_id, &name])
-            .await;
+        let result = client.query_opt(&load_realm_sql, &[&realm_id, &name]).await;
         match result {
             Ok(row) => {
                 if let Some(r) = row {
@@ -544,9 +533,8 @@ impl IGroupProvider for RdsGroupProvider {
         &self,
         realm_id: &str,
         group_id: &str,
-    ) -> Result<Option<GroupModel>, String>
-    {
-         let client = self.database_manager.connection().await;
+    ) -> Result<Option<GroupModel>, String> {
+        let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
         }
@@ -575,31 +563,27 @@ impl IGroupProvider for RdsGroupProvider {
         }
     }
 
-    async fn count_groups(&self, realm_id: &str) -> Result<u32, String>{
+    async fn count_groups(&self, realm_id: &str) -> Result<u32, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
         }
         let load_realm_sql = SelectCountRequestBuilder::new()
             .table_name(authz_tables::GROUP_TABLE.table_name.clone())
-            .where_clauses(vec![
-                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
-            ])
+            .where_clauses(vec![SqlCriteriaBuilder::is_equals("realm_id".to_string())])
             .sql_query()
             .unwrap();
 
         let client = client.unwrap();
         let count_group_stmt = client.prepare_cached(&load_realm_sql).await.unwrap();
-        let result = client
-            .query_one(&count_group_stmt, &[&realm_id])
-            .await;
+        let result = client.query_one(&count_group_stmt, &[&realm_id]).await;
         match result {
             Ok(row) => Ok(row.get::<usize, u32>(0) as u32),
             Err(error) => Err(error.to_string()),
         }
     }
 
-    async fn load_groups_by_realm(&self, realm_id: &str) -> Result<Vec<GroupModel>, String>{
+    async fn load_groups_by_realm(&self, realm_id: &str) -> Result<Vec<GroupModel>, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
@@ -622,7 +606,6 @@ impl IGroupProvider for RdsGroupProvider {
         }
     }
 }
-
 
 #[allow(dead_code)]
 #[derive(Component)]
@@ -658,8 +641,7 @@ impl RdsIdentityProvider {
 
 #[async_trait]
 impl IIdentityProvider for RdsIdentityProvider {
-
-    async fn create_identity_provider(&self, idp: &IdentityProviderModel)  -> Result<(), String>{
+    async fn create_identity_provider(&self, idp: &IdentityProviderModel) -> Result<(), String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
@@ -672,11 +654,8 @@ impl IIdentityProvider for RdsIdentityProvider {
             .unwrap();
 
         let client = client.unwrap();
-        let create_idp_stmt = client
-            .prepare_cached(&create_idp_sql)
-            .await
-            .unwrap();
-  
+        let create_idp_stmt = client.prepare_cached(&create_idp_sql).await.unwrap();
+
         let metadata = idp.metadata.as_ref().unwrap();
         let response = client
             .execute(
@@ -705,7 +684,7 @@ impl IIdentityProvider for RdsIdentityProvider {
         }
     }
 
-    async fn udpate_identity_provider(&self, idp: &IdentityProviderModel)  -> Result<(), String>{
+    async fn udpate_identity_provider(&self, idp: &IdentityProviderModel) -> Result<(), String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
@@ -755,14 +734,14 @@ impl IIdentityProvider for RdsIdentityProvider {
         &self,
         realm_id: &str,
         internal_id: &str,
-    ) -> Result<Option<IdentityProviderModel>, String>{
+    ) -> Result<Option<IdentityProviderModel>, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
         }
         let load_idp_sql = SelectRequestBuilder::new()
-        .table_name(authz_tables::IDENTITY_PROVIDER_TABLE.table_name.clone())
-        .where_clauses(vec![
+            .table_name(authz_tables::IDENTITY_PROVIDER_TABLE.table_name.clone())
+            .where_clauses(vec![
                 SqlCriteriaBuilder::is_equals("realm_id".to_string()),
                 SqlCriteriaBuilder::is_equals("internal_id".to_string()),
             ])
@@ -770,10 +749,7 @@ impl IIdentityProvider for RdsIdentityProvider {
             .unwrap();
 
         let client = client.unwrap();
-        let load_idp_stmt = client
-            .prepare_cached(&load_idp_sql)
-            .await
-            .unwrap();
+        let load_idp_stmt = client.prepare_cached(&load_idp_sql).await.unwrap();
         let result = client
             .query_opt(&load_idp_stmt, &[&realm_id, &internal_id])
             .await;
@@ -792,25 +768,20 @@ impl IIdentityProvider for RdsIdentityProvider {
     async fn load_identity_provider_by_realm(
         &self,
         realm_id: &str,
-    ) -> Result<Vec<IdentityProviderModel>, String>{
+    ) -> Result<Vec<IdentityProviderModel>, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
         }
         let load_idp_sql = SelectRequestBuilder::new()
-        .table_name(authz_tables::IDENTITY_PROVIDER_TABLE.table_name.clone())
-        .where_clauses(vec![SqlCriteriaBuilder::is_equals("realm_id".to_string())])
+            .table_name(authz_tables::IDENTITY_PROVIDER_TABLE.table_name.clone())
+            .where_clauses(vec![SqlCriteriaBuilder::is_equals("realm_id".to_string())])
             .sql_query()
             .unwrap();
 
         let client = client.unwrap();
-        let load_idp_stmt = client
-            .prepare_cached(&load_idp_sql)
-            .await
-            .unwrap();
-        let result = client
-            .query(&load_idp_stmt, &[&realm_id])
-            .await;
+        let load_idp_stmt = client.prepare_cached(&load_idp_sql).await.unwrap();
+        let result = client.query(&load_idp_stmt, &[&realm_id]).await;
         match result {
             Ok(rows) => Ok(rows
                 .into_iter()
@@ -820,8 +791,12 @@ impl IIdentityProvider for RdsIdentityProvider {
         }
     }
 
-    async fn remove_identity_provider(&self, realm_id: &str, internal_id: &str) -> Result<bool, String>{
-         let client = self.database_manager.connection().await;
+    async fn remove_identity_provider(
+        &self,
+        realm_id: &str,
+        internal_id: &str,
+    ) -> Result<bool, String> {
+        let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
         }
@@ -835,10 +810,7 @@ impl IIdentityProvider for RdsIdentityProvider {
             .unwrap();
 
         let client = client.unwrap();
-        let remove_idp_stmt = client
-            .prepare_cached(&remove_idp_sql)
-            .await
-            .unwrap();
+        let remove_idp_stmt = client.prepare_cached(&remove_idp_sql).await.unwrap();
         let result = client
             .execute(&remove_idp_stmt, &[&realm_id, &internal_id])
             .await;
@@ -848,7 +820,7 @@ impl IIdentityProvider for RdsIdentityProvider {
         }
     }
 
-    async fn exists_by_alias(&self, realm_id: &str, alias: &str) -> Result<bool, String>{
+    async fn exists_by_alias(&self, realm_id: &str, alias: &str) -> Result<bool, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);

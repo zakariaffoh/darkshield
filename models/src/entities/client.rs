@@ -1,9 +1,10 @@
 use super::authz::RoleModel;
 use crate::auditable::AuditableModel;
+use postgres_types::{FromSql, ToSql};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSql, FromSql, PartialEq, Eq, Hash)]
 pub enum ProtocolEnum {
     OpendId,
 }
@@ -35,10 +36,10 @@ pub struct ClientModel {
     pub bearer_only: Option<bool>,
     pub front_channel_logout: Option<bool>,
     pub is_surrogate_auth_required: Option<bool>,
-    pub not_before: Option<usize>,
-    pub attributes: Option<HashMap<String, String>>,
+    pub not_before: Option<i32>,
+    pub attributes: Option<HashMap<String, Option<String>>>,
     pub service_account_enabled: Option<bool>,
-    pub auth_flow_binding_overrides: Option<HashMap<String, String>>,
+    pub auth_flow_binding_overrides: Option<HashMap<String, Option<String>>>,
     pub metadata: Option<AuditableModel>,
 }
 
@@ -91,8 +92,6 @@ impl Into<ClientModel> for ClientCreateModel {
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ClientUpdateModel {
-    pub client_id: String,
-    pub realm_id: String,
     pub name: String,
     pub display_name: String,
     pub description: String,
@@ -116,18 +115,18 @@ pub struct ClientUpdateModel {
     pub bearer_only: Option<bool>,
     pub front_channel_logout: Option<bool>,
     pub is_surrogate_auth_required: Option<bool>,
-    pub not_before: Option<usize>,
-    pub attributes: Option<HashMap<String, String>>,
+    pub not_before: Option<i32>,
+    pub attributes: Option<HashMap<String, Option<String>>>,
     pub service_account_enabled: Option<bool>,
-    pub auth_flow_binding_overrides: Option<HashMap<String, String>>,
+    pub auth_flow_binding_overrides: Option<HashMap<String, Option<String>>>,
     pub metadata: Option<AuditableModel>,
 }
 
 impl Into<ClientModel> for ClientUpdateModel {
     fn into(self) -> ClientModel {
         ClientModel {
-            client_id: self.client_id,
-            realm_id: self.realm_id,
+            client_id: String::new(),
+            realm_id: String::new(),
             name: self.name,
             display_name: self.display_name,
             description: self.description,
@@ -170,39 +169,33 @@ pub struct ClientScopeModel {
     pub roles: Option<Vec<RoleModel>>,
     pub protocol_mappers: Option<Vec<ProtocolMapperModel>>,
     pub default_scope: Option<bool>,
-    pub attributes: Option<HashMap<String, String>>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ProtocolMapperModel {
-    pub mapper_id: String,
-    pub realm_id: String,
-    pub mapper: String,
-    pub description: String,
-    pub protocol: ProtocolEnum,
-    pub configs: Option<HashMap<String, String>>,
+    pub configs: Option<HashMap<String, Option<String>>>,
     pub metadata: Option<AuditableModel>,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ProtocolMapperCreateModel {
-    pub realm_id: String,
-    pub mapper: String,
+pub struct ClientScopeMutationModel {
+    pub name: String,
     pub description: String,
     pub protocol: ProtocolEnum,
-    pub configs: Option<HashMap<String, String>>,
+    pub roles: Option<Vec<RoleModel>>,
+    pub protocol_mappers: Option<Vec<ProtocolMapperModel>>,
+    pub default_scope: Option<bool>,
+    pub configs: Option<HashMap<String, Option<String>>>,
 }
 
-impl Into<ProtocolMapperModel> for ProtocolMapperCreateModel {
-    fn into(self) -> ProtocolMapperModel {
-        ProtocolMapperModel {
-            mapper_id: uuid::Uuid::new_v4().to_string(),
-            realm_id: self.realm_id,
-            mapper: self.mapper,
+impl Into<ClientScopeModel> for ClientScopeMutationModel {
+    fn into(self) -> ClientScopeModel {
+        ClientScopeModel {
+            client_scope_id: String::new(),
+            realm_id: String::new(),
+            name: self.name,
             description: self.description,
             protocol: self.protocol,
+            roles: self.roles,
+            protocol_mappers: self.protocol_mappers,
+            default_scope: self.default_scope,
             configs: self.configs,
             metadata: None,
         }
@@ -211,23 +204,33 @@ impl Into<ProtocolMapperModel> for ProtocolMapperCreateModel {
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ProtocolMapperUpdateModel {
+pub struct ProtocolMapperModel {
     pub mapper_id: String,
     pub realm_id: String,
-    pub mapper: String,
-    pub description: String,
+    pub name: String,
     pub protocol: ProtocolEnum,
-    pub configs: Option<HashMap<String, String>>,
+    pub mapper_type: String,
+    pub configs: Option<HashMap<String, Option<String>>>,
+    pub metadata: Option<AuditableModel>,
 }
 
-impl Into<ProtocolMapperModel> for ProtocolMapperUpdateModel {
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ProtocolMapperMutationModel {
+    pub name: String,
+    pub protocol: ProtocolEnum,
+    pub mapper_type: String,
+    pub configs: Option<HashMap<String, Option<String>>>,
+}
+
+impl Into<ProtocolMapperModel> for ProtocolMapperMutationModel {
     fn into(self) -> ProtocolMapperModel {
         ProtocolMapperModel {
-            mapper_id: self.mapper_id,
-            realm_id: self.realm_id,
-            mapper: self.mapper,
-            description: self.description,
+            mapper_id: String::new(),
+            realm_id: String::new(),
+            name: self.name,
             protocol: self.protocol,
+            mapper_type: self.mapper_type,
             configs: self.configs,
             metadata: None,
         }
