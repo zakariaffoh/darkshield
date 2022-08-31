@@ -159,7 +159,7 @@ pub async fn add_client_scope_role_mapping(
 }
 
 #[delete("/admin/realms/{realm_id}/clients_scopes/{client_scope_id}/roles/{role_id}")]
-pub async fn delete_client_scope_role_mapping(
+pub async fn remove_client_scope_role_mapping(
     realm_id: web::Path<String>,
     client_scope_id: web::Path<String>,
     role_id: web::Path<String>,
@@ -342,41 +342,41 @@ pub async fn delete_client_by_id(
         .await
 }
 
-#[post("/admin/realms/{realm_id}/client/{client_id}/roles_mapping")]
+#[post("/admin/realms/{realm_id}/client/{client_id}/role/{role_id}")]
 pub async fn add_client_roles_mapping(
     realm_id: web::Path<String>,
     client_id: web::Path<String>,
-    roles_ids: web::Json<Vec<String>>,
+    role_id: web::Path<String>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let client_service: &dyn IClientService = context.services().resolve_ref();
     log::info!(
-        "Add client: {} roles: [{}]  mapping for realm: {}",
-        roles_ids.0.join(","),
+        "Add client: {} role: {}  mapping for realm: {}",
+        role_id.as_str(),
         client_id.as_str(),
         realm_id.as_str(),
     );
     client_service
-        .add_client_roles_mapping(realm_id.as_str(), realm_id.as_str(), roles_ids.0)
+        .add_client_role_mapping(realm_id.as_str(), realm_id.as_str(), role_id.as_str())
         .await
 }
 
-#[put("/admin/realms/{realm_id}/client/{client_id}/roles_mapping")]
+#[put("/admin/realms/{realm_id}/client/{client_id}/role/{role_id}")]
 pub async fn remove_client_roles_mapping(
     realm_id: web::Path<String>,
     client_id: web::Path<String>,
-    roles_ids: web::Json<Vec<String>>,
+    role_id: web::Path<String>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let client_service: &dyn IClientService = context.services().resolve_ref();
     log::info!(
-        "Removing client: {} roles: [{}]  mapping for realm: {}",
-        roles_ids.0.join(","),
+        "Removing client: {} role: {}  mapping for realm: {}",
+        role_id.as_str(),
         client_id.as_str(),
         realm_id.as_str(),
     );
     client_service
-        .remove_client_roles_mapping(realm_id.as_str(), realm_id.as_str(), roles_ids.0)
+        .remove_client_role_mapping(realm_id.as_str(), realm_id.as_str(), role_id.as_str())
         .await
 }
 
@@ -511,7 +511,7 @@ pub async fn load_client_protocol_mappers(
         realm_id.as_str(),
     );
     client_service
-        .load_client_protocols_by_client_id(realm_id.as_str(), realm_id.as_str())
+        .load_protocols_mappers_by_client_id(realm_id.as_str(), realm_id.as_str())
         .await
 }
 

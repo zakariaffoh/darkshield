@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use models::entities::authz::{GroupModel, RoleModel, IdentityProviderModel};
+use models::entities::authz::{GroupModel, IdentityProviderModel, RoleModel};
 use shaku::Interface;
 
 #[async_trait]
@@ -30,7 +30,19 @@ pub trait IRoleProvider: Interface {
     ) -> Result<Option<RoleModel>, String>;
 
     async fn exists_by_name(&self, realm_id: &str, name: &str) -> Result<bool, String>;
+    async fn exists_by_role_id(
+        &self,
+        realm_id: &str,
+        role_id: &str,
+        client_role: bool,
+    ) -> Result<bool, String>;
     async fn count_roles(&self, realm_id: &str) -> Result<u32, String>;
+
+    async fn load_client_roles(
+        &self,
+        realm_id: &str,
+        client_id: &str,
+    ) -> Result<Vec<RoleModel>, String>;
 }
 
 #[async_trait]
@@ -56,13 +68,11 @@ pub trait IGroupProvider: Interface {
 #[async_trait]
 pub trait IScopeProvider: Interface {}
 
-
-
 #[async_trait]
 pub trait IIdentityProvider: Interface {
-    async fn create_identity_provider(&self, idp: &IdentityProviderModel)  -> Result<(), String>;
-    
-    async fn udpate_identity_provider(&self, idp: &IdentityProviderModel)  -> Result<(), String>;
+    async fn create_identity_provider(&self, idp: &IdentityProviderModel) -> Result<(), String>;
+
+    async fn udpate_identity_provider(&self, idp: &IdentityProviderModel) -> Result<(), String>;
 
     async fn load_identity_provider_by_internal_id(
         &self,
@@ -75,7 +85,11 @@ pub trait IIdentityProvider: Interface {
         realm_id: &str,
     ) -> Result<Vec<IdentityProviderModel>, String>;
 
-    async fn remove_identity_provider(&self, realm_id: &str, provider_id: &str) -> Result<bool, String>;
+    async fn remove_identity_provider(
+        &self,
+        realm_id: &str,
+        provider_id: &str,
+    ) -> Result<bool, String>;
 
     async fn exists_by_alias(&self, realm_id: &str, provider_id: &str) -> Result<bool, String>;
 }

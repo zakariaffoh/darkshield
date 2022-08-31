@@ -17,17 +17,25 @@ pub trait IClientProvider: Interface {
         client_name: &str,
     ) -> Result<Option<ClientModel>, String>;
 
+    async fn delete_clients_by_client_id(
+        &self,
+        realm_id: &str,
+        client_id: &str,
+    ) -> Result<(), String>;
+
     async fn load_client_by_client_id(
         &self,
         realm_id: &str,
         client_id: &str,
     ) -> Result<Option<ClientModel>, String>;
 
-    async fn load_clients_by_realm_id(
+    async fn load_clients_by_realm_id(&self, realm_id: &str) -> Result<Vec<ClientModel>, String>;
+
+    async fn client_exists_by_client_id(
         &self,
         realm_id: &str,
         client_id: &str,
-    ) -> Result<Vec<ClientModel>, String>;
+    ) -> Result<bool, String>;
 
     async fn add_client_role(
         &self,
@@ -106,10 +114,53 @@ pub trait IClientScopeProvider: Interface {
         client_scope_id: &str,
     ) -> Result<Option<ClientScopeModel>, String>;
 
+    async fn load_client_scopes_by_client_id(
+        &self,
+        realm_id: &str,
+        client_id: &str,
+    ) -> Result<Vec<ClientScopeModel>, String>;
+
+    async fn client_scope_exists_by_name(&self, realm_id: &str, name: &str)
+        -> Result<bool, String>;
+
+    async fn client_scope_exists_by_scope_id(
+        &self,
+        realm_id: &str,
+        scope_id: &str,
+    ) -> Result<bool, String>;
+
     async fn delete_client_scope(
         &self,
         realm_id: &str,
         client_scope_id: &str,
+    ) -> Result<(), String>;
+
+    async fn add_client_scope_protocol_mapper(
+        &self,
+        realm_id: &str,
+        client_scope_id: &str,
+        mapper_id: &str,
+    ) -> Result<(), String>;
+
+    async fn remove_client_scope_protocol_mapper(
+        &self,
+        realm_id: &str,
+        client_scope_id: &str,
+        mapper_id: &str,
+    ) -> Result<(), String>;
+
+    async fn add_client_scope_role_mapping(
+        &self,
+        realm_id: &str,
+        client_scope_id: &str,
+        role_id: &str,
+    ) -> Result<(), String>;
+
+    async fn remove_client_scope_role_mapping(
+        &self,
+        realm_id: &str,
+        client_scope_id: &str,
+        role_id: &str,
     ) -> Result<(), String>;
 }
 
@@ -117,7 +168,7 @@ pub trait IClientScopeProvider: Interface {
 pub trait IProtocolMapperProvider: Interface {
     async fn create_protocol_mapper(&self, mapper: &ProtocolMapperModel) -> Result<(), String>;
 
-    async fn update_protocol_mapper(&self, realm: &ProtocolMapperModel) -> Result<(), String>;
+    async fn update_protocol_mapper(&self, mapper: &ProtocolMapperModel) -> Result<(), String>;
 
     async fn load_protocol_mapper_by_mapper_id(
         &self,
@@ -125,10 +176,21 @@ pub trait IProtocolMapperProvider: Interface {
         mapper_id: &str,
     ) -> Result<Option<ProtocolMapperModel>, String>;
 
+    async fn load_protocol_mappers_by_realm(
+        &self,
+        realm_id: &str,
+    ) -> Result<Vec<ProtocolMapperModel>, String>;
+
     async fn exists_protocol_mapper_by_id(
         &self,
         realm_id: &str,
         mapper_id: &str,
+    ) -> Result<bool, String>;
+
+    async fn exists_protocol_mapper_by_name(
+        &self,
+        realm_id: &str,
+        name: &str,
     ) -> Result<bool, String>;
 
     async fn load_protocol_mappers_by_client_scope_id(

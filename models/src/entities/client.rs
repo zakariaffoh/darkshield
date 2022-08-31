@@ -3,10 +3,21 @@ use crate::auditable::AuditableModel;
 use postgres_types::{FromSql, ToSql};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::str::FromStr;
 
 #[derive(Debug, Serialize, Deserialize, ToSql, FromSql, PartialEq, Eq, Hash)]
 pub enum ProtocolEnum {
     OpendId,
+}
+
+impl FromStr for ProtocolEnum {
+    type Err = String;
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        match input {
+            "OpendId" => Ok(ProtocolEnum::OpendId),
+            _ => Err(format!("unsupported enum type: {0}", input)),
+        }
+    }
 }
 
 #[allow(dead_code)]
