@@ -327,6 +327,67 @@ impl IProtocolMapperProvider for RdsProtocolMapperProvider {
             Err(err) => Err(err.to_string()),
         }
     }
+
+    async fn exists_protocol_mapper_by_name(
+        &self,
+        realm_id: &str,
+        name: &str,
+    ) -> Result<bool, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let load_protocol_mapper_sql = SelectCountRequestBuilder::new()
+            .table_name(client_tables::PROTOCOL_MAPPER_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("name".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let client = client.unwrap();
+        let load_protocol_mapper_stmt = client
+            .prepare_cached(&load_protocol_mapper_sql)
+            .await
+            .unwrap();
+        let result = client
+            .query_one(&load_protocol_mapper_stmt, &[&realm_id, &name])
+            .await;
+        match result {
+            Ok(row) => Ok(row.get::<usize, u32>(0) as u32 > 0),
+            Err(error) => Err(error.to_string()),
+        }
+    }
+
+    async fn load_protocol_mappers_by_realm(
+        &self,
+        realm_id: &str,
+    ) -> Result<Vec<ProtocolMapperModel>, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let load_protocol_mapper_sql = SelectRequestBuilder::new()
+            .table_name(client_tables::PROTOCOL_MAPPER_TABLE.table_name.clone())
+            .where_clauses(vec![SqlCriteriaBuilder::is_equals("realm_id".to_string())])
+            .sql_query()
+            .unwrap();
+
+        let client = client.unwrap();
+        let load_protocol_mapper_stmt = client
+            .prepare_cached(&load_protocol_mapper_sql)
+            .await
+            .unwrap();
+        let result = client.query(&load_protocol_mapper_stmt, &[&realm_id]).await;
+        match result {
+            Ok(rows) => Ok(rows
+                .into_iter()
+                .map(|row| self.read_protocol_mapper_record(row))
+                .collect()),
+            Err(err) => Err(err.to_string()),
+        }
+    }
 }
 
 #[allow(dead_code)]
@@ -539,6 +600,58 @@ impl IClientScopeProvider for RdsClientScopeProvider {
         }
     }
 
+    async fn client_scope_exists_by_name(
+        &self,
+        realm_id: &str,
+        name: &str,
+    ) -> Result<bool, String> {
+        todo!()
+    }
+
+    async fn client_scope_exists_by_scope_id(
+        &self,
+        realm_id: &str,
+        scope_id: &str,
+    ) -> Result<bool, String> {
+        todo!()
+    }
+
+    async fn add_client_scope_protocol_mapper(
+        &self,
+        realm_id: &str,
+        client_scope_id: &str,
+        mapper_id: &str,
+    ) -> Result<(), String> {
+        todo!()
+    }
+
+    async fn remove_client_scope_protocol_mapper(
+        &self,
+        realm_id: &str,
+        client_scope_id: &str,
+        mapper_id: &str,
+    ) -> Result<(), String> {
+        todo!()
+    }
+
+    async fn add_client_scope_role_mapping(
+        &self,
+        realm_id: &str,
+        client_scope_id: &str,
+        role_id: &str,
+    ) -> Result<(), String> {
+        todo!()
+    }
+
+    async fn remove_client_scope_role_mapping(
+        &self,
+        realm_id: &str,
+        client_scope_id: &str,
+        role_id: &str,
+    ) -> Result<(), String> {
+        todo!()
+    }
+
     async fn delete_client_scope(
         &self,
         realm_id: &str,
@@ -589,6 +702,14 @@ impl IClientScopeProvider for RdsClientScopeProvider {
             }
             Err(err) => Err(err.to_string()),
         }
+    }
+
+    async fn load_client_scopes_by_client_id(
+        &self,
+        realm_id: &str,
+        client_id: &str,
+    ) -> Result<Vec<ClientScopeModel>, String> {
+        todo!()
     }
 }
 
@@ -660,6 +781,14 @@ impl IClientProvider for RdsClientProvider {
         todo!()
     }
 
+    async fn delete_clients_by_client_id(
+        &self,
+        realm_id: &str,
+        client_id: &str,
+    ) -> Result<(), String> {
+        todo!()
+    }
+
     async fn load_client_by_client_id(
         &self,
         realm_id: &str,
@@ -668,11 +797,7 @@ impl IClientProvider for RdsClientProvider {
         todo!()
     }
 
-    async fn load_clients_by_realm_id(
-        &self,
-        realm_id: &str,
-        client_id: &str,
-    ) -> Result<Vec<ClientModel>, String> {
+    async fn load_clients_by_realm_id(&self, realm_id: &str) -> Result<Vec<ClientModel>, String> {
         todo!()
     }
 
@@ -759,6 +884,14 @@ impl IClientProvider for RdsClientProvider {
     }
 
     async fn load_client_by_role_id(&self, realm_id: &str, role_id: &str) -> Result<u64, String> {
+        todo!()
+    }
+
+    async fn client_exists_by_client_id(
+        &self,
+        realm_id: &str,
+        client_id: &str,
+    ) -> Result<bool, String> {
         todo!()
     }
 }

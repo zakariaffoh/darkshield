@@ -334,7 +334,36 @@ impl IRoleProvider for RdsRoleProvider {
             Err(error) => Err(error.to_string()),
         }
     }
+    async fn exists_by_role_id(
+        &self,
+        realm_id: &str,
+        role_id: &str,
+        client_role: bool,
+    ) -> Result<bool, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let load_realm_sql = SelectCountRequestBuilder::new()
+            .table_name(authz_tables::ROLE_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("role_id".to_string()),
+                SqlCriteriaBuilder::is_equals("client_role".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
 
+        let client = client.unwrap();
+        let load_realm_stmt = client.prepare_cached(&load_realm_sql).await.unwrap();
+        let result = client
+            .query_one(&load_realm_stmt, &[&realm_id, &role_id, &client_role])
+            .await;
+        match result {
+            Ok(row) => Ok(row.get::<usize, u32>(0) as u32 > 0),
+            Err(error) => Err(error.to_string()),
+        }
+    }
     async fn count_roles(&self, realm_id: &str) -> Result<u32, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
@@ -353,6 +382,14 @@ impl IRoleProvider for RdsRoleProvider {
             Ok(row) => Ok(row.get::<usize, u32>(0) as u32),
             Err(error) => Err(error.to_string()),
         }
+    }
+
+    async fn load_client_roles(
+        &self,
+        realm_id: &str,
+        client_id: &str,
+    ) -> Result<Vec<RoleModel>, String> {
+        todo!()
     }
 }
 
