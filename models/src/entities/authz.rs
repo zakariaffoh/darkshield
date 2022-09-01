@@ -3,11 +3,9 @@ use std::collections::HashMap;
 use crate::auditable::AuditableModel;
 use serde::{Deserialize, Serialize};
 
-#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Permission {}
 
-#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RoleModel {
     pub role_id: String,
@@ -19,7 +17,6 @@ pub struct RoleModel {
     pub metadata: Option<AuditableModel>,
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct RoleMutationModel {
     pub name: String,
@@ -42,7 +39,6 @@ impl Into<RoleModel> for RoleMutationModel {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GroupModel {
     pub group_id: String,
@@ -55,7 +51,6 @@ pub struct GroupModel {
     pub metadata: Option<AuditableModel>,
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GroupMutationModel {
     pub name: String,
@@ -80,7 +75,6 @@ impl Into<GroupModel> for GroupMutationModel {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct IdentityProviderModel {
     pub internal_id: String,
@@ -95,8 +89,6 @@ pub struct IdentityProviderModel {
     pub metadata: Option<AuditableModel>,
 }
 
-
-#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct IdentityProviderMutationModel {
     pub provider_id: String,
@@ -117,7 +109,7 @@ impl Into<IdentityProviderModel> for IdentityProviderMutationModel {
             name: self.name,
             display_name: self.display_name,
             description: self.description,
-            enabled:  self.enabled,
+            enabled: self.enabled,
             trust_email: self.trust_email,
             configs: self.configs,
             metadata: None,
