@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 use crate::auditable::AuditableModel;
 
 #[derive(Debug, Serialize)]
-#[allow(dead_code)]
 pub struct RealmModel {
     pub realm_id: String,
     pub name: String,

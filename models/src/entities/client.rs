@@ -20,7 +20,6 @@ impl FromStr for ProtocolEnum {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ClientModel {
     pub client_id: String,
@@ -54,7 +53,6 @@ pub struct ClientModel {
     pub metadata: Option<AuditableModel>,
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ClientCreateModel {
     pub client_id: String,
@@ -100,7 +98,6 @@ impl Into<ClientModel> for ClientCreateModel {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ClientUpdateModel {
     pub name: String,
@@ -169,7 +166,6 @@ impl Into<ClientModel> for ClientUpdateModel {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ClientScopeModel {
     pub client_scope_id: String,
@@ -184,7 +180,6 @@ pub struct ClientScopeModel {
     pub metadata: Option<AuditableModel>,
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ClientScopeMutationModel {
     pub name: String,
@@ -213,7 +208,6 @@ impl Into<ClientScopeModel> for ClientScopeMutationModel {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProtocolMapperModel {
     pub mapper_id: String,
@@ -225,7 +219,6 @@ pub struct ProtocolMapperModel {
     pub metadata: Option<AuditableModel>,
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProtocolMapperMutationModel {
     pub name: String,
