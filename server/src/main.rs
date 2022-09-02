@@ -34,7 +34,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(middleware::Logger::default())
             .wrap(middleware::Logger::new("%a %{User-Agent}i"))
             .app_data(context.clone())
-            .configure(api::rest::endpoints::api_config::register)
+            .configure(api::rest::endpoints::api_config::register_apis)
     })
     .bind((config.server_host(), config.server_port()))?
     .run()
