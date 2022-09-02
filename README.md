@@ -1,0 +1,1 @@
+docker run --name darkshield-db -e POSTGRES_PASSWORD=password -e POSTGRES_USER=user -e POSTGRES_DB=darkshield_dev -d postgres

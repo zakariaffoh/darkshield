@@ -6,12 +6,13 @@ lazy_static! {
     pub static ref ROLE_TABLE: RdsTable = RdsTable {
         table_name: "ROLES".to_owned(),
         insert_columns: vec![
+            "tenant".to_owned(),
             "role_id".to_owned(),
             "realm_id".to_owned(),
             "name".to_owned(),
             "display_name".to_owned(),
-            "client_role".to_owned(),
             "description".to_owned(),
+            "client_role".to_owned(),
             "created_by".to_owned(),
             "created_at".to_owned(),
             "version".to_owned(),
@@ -25,7 +26,6 @@ lazy_static! {
             "updated_at".to_owned()
         ]
     };
-
     pub static ref GROUP_TABLE: RdsTable = RdsTable {
         table_name: "GROUPS".to_owned(),
         insert_columns: vec![
@@ -49,7 +49,6 @@ lazy_static! {
             "updated_at".to_owned()
         ]
     };
-
     pub static ref IDENTITY_PROVIDER_TABLE: RdsTable = RdsTable {
         table_name: "IDENTITY_PROVIDER".to_owned(),
         insert_columns: vec![

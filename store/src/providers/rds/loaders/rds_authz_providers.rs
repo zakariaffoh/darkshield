@@ -1,8 +1,8 @@
-use std::sync::Arc;
-
 use async_trait::async_trait;
+use log;
 use models::{auditable::AuditableModel, entities::authz::*};
 use shaku::Component;
+use std::sync::Arc;
 use tokio_postgres::Row;
 
 use crate::providers::{
@@ -46,6 +46,7 @@ impl IRoleProvider for RdsRoleProvider {
     async fn create_role(&self, role_model: &RoleModel) -> Result<(), String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
+            log::info!("Failed to connect to database: {}", err);
             return Err(err);
         }
         let create_role_sql = InsertRequestBuilder::new()
@@ -63,13 +64,13 @@ impl IRoleProvider for RdsRoleProvider {
             .execute(
                 &create_role_stmt,
                 &[
+                    &metadata.tenant,
                     &role_model.role_id,
                     &role_model.realm_id,
                     &role_model.name,
-                    &role_model.description,
                     &role_model.display_name,
+                    &role_model.description,
                     &role_model.is_client_role,
-                    &metadata.tenant,
                     &metadata.created_by,
                     &metadata.created_at,
                     &metadata.version,
@@ -78,7 +79,11 @@ impl IRoleProvider for RdsRoleProvider {
             .await;
 
         match response {
-            Err(err) => Err(err.to_string()),
+            Err(err) => {
+                let error = err.to_string();
+                log::error!("Failed to create role: {}", error);
+                Err(error)
+            }
             Ok(_) => Ok(()),
         }
     }

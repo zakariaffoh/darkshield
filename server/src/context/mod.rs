@@ -64,11 +64,11 @@ impl EnvironmentConfig {
     }
     pub fn static_configs() -> Self {
         Self {
-            pg_host: "20.72.115.220".to_owned(),
+            pg_host: "127.0.0.1".to_owned(),
             pg_port: 5432,
-            pg_user: "om-devops-db".to_owned(),
-            pg_password: "mairie3golfe".to_owned(),
-            pg_dbname: "darkshield_store_dev".to_owned(),
+            pg_user: "user".to_owned(),
+            pg_password: "password".to_owned(),
+            pg_dbname: "darkshield_dev".to_owned(),
             pg_pool_max_size: 16,
             pg_connection_timeouts_secs: 60,
             pg_pool_timeouts_wait_nanos: 0,

@@ -13,7 +13,7 @@ use models::entities::authz::{
 };
 use services::services::authz_services::{IGroupService, IIdentityProviderService, IRoleService};
 
-#[post("/admin/realms/{realm_id}/role/create")]
+#[post("/realm/{realm_id}/role/create")]
 pub async fn create_role(
     realm_id: web::Path<String>,
     role: web::Json<RoleMutationModel>,
@@ -26,7 +26,7 @@ pub async fn create_role(
     role_service.create_role(role_model).await
 }
 
-#[put("/admin/realms/{realm_id}/role/{role_id}")]
+#[put("/realm/{realm_id}/role/{role_id}")]
 pub async fn update_role(
     params: web::Path<(String, String)>,
     role: web::Json<RoleMutationModel>,
@@ -45,7 +45,7 @@ pub async fn update_role(
     role_service.update_role(role_model).await
 }
 
-#[get("/admin/realms/{realm_id}/role/{role_id}")]
+#[get("/realm/{realm_id}/role/{role_id}")]
 pub async fn load_role_by_id(
     params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
@@ -62,7 +62,7 @@ pub async fn load_role_by_id(
         .await
 }
 
-#[delete("/admin/realms/{realm_id}/role/{role_id}")]
+#[delete("/realm/{realm_id}/role/{role_id}")]
 pub async fn delete_role_by_id(
     params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
@@ -79,7 +79,7 @@ pub async fn delete_role_by_id(
         .await
 }
 
-#[get("/admin/realms/{realm_id}/roles/load_all")]
+#[get("/realm/{realm_id}/roles/load_all")]
 pub async fn load_roles_by_realm(
     realm_id: web::Path<String>,
     context: web::Data<DarkShieldContext>,
@@ -89,7 +89,7 @@ pub async fn load_roles_by_realm(
     role_service.load_roles_by_realm(&realm_id.as_str()).await
 }
 
-#[get("/admin/realms/{realm_id}/roles/count_all")]
+#[get("/realm/{realm_id}/roles/count_all")]
 pub async fn count_roles_by_realm(
     realm_id: web::Path<String>,
     context: web::Data<DarkShieldContext>,
@@ -99,7 +99,7 @@ pub async fn count_roles_by_realm(
     role_service.count_roles_by_realm(&realm_id.as_str()).await
 }
 
-#[post("/admin/realms/{realm_id}/group/create")]
+#[post("/realm/{realm_id}/group/create")]
 pub async fn create_group(
     realm_id: web::Path<String>,
     group: web::Json<GroupMutationModel>,
@@ -116,7 +116,7 @@ pub async fn create_group(
     group_service.create_group(group_model).await
 }
 
-#[put("/admin/realms/{realm_id}/group/{group_id}")]
+#[put("/realm/{realm_id}/group/{group_id}")]
 pub async fn update_group(
     params: web::Path<(String, String)>,
     group: web::Json<GroupMutationModel>,
@@ -135,7 +135,7 @@ pub async fn update_group(
     group_service.create_group(group_model).await
 }
 
-#[get("/admin/realms/{realm_id}/group/{group_id}")]
+#[get("/realm/{realm_id}/group/{group_id}")]
 pub async fn load_group_by_id(
     params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
@@ -152,7 +152,7 @@ pub async fn load_group_by_id(
         .await
 }
 
-#[delete("/admin/realms/{realm_id}/group/{group_id}")]
+#[delete("/realm/{realm_id}/group/{group_id}")]
 pub async fn delete_group_by_id(
     params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
@@ -169,7 +169,7 @@ pub async fn delete_group_by_id(
         .await
 }
 
-#[get("/admin/realms/{realm_id}/groups/load_all")]
+#[get("/realm/{realm_id}/groups/load_all")]
 pub async fn load_groups_by_realm(
     realm_id: web::Path<String>,
     context: web::Data<DarkShieldContext>,
@@ -179,7 +179,7 @@ pub async fn load_groups_by_realm(
     group_service.load_groups_by_realm(&realm_id.as_str()).await
 }
 
-#[get("/admin/realms/{realm_id}/groups/count_all")]
+#[get("/realm/{realm_id}/groups/count_all")]
 pub async fn count_groups_by_realm(
     realm_id: web::Path<String>,
     context: web::Data<DarkShieldContext>,
@@ -189,7 +189,7 @@ pub async fn count_groups_by_realm(
     group_service.count_groups(&realm_id.as_str()).await
 }
 
-#[post("/admin/realms/{realm_id}/identity_provider/create")]
+#[post("/realm/{realm_id}/identity_provider/create")]
 pub async fn create_identity_provider(
     realm_id: web::Path<String>,
     identity_provider: web::Json<IdentityProviderMutationModel>,
@@ -208,7 +208,7 @@ pub async fn create_identity_provider(
         .await
 }
 
-#[put("/admin/realms/{realm_id}/identity_provider/{internal_id}")]
+#[put("/realm/{realm_id}/identity_provider/{internal_id}")]
 pub async fn update_identity_provider(
     params: web::Path<(String, String)>,
     identity_provider: web::Json<IdentityProviderMutationModel>,
@@ -229,7 +229,7 @@ pub async fn update_identity_provider(
         .await
 }
 
-#[get("/admin/realms/{realm_id}/identity_provider/{internal_id}")]
+#[get("/realm/{realm_id}/identity_provider/{internal_id}")]
 pub async fn load_identity_provider(
     params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
@@ -246,7 +246,7 @@ pub async fn load_identity_provider(
         .await
 }
 
-#[get("/admin/realms/{realm_id}/identity_providers/load_all")]
+#[get("/realm/{realm_id}/identity_providers/load_all")]
 pub async fn load_identity_providers_by_realm(
     realm_id: web::Path<String>,
     context: web::Data<DarkShieldContext>,
@@ -261,7 +261,7 @@ pub async fn load_identity_providers_by_realm(
         .await
 }
 
-#[delete("/admin/realms/{realm_id}/identity_provider/{internal_id}")]
+#[delete("/realm/{realm_id}/identity_provider/{internal_id}")]
 pub async fn delete_identity_provider(
     params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
