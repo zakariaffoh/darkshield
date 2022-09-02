@@ -1,4 +1,4 @@
-use crate::context::context::DarkShieldContext;
+use crate::context::DarkShieldContext;
 use actix_web::{
     delete, get, post, put,
     web::{self},
@@ -39,13 +39,14 @@ pub async fn create_authentication_execution(
 
 #[put("/admin/realms/{realm_id}/auth/execution/{execution_id}")]
 pub async fn update_authentication_execution(
-    realm_id: web::Path<String>,
-    execution_id: web::Path<String>,
+    params: web::Path<(String, String)>,
     execution: web::Json<AuthenticationExecutionMutationModel>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let authentication_execution_service: &dyn IAuthenticationExecutionService =
         context.services().resolve_ref();
+    let (realm_id, execution_id) = params.into_inner();
+
     let mut execution_model: AuthenticationExecutionModel = execution.0.into();
     execution_model.realm_id = realm_id.to_string();
     execution_model.execution_id = execution_id.to_string();
@@ -61,12 +62,13 @@ pub async fn update_authentication_execution(
 
 #[get("/admin/realms/{realm_id}/auth/execution/{execution_id}")]
 pub async fn load_authentication_execution_by_id(
-    realm_id: web::Path<String>,
-    execution_id: web::Path<String>,
+    params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let authentication_execution_service: &dyn IAuthenticationExecutionService =
         context.services().resolve_ref();
+    let (realm_id, execution_id) = params.into_inner();
+
     log::info!(
         "Loading authentication execution: {}, realm: {}",
         execution_id.as_str(),
@@ -93,14 +95,14 @@ pub async fn load_authentication_execution_by_realm(
         .await
 }
 
-#[delete("/admin/realms/{realm_id}/auth/execution/{flow_id}")]
+#[delete("/admin/realms/{realm_id}/auth/execution/{execution_id}")]
 pub async fn remove_authentication_execution_by_id(
-    realm_id: web::Path<String>,
-    execution_id: web::Path<String>,
+    params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let authentication_execution_service: &dyn IAuthenticationExecutionService =
         context.services().resolve_ref();
+    let (realm_id, execution_id) = params.into_inner();
     log::info!(
         "Deleting authentication execution: {}, realm: {}",
         execution_id.as_str(),
@@ -133,13 +135,13 @@ pub async fn create_authentication_flow(
 
 #[put("/admin/realms/{realm_id}/auth/flow/{flow_id}")]
 pub async fn update_authentication_flow(
-    realm_id: web::Path<String>,
-    flow_id: web::Path<String>,
+    params: web::Path<(String, String)>,
     flow: web::Json<AuthenticationFlowMutationModel>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let authentication_flow_service: &dyn IAuthenticationFlowService =
         context.services().resolve_ref();
+    let (realm_id, flow_id) = params.into_inner();
     let mut flow_model: AuthenticationFlowModel = flow.0.into();
     flow_model.realm_id = realm_id.to_string();
     flow_model.flow_id = flow_id.to_string();
@@ -155,12 +157,12 @@ pub async fn update_authentication_flow(
 
 #[get("/admin/realms/{realm_id}/auth/flow/{flow_id}")]
 pub async fn load_authentication_flow_by_id(
-    realm_id: web::Path<String>,
-    flow_id: web::Path<String>,
+    params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let authentication_flow_service: &dyn IAuthenticationFlowService =
         context.services().resolve_ref();
+    let (realm_id, flow_id) = params.into_inner();
     log::info!(
         "Loading authentication flow: {}, realm: {}",
         flow_id.as_str(),
@@ -186,12 +188,12 @@ pub async fn load_authentication_flows_by_realm(
 
 #[delete("/admin/realms/{realm_id}/auth/flow/{flow_id}")]
 pub async fn remove_authentication_flow_by_id(
-    realm_id: web::Path<String>,
-    flow_id: web::Path<String>,
+    params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let authentication_flow_service: &dyn IAuthenticationFlowService =
         context.services().resolve_ref();
+    let (realm_id, flow_id) = params.into_inner();
     log::info!(
         "Deleting authentication flow: {}, realm: {}",
         flow_id.as_str(),
@@ -222,15 +224,15 @@ pub async fn create_authenticator_config(
         .await
 }
 
-#[put("/admin/realms/{realm_id}/auth/config/{execution_id}")]
+#[put("/admin/realms/{realm_id}/auth/config/{config_id}")]
 pub async fn update_authenticator_config(
-    realm_id: web::Path<String>,
-    config_id: web::Path<String>,
+    params: web::Path<(String, String)>,
     config: web::Json<AuthenticatorConfigMutationModel>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let authenticator_config_service: &dyn IAuthenticatorConfigService =
         context.services().resolve_ref();
+    let (realm_id, config_id) = params.into_inner();
     let mut config_model: AuthenticatorConfigModel = config.0.into();
     config_model.realm_id = realm_id.to_string();
     config_model.config_id = config_id.to_string();
@@ -246,12 +248,12 @@ pub async fn update_authenticator_config(
 
 #[get("/admin/realms/{realm_id}/auth/config/{config_id}")]
 pub async fn load_authenticator_config_by_id(
-    realm_id: web::Path<String>,
-    config_id: web::Path<String>,
+    params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let authenticator_config_service: &dyn IAuthenticatorConfigService =
         context.services().resolve_ref();
+    let (realm_id, config_id) = params.into_inner();
     log::info!(
         "Loading authenticator config: {}, realm: {}",
         config_id.as_str(),
@@ -277,12 +279,12 @@ pub async fn load_authenticator_configs_by_realm(
 
 #[delete("/admin/realms/{realm_id}/auth/config/{flow_id}")]
 pub async fn remove_authenticator_config_by_id(
-    realm_id: web::Path<String>,
-    config_id: web::Path<String>,
+    params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let authenticator_config_service: &dyn IAuthenticatorConfigService =
         context.services().resolve_ref();
+    let (realm_id, config_id) = params.into_inner();
     log::info!(
         "Deleting authenticator config: {}, realm: {}",
         config_id.as_str(),
@@ -314,13 +316,13 @@ pub async fn register_required_action(
 
 #[put("/admin/realms/{realm_id}/required_actions/{action_id}")]
 pub async fn update_required_action(
-    realm_id: web::Path<String>,
-    action_id: web::Path<String>,
+    params: web::Path<(String, String)>,
     action: web::Json<RequiredActionMutationModel>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let required_action_service: &dyn IRequiredActionService = context.services().resolve_ref();
     let mut action_model: RequiredActionModel = action.0.into();
+    let (realm_id, action_id) = params.into_inner();
     action_model.realm_id = realm_id.to_string();
     action_model.action_id = action_id.to_string();
     log::info!(
@@ -335,11 +337,11 @@ pub async fn update_required_action(
 
 #[get("/admin/realms/{realm_id}/actions/{action_id}")]
 pub async fn load_requied_action_by_id(
-    realm_id: web::Path<String>,
-    action_id: web::Path<String>,
+    params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let required_action_service: &dyn IRequiredActionService = context.services().resolve_ref();
+    let (realm_id, action_id) = params.into_inner();
     log::info!(
         "Loading role: {}, for realm: {}",
         &realm_id.as_str(),
@@ -352,11 +354,11 @@ pub async fn load_requied_action_by_id(
 
 #[delete("/admin/realms/{realm_id}/actions/{action_id}")]
 pub async fn remove_requied_action_by_id(
-    realm_id: web::Path<String>,
-    action_id: web::Path<String>,
+    params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let required_action_service: &dyn IRequiredActionService = context.services().resolve_ref();
+    let (realm_id, action_id) = params.into_inner();
     log::info!(
         "Deleting required action: {}, for realm: {}",
         &action_id.as_str(),

@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use commons::api_result::ApiResult;
+use commons::ApiResult;
 use models::auditable::AuditableModel;
 use shaku::Component;
 use shaku::Interface;

@@ -1,4 +1,4 @@
-use crate::context::context::DarkShieldContext;
+use crate::context::DarkShieldContext;
 use log;
 use models::entities::realm::{RealmCreateModel, RealmModel, RealmUpdateModel};
 use services::services::realm_service::IRealmService;
