@@ -17,7 +17,7 @@ use models::entities::auth::{
     RequiredActionModel, RequiredActionMutationModel,
 };
 
-#[post("/admin/realms/{realm_id}/auth/execution/create")]
+#[post("/realm/{realm_id}/auth/execution/create")]
 pub async fn create_authentication_execution(
     realm_id: web::Path<String>,
     execution: web::Json<AuthenticationExecutionMutationModel>,
@@ -37,7 +37,7 @@ pub async fn create_authentication_execution(
         .await
 }
 
-#[put("/admin/realms/{realm_id}/auth/execution/{execution_id}")]
+#[put("/realm/{realm_id}/auth/execution/{execution_id}")]
 pub async fn update_authentication_execution(
     params: web::Path<(String, String)>,
     execution: web::Json<AuthenticationExecutionMutationModel>,
@@ -60,7 +60,7 @@ pub async fn update_authentication_execution(
         .await
 }
 
-#[get("/admin/realms/{realm_id}/auth/execution/{execution_id}")]
+#[get("/realm/{realm_id}/auth/execution/{execution_id}")]
 pub async fn load_authentication_execution_by_id(
     params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
@@ -79,7 +79,7 @@ pub async fn load_authentication_execution_by_id(
         .await
 }
 
-#[get("/admin/realms/{realm_id}/auth/executions/load_all")]
+#[get("/realm/{realm_id}/auth/executions/load_all")]
 pub async fn load_authentication_execution_by_realm(
     realm_id: web::Path<String>,
     context: web::Data<DarkShieldContext>,
@@ -95,7 +95,7 @@ pub async fn load_authentication_execution_by_realm(
         .await
 }
 
-#[delete("/admin/realms/{realm_id}/auth/execution/{execution_id}")]
+#[delete("/realm/{realm_id}/auth/execution/{execution_id}")]
 pub async fn remove_authentication_execution_by_id(
     params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
@@ -113,7 +113,7 @@ pub async fn remove_authentication_execution_by_id(
         .await
 }
 
-#[post("/admin/realms/{realm_id}/auth/flow/create")]
+#[post("/realm/{realm_id}/auth/flow/create")]
 pub async fn create_authentication_flow(
     realm_id: web::Path<String>,
     flow: web::Json<AuthenticationFlowMutationModel>,
@@ -133,7 +133,7 @@ pub async fn create_authentication_flow(
         .await
 }
 
-#[put("/admin/realms/{realm_id}/auth/flow/{flow_id}")]
+#[put("/realm/{realm_id}/auth/flow/{flow_id}")]
 pub async fn update_authentication_flow(
     params: web::Path<(String, String)>,
     flow: web::Json<AuthenticationFlowMutationModel>,
@@ -155,7 +155,7 @@ pub async fn update_authentication_flow(
         .await
 }
 
-#[get("/admin/realms/{realm_id}/auth/flow/{flow_id}")]
+#[get("/realm/{realm_id}/auth/flow/{flow_id}")]
 pub async fn load_authentication_flow_by_id(
     params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
@@ -173,7 +173,7 @@ pub async fn load_authentication_flow_by_id(
         .await
 }
 
-#[get("/admin/realms/{realm_id}/auth/flows/load_all")]
+#[get("/realm/{realm_id}/auth/flows/load_all")]
 pub async fn load_authentication_flows_by_realm(
     realm_id: web::Path<String>,
     context: web::Data<DarkShieldContext>,
@@ -186,7 +186,7 @@ pub async fn load_authentication_flows_by_realm(
         .await
 }
 
-#[delete("/admin/realms/{realm_id}/auth/flow/{flow_id}")]
+#[delete("/realm/{realm_id}/auth/flow/{flow_id}")]
 pub async fn remove_authentication_flow_by_id(
     params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
@@ -204,7 +204,7 @@ pub async fn remove_authentication_flow_by_id(
         .await
 }
 
-#[post("/admin/realms/{realm_id}/auth/config/create")]
+#[post("/realm/{realm_id}/auth/config/create")]
 pub async fn create_authenticator_config(
     realm_id: web::Path<String>,
     config: web::Json<AuthenticatorConfigMutationModel>,
@@ -224,7 +224,7 @@ pub async fn create_authenticator_config(
         .await
 }
 
-#[put("/admin/realms/{realm_id}/auth/config/{config_id}")]
+#[put("/realm/{realm_id}/auth/config/{config_id}")]
 pub async fn update_authenticator_config(
     params: web::Path<(String, String)>,
     config: web::Json<AuthenticatorConfigMutationModel>,
@@ -246,7 +246,7 @@ pub async fn update_authenticator_config(
         .await
 }
 
-#[get("/admin/realms/{realm_id}/auth/config/{config_id}")]
+#[get("/realm/{realm_id}/auth/config/{config_id}")]
 pub async fn load_authenticator_config_by_id(
     params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
@@ -264,7 +264,7 @@ pub async fn load_authenticator_config_by_id(
         .await
 }
 
-#[get("/admin/realms/{realm_id}/auth/config/load_all")]
+#[get("/realm/{realm_id}/auth/config/load_all")]
 pub async fn load_authenticator_configs_by_realm(
     realm_id: web::Path<String>,
     context: web::Data<DarkShieldContext>,
@@ -277,7 +277,7 @@ pub async fn load_authenticator_configs_by_realm(
         .await
 }
 
-#[delete("/admin/realms/{realm_id}/auth/config/{flow_id}")]
+#[delete("/realm/{realm_id}/auth/config/{flow_id}")]
 pub async fn remove_authenticator_config_by_id(
     params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
@@ -295,7 +295,7 @@ pub async fn remove_authenticator_config_by_id(
         .await
 }
 
-#[post("/admin/realms/{realm_id}/required_actions/create")]
+#[post("/realm/{realm_id}/required_actions/create")]
 pub async fn register_required_action(
     realm_id: web::Path<String>,
     action: web::Json<RequiredActionMutationModel>,
@@ -314,7 +314,7 @@ pub async fn register_required_action(
         .await
 }
 
-#[put("/admin/realms/{realm_id}/required_actions/{action_id}")]
+#[put("/realm/{realm_id}/required_actions/{action_id}")]
 pub async fn update_required_action(
     params: web::Path<(String, String)>,
     action: web::Json<RequiredActionMutationModel>,
@@ -335,7 +335,7 @@ pub async fn update_required_action(
         .await
 }
 
-#[get("/admin/realms/{realm_id}/actions/{action_id}")]
+#[get("/realm/{realm_id}/actions/{action_id}")]
 pub async fn load_requied_action_by_id(
     params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
@@ -352,7 +352,7 @@ pub async fn load_requied_action_by_id(
         .await
 }
 
-#[delete("/admin/realms/{realm_id}/actions/{action_id}")]
+#[delete("/realm/{realm_id}/actions/{action_id}")]
 pub async fn remove_requied_action_by_id(
     params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
@@ -369,7 +369,7 @@ pub async fn remove_requied_action_by_id(
         .await
 }
 
-#[get("/admin/realms/{realm_id}/actions/load_all")]
+#[get("/realm/{realm_id}/actions/load_all")]
 pub async fn load_requied_action_by_realm(
     realm_id: web::Path<String>,
     context: web::Data<DarkShieldContext>,
