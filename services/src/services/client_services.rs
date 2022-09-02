@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use commons::api_result::ApiResult;
+use commons::ApiResult;
 use models::auditable::AuditableModel;
 use models::entities::authz::RoleModel;
 use models::entities::client::ClientModel;

@@ -2,9 +2,9 @@ mod api;
 mod context;
 mod metrics;
 mod services;
-use ::services::catalog::catalog::DarkshieldServices;
+use ::services::catalog::DarkshieldServices;
 use actix_web::{middleware, web::Data, App, HttpServer};
-use context::{context::DarkShieldContext, EnvironmentConfig};
+use context::{DarkShieldContext, EnvironmentConfig};
 use deadpool_postgres::{tokio_postgres, Runtime};
 use dotenv::dotenv;
 use store::providers::rds::client::postgres_client::{DataBaseManager, DataBaseManagerParameters};
@@ -12,8 +12,8 @@ use store::providers::rds::client::postgres_client::{DataBaseManager, DataBaseMa
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
-    let config = EnvironmentConfig::from_env();
-
+    //let config = EnvironmentConfig::from_env();
+    let config = EnvironmentConfig::static_configs();
     let connection_pool = config
         .database_config()
         .create_pool(Some(Runtime::Tokio1), tokio_postgres::NoTls)
@@ -33,8 +33,8 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(middleware::Logger::default())
             .wrap(middleware::Logger::new("%a %{User-Agent}i"))
-            .configure(api::rest::endpoints::api_config::register_apis)
             .app_data(context.clone())
+            .configure(api::rest::endpoints::api_config::register)
     })
     .bind((config.server_host(), config.server_port()))?
     .run()

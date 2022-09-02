@@ -1,8 +1,24 @@
 use deadpool_postgres::PoolConfig;
 use dotenv::dotenv;
 use serde::Deserialize;
-pub mod context;
 use std::{env, time::Duration};
+
+use services::catalog::DarkshieldServices;
+
+#[allow(dead_code)]
+pub struct DarkShieldContext {
+    services: DarkshieldServices,
+}
+
+impl DarkShieldContext {
+    pub fn new(services: DarkshieldServices) -> Self {
+        Self { services: services }
+    }
+
+    pub fn services(&self) -> &DarkshieldServices {
+        &self.services
+    }
+}
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
@@ -23,7 +39,6 @@ pub struct EnvironmentConfig {
 #[allow(dead_code)]
 impl EnvironmentConfig {
     pub fn from_env() -> Self {
-        dotenv().ok();
         Self {
             pg_host: env::var("DS_PG_HOST").unwrap(),
             pg_port: env::var("DS_PG_PORT").unwrap().parse::<u16>().unwrap(),
@@ -45,6 +60,21 @@ impl EnvironmentConfig {
             server_host: env::var("DS_SEVER_HOST").unwrap(),
             server_port: env::var("DS_SEVER_PORT").unwrap().parse::<u16>().unwrap(),
             log_level: env::var("RUST_LOG").unwrap(),
+        }
+    }
+    pub fn static_configs() -> Self {
+        Self {
+            pg_host: "20.72.115.220".to_owned(),
+            pg_port: 5432,
+            pg_user: "om-devops-db".to_owned(),
+            pg_password: "mairie3golfe".to_owned(),
+            pg_dbname: "darkshield_store_dev".to_owned(),
+            pg_pool_max_size: 16,
+            pg_connection_timeouts_secs: 60,
+            pg_pool_timeouts_wait_nanos: 0,
+            server_host: "127.0.0.1".to_owned(),
+            server_port: 8080,
+            log_level: "actix_web=debug,actix_server=debug".to_owned(),
         }
     }
 

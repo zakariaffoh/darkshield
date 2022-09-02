@@ -6,7 +6,7 @@ use actix_web::{
 use log;
 use shaku::HasComponent;
 
-use crate::context::context::DarkShieldContext;
+use crate::context::DarkShieldContext;
 use models::entities::client::{
     ClientCreateModel, ClientModel, ClientScopeModel, ClientScopeMutationModel, ClientUpdateModel,
     ProtocolMapperModel, ProtocolMapperMutationModel,
@@ -36,19 +36,19 @@ pub async fn create_client_scope(
 
 #[put("/admin/realms/{realm_id}/clients_scope/{client_scope_id}/update")]
 pub async fn update_client_scope(
-    realm_id: web::Path<String>,
-    client_scope_id: web::Path<String>,
+    params: web::Path<(String, String)>,
     scope: web::Json<ClientScopeMutationModel>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let client_scope_service: &dyn IClientScopeService = context.services().resolve_ref();
+    let (realm_id, client_scope_id) = params.into_inner();
     let mut client_scope_model: ClientScopeModel = scope.0.into();
     client_scope_model.realm_id = realm_id.to_string();
     client_scope_model.client_scope_id = client_scope_id.to_string();
     log::info!(
         "updating client scope {}, realm: {}",
-        client_scope_id.as_str(),
-        realm_id.as_str()
+        client_scope_id,
+        realm_id
     );
     client_scope_service
         .update_client_scope(client_scope_model)
@@ -57,11 +57,11 @@ pub async fn update_client_scope(
 
 #[get("/admin/realms/{realm_id}/clients_scopes/{client_scope_id}")]
 pub async fn load_client_scope_by_id(
-    realm_id: web::Path<String>,
-    client_scope_id: web::Path<String>,
+    params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let client_scope_service: &dyn IClientScopeService = context.services().resolve_ref();
+    let (realm_id, client_scope_id) = params.into_inner();
     log::info!(
         "Loading client scope: {}, for realm: {}",
         client_scope_id.as_str(),
@@ -74,11 +74,11 @@ pub async fn load_client_scope_by_id(
 
 #[delete("/admin/realms/{realm_id}/clients_scopes/{client_scope_id}")]
 pub async fn delete_client_scope_by_id(
-    realm_id: web::Path<String>,
-    client_scope_id: web::Path<String>,
+    params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let client_scope_service: &dyn IClientScopeService = context.services().resolve_ref();
+    let (realm_id, client_scope_id) = params.into_inner();
     log::info!(
         "Deleting client scope: {}, for realm: {}",
         client_scope_id.as_str(),
@@ -91,12 +91,11 @@ pub async fn delete_client_scope_by_id(
 
 #[put("/admin/realms/{realm_id}/clients_scopes/{client_scope_id}/protocol_mapper/{mapper_id}")]
 pub async fn add_client_scope_protocol_mapper(
-    realm_id: web::Path<String>,
-    client_scope_id: web::Path<String>,
-    mapper_id: web::Path<String>,
+    params: web::Path<(String, String, String)>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let client_scope_service: &dyn IClientScopeService = context.services().resolve_ref();
+    let (realm_id, client_scope_id, mapper_id) = params.into_inner();
     log::info!(
         "Adding client scope: {}, protocol mapper: {} for realm: {}",
         client_scope_id.as_str(),
@@ -114,12 +113,12 @@ pub async fn add_client_scope_protocol_mapper(
 
 #[delete("/admin/realms/{realm_id}/clients_scopes/{client_scope_id}/protocol_mapper/{mapper_id}")]
 pub async fn delete_client_scope_protocol_mapper(
-    realm_id: web::Path<String>,
-    client_scope_id: web::Path<String>,
-    mapper_id: web::Path<String>,
+    params: web::Path<(String, String, String)>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let client_scope_service: &dyn IClientScopeService = context.services().resolve_ref();
+    let (realm_id, client_scope_id, mapper_id) = params.into_inner();
+
     log::info!(
         "Deleting client scope: {}, protocol mapper: {} for realm: {}",
         client_scope_id.as_str(),
@@ -137,12 +136,12 @@ pub async fn delete_client_scope_protocol_mapper(
 
 #[put("/admin/realms/{realm_id}/clients_scopes/{client_scope_id}/role/{role_id}")]
 pub async fn add_client_scope_role_mapping(
-    realm_id: web::Path<String>,
-    client_scope_id: web::Path<String>,
-    role_id: web::Path<String>,
+    params: web::Path<(String, String, String)>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let client_scope_service: &dyn IClientScopeService = context.services().resolve_ref();
+    let (realm_id, client_scope_id, role_id) = params.into_inner();
+
     log::info!(
         "Adding client scope: {}, role: {} for realm: {}",
         client_scope_id.as_str(),
@@ -160,12 +159,12 @@ pub async fn add_client_scope_role_mapping(
 
 #[delete("/admin/realms/{realm_id}/clients_scopes/{client_scope_id}/role/{role_id}")]
 pub async fn remove_client_scope_role_mapping(
-    realm_id: web::Path<String>,
-    client_scope_id: web::Path<String>,
-    role_id: web::Path<String>,
+    params: web::Path<(String, String, String)>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let client_scope_service: &dyn IClientScopeService = context.services().resolve_ref();
+    let (realm_id, client_scope_id, role_id) = params.into_inner();
+
     log::info!(
         "Deleting client scope: {}, role: {} for realm: {}",
         client_scope_id.as_str(),
@@ -202,12 +201,13 @@ pub async fn create_protocol_mapper(
 
 #[put("/admin/realms/{realm_id}/protocol_mapper/{mapper_id}")]
 pub async fn update_protocol_mapper(
-    realm_id: web::Path<String>,
-    mapper_id: web::Path<String>,
+    params: web::Path<(String, String)>,
     mapper: web::Json<ProtocolMapperMutationModel>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let protocol_mapper_service: &dyn IProtocolMapperService = context.services().resolve_ref();
+    let (realm_id, mapper_id) = params.into_inner();
+
     let mut mapper_model: ProtocolMapperModel = mapper.0.into();
     mapper_model.realm_id = realm_id.to_string();
     mapper_model.mapper_id = mapper_id.to_string();
@@ -223,11 +223,12 @@ pub async fn update_protocol_mapper(
 
 #[get("/admin/realms/{realm_id}/protocol_mapper/{mapper_id}")]
 pub async fn load_protocol_mapper_by_id(
-    realm_id: web::Path<String>,
-    mapper_id: web::Path<String>,
+    params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let protocol_mapper_service: &dyn IProtocolMapperService = context.services().resolve_ref();
+    let (realm_id, mapper_id) = params.into_inner();
+
     log::info!(
         "Loading protocol mapper: {}, for realm: {}",
         mapper_id.as_str(),
@@ -240,11 +241,11 @@ pub async fn load_protocol_mapper_by_id(
 
 #[get("/admin/realms/{realm_id}/protocol_mapper/protocol/{protocol}")]
 pub async fn load_protocol_mappers_by_protocol(
-    realm_id: web::Path<String>,
-    protocol: web::Path<String>,
+    params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let protocol_mapper_service: &dyn IProtocolMapperService = context.services().resolve_ref();
+    let (realm_id, protocol) = params.into_inner();
     log::info!(
         "Loading protocol mapper by protocol: {} for realm: {}",
         protocol.as_str(),
@@ -257,11 +258,11 @@ pub async fn load_protocol_mappers_by_protocol(
 
 #[get("/admin/realms/{realm_id}/protocol_mapper/client/{client_id}")]
 pub async fn load_protocol_mappers_by_client_id(
-    realm_id: web::Path<String>,
-    client_id: web::Path<String>,
+    params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let protocol_mapper_service: &dyn IProtocolMapperService = context.services().resolve_ref();
+    let (realm_id, client_id) = params.into_inner();
     log::info!(
         "Loading protocol mapper for client id: {}, for realm: {}",
         client_id.as_str(),
@@ -291,12 +292,12 @@ pub async fn create_client(
 
 #[put("/admin/realms/{realm_id}/client/{client_id}")]
 pub async fn update_client(
-    realm_id: web::Path<String>,
-    client_id: web::Path<String>,
+    params: web::Path<(String, String)>,
     client: web::Json<ClientUpdateModel>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let client_service: &dyn IClientService = context.services().resolve_ref();
+    let (realm_id, client_id) = params.into_inner();
     let mut client_model: ClientModel = client.0.into();
     client_model.realm_id = realm_id.to_string();
     client_model.client_id = client_id.to_string();
@@ -310,11 +311,11 @@ pub async fn update_client(
 
 #[get("/admin/realms/{realm_id}/client/{client_id}")]
 pub async fn load_client_by_id(
-    realm_id: web::Path<String>,
-    client_id: web::Path<String>,
+    params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let client_service: &dyn IClientService = context.services().resolve_ref();
+    let (realm_id, client_id) = params.into_inner();
     log::info!(
         "loading client: {} for realm: {}",
         client_id.as_str(),
@@ -327,11 +328,11 @@ pub async fn load_client_by_id(
 
 #[delete("/admin/realms/{realm_id}/client/{client_id}")]
 pub async fn delete_client_by_id(
-    realm_id: web::Path<String>,
-    client_id: web::Path<String>,
+    params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let client_service: &dyn IClientService = context.services().resolve_ref();
+    let (realm_id, client_id) = params.into_inner();
     log::info!(
         "Delete client: {} for realm: {}",
         client_id.as_str(),
@@ -344,12 +345,11 @@ pub async fn delete_client_by_id(
 
 #[put("/admin/realms/{realm_id}/client/{client_id}/role/{role_id}")]
 pub async fn add_client_roles_mapping(
-    realm_id: web::Path<String>,
-    client_id: web::Path<String>,
-    role_id: web::Path<String>,
+    params: web::Path<(String, String, String)>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let client_service: &dyn IClientService = context.services().resolve_ref();
+    let (realm_id, client_id, role_id) = params.into_inner();
     log::info!(
         "Add client: {} role: {}  mapping for realm: {}",
         role_id.as_str(),
@@ -363,12 +363,11 @@ pub async fn add_client_roles_mapping(
 
 #[delete("/admin/realms/{realm_id}/client/{client_id}/role/{role_id}")]
 pub async fn remove_client_roles_mapping(
-    realm_id: web::Path<String>,
-    client_id: web::Path<String>,
-    role_id: web::Path<String>,
+    params: web::Path<(String, String, String)>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let client_service: &dyn IClientService = context.services().resolve_ref();
+    let (realm_id, client_id, role_id) = params.into_inner();
     log::info!(
         "Removing client: {} role: {}  mapping for realm: {}",
         role_id.as_str(),
@@ -382,11 +381,11 @@ pub async fn remove_client_roles_mapping(
 
 #[get("/admin/realms/{realm_id}/client/{client_id}/roles_mapping")]
 pub async fn load_client_roles_mapping(
-    realm_id: web::Path<String>,
-    client_id: web::Path<String>,
+    params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let client_service: &dyn IClientService = context.services().resolve_ref();
+    let (realm_id, client_id) = params.into_inner();
     log::info!(
         "Loading client: {} roles mapping for realm: {}",
         client_id.as_str(),
@@ -399,12 +398,11 @@ pub async fn load_client_roles_mapping(
 
 #[put("/admin/realms/{realm_id}/client/{client_id}/client_scope/{client_scope_id}")]
 pub async fn add_client_scope_mapping(
-    realm_id: web::Path<String>,
-    client_id: web::Path<String>,
-    client_scope_id: web::Path<String>,
+    params: web::Path<(String, String, String)>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let client_service: &dyn IClientService = context.services().resolve_ref();
+    let (realm_id, client_id, client_scope_id) = params.into_inner();
     log::info!(
         "Adding client: {} scope: {} mapping  for realm: {}",
         client_id.as_str(),
@@ -422,12 +420,11 @@ pub async fn add_client_scope_mapping(
 
 #[delete("/admin/realms/{realm_id}/client/{client_id}/client_scope/{client_scope_id}")]
 pub async fn remove_client_protocol_mapping(
-    realm_id: web::Path<String>,
-    client_id: web::Path<String>,
-    client_scope_id: web::Path<String>,
+    params: web::Path<(String, String, String)>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let client_service: &dyn IClientService = context.services().resolve_ref();
+    let (realm_id, client_id, client_scope_id) = params.into_inner();
     log::info!(
         "Removing client: {} scope: {} mapping  for realm: {}",
         client_id.as_str(),
@@ -445,11 +442,11 @@ pub async fn remove_client_protocol_mapping(
 
 #[get("/admin/realms/{realm_id}/client/{client_id}/client_scopes/all")]
 pub async fn load_client_scopes_by_client_id(
-    realm_id: web::Path<String>,
-    client_id: web::Path<String>,
+    params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let client_service: &dyn IClientService = context.services().resolve_ref();
+    let (realm_id, client_id) = params.into_inner();
     log::info!(
         "Loading client: {} scopes mapping for realm: {}",
         client_id.as_str(),
@@ -462,12 +459,11 @@ pub async fn load_client_scopes_by_client_id(
 
 #[put("/admin/realms/{realm_id}/client/{client_id}/protocol_mapper/{mapper_id}")]
 pub async fn add_client_protocol_mapper(
-    realm_id: web::Path<String>,
-    client_id: web::Path<String>,
-    mapper_id: web::Path<String>,
+    params: web::Path<(String, String, String)>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let client_service: &dyn IClientService = context.services().resolve_ref();
+    let (realm_id, client_id, mapper_id) = params.into_inner();
     log::info!(
         "Add client: {} protocol mapper: {} mapping for realm: {}",
         client_id.as_str(),
@@ -481,12 +477,11 @@ pub async fn add_client_protocol_mapper(
 
 #[delete("/admin/realms/{realm_id}/client/{client_id}/protocol_mapper/{mapper_id}")]
 pub async fn remove_client_protocol_mapper_mapper(
-    realm_id: web::Path<String>,
-    client_id: web::Path<String>,
-    mapper_id: web::Path<String>,
+    params: web::Path<(String, String, String)>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let client_service: &dyn IClientService = context.services().resolve_ref();
+    let (realm_id, client_id, mapper_id) = params.into_inner();
     log::info!(
         "Removing client: {} protocol mapper: {} mapping  for realm: {}",
         client_id.as_str(),
@@ -500,11 +495,11 @@ pub async fn remove_client_protocol_mapper_mapper(
 
 #[get("/admin/realms/{realm_id}/client/{client_id}/protocol_mappers/all")]
 pub async fn load_client_protocol_mappers(
-    realm_id: web::Path<String>,
-    client_id: web::Path<String>,
+    params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let client_service: &dyn IClientService = context.services().resolve_ref();
+    let (realm_id, client_id) = params.into_inner();
     log::info!(
         "Loading client: {} protocol mappers  for realm: {}",
         client_id.as_str(),
@@ -517,11 +512,12 @@ pub async fn load_client_protocol_mappers(
 
 #[get("/admin/realms/{realm_id}/client/{client_id}/service_account")]
 pub async fn load_client_associated_service_account(
-    realm_id: web::Path<String>,
-    client_id: web::Path<String>,
+    params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let client_service: &dyn IClientService = context.services().resolve_ref();
+    let (realm_id, client_id) = params.into_inner();
+
     log::info!(
         "Loading client: {} associated service acount for realm: {}",
         client_id.as_str(),
