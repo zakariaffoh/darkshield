@@ -166,3 +166,42 @@ DROP INDEX IF EXISTS GROUPS_ROLES_ROLE_ID_IDX;
 CREATE INDEX GROUPS_ROLES_REALM_ID_IDX ON GROUPS_ROLES(REALM_ID);
 CREATE INDEX GROUPS_ROLES_GROUP_ID_IDX ON GROUPS_ROLES(GROUP_ID);
 CREATE INDEX GROUPS_ROLES_ROLE_ID_IDX ON GROUPS_ROLES(ROLE_ID);
+
+
+/*********************************************************************************************
+*                                    IDENTITIES_PROVIDERS Table
+**********************************************************************************************/
+
+CREATE TABLE IF NOT EXISTS IDENTITIES_PROVIDERS
+(
+    ID                                    serial                  PRIMARY KEY,
+    TENANT                                varchar(50)             NOT NULL,
+    INTERNAL_ID                           varchar(50)             UNIQUE NOT NULL,
+    PROVIDER_ID                           varchar(250)            NOT NULL,
+    REALM_ID                              varchar(250)            NOT NULL,
+    NAME                                  TEXT                    NOT NULL,
+
+    DISPLAY_NAME                          TEXT                    NOT NULL,
+    DESCRIPTION                           TEXT                    NOT NULL,
+    TRUST_EMAIL                           boolean,
+    ENABLED                               boolean,
+    CONFIGS                               JSON,
+
+    CREATED_BY                            varchar(250)            NOT NULL,
+    CREATED_AT                            timestamp               NOT NULL,
+    UPDATED_BY                            varchar(250),
+    UPDATED_AT                            timestamp,
+    VERSION                               integer                 DEFAULT 1   CHECK(version > 0),
+
+    CONSTRAINT FK_IDP_REALMS_ID FOREIGN KEY(REALM_ID) REFERENCES REALMS(REALM_ID) ON DELETE CASCADE,
+    CONSTRAINT UNIQUE_IDP_REALM_ID_NAME UNIQUE (REALM_ID, NAME),
+    CONSTRAINT UNIQUE_IDP_REALM_ID_DISPLAY_NAME UNIQUE (REALM_ID, DISPLAY_NAME)
+);
+
+DROP INDEX IF EXISTS IDENTITIES_PROVIDERS_PROVIDER_ID;
+DROP INDEX IF EXISTS IDENTITIES_PROVIDERS_REALM_ID;
+DROP INDEX IF EXISTS IDENTITIES_PROVIDERS_NAME;
+
+CREATE INDEX IDENTITIES_PROVIDERS_PROVIDER_ID ON IDENTITIES_PROVIDERS(PROVIDER_ID);
+CREATE INDEX IDENTITIES_PROVIDERS_REALM_ID ON IDENTITIES_PROVIDERS(REALM_ID);
+CREATE INDEX IDENTITIES_PROVIDERS_NAME ON IDENTITIES_PROVIDERS(NAME);
