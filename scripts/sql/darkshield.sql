@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS REALMS
     LOGIN_WITH_EMAIL_ALLOWED             boolean,
     DUPLICATED_EMAIL_ALLOWED             boolean,
     REGISTER_EMAIL_AS_USERNAME           boolean,
-    SSL_ENFORCEMENT                      varchar(50),
+    SSL_ENFORCEMENT                      SslEnforcementEnum,
 
     PASSWORD_POLICY                      JSON,
     EDIT_USER_NAME_ALLOWED               boolean,
@@ -77,15 +77,14 @@ CREATE TABLE IF NOT EXISTS ROLES
     PERMISSIONS                           json,
 
     CREATED_BY                            varchar(250)            NOT NULL,
-    CREATED_AT                            timestamp               NOT NULL,
+    CREATED_AT                            timestamptz             NOT NULL,
     UPDATED_BY                            varchar(250),
-    UPDATED_AT                            timestamp,
+    UPDATED_AT                            timestamptz,
     VERSION                               integer                 DEFAULT 1   CHECK(version > 0),
 
     CONSTRAINT FK_REALM_ROLES FOREIGN KEY(REALM_ID) REFERENCES REALMS(REALM_ID) ON DELETE CASCADE,
     CONSTRAINT UNIQUE_ROLES_REALM_ID_ROLE_ID UNIQUE (REALM_ID, ROLE_ID),
     CONSTRAINT UNIQUE_ROLES_REALM_ID_DISPLAY_NAME UNIQUE (REALM_ID, DISPLAY_NAME)
-
 );
 
 DROP INDEX IF EXISTS ROLES_ROLE_ID_IDX;

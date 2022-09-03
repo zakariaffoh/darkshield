@@ -3,6 +3,7 @@ use models::auditable::AuditableModel;
 use models::entities::realm::{PasswordPolicy, RealmModel};
 use serde_json::{self, json};
 use shaku::Component;
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio_postgres::Row;
 
@@ -27,8 +28,15 @@ pub struct RdsRealmProvider {
 
 impl RdsRealmProvider {
     fn read_realm_record(&self, row: Row) -> RealmModel {
-        let password_policy =
-            serde_json::from_str::<PasswordPolicy>(row.get::<&str, &str>("password_policy"));
+        let password_policy = serde_json::from_value::<PasswordPolicy>(
+            row.get::<&str, serde_json::Value>("password_policy"),
+        )
+        .map_or_else(|_| None, |p| Some(p));
+
+        let attributes = serde_json::from_value::<HashMap<String, Option<String>>>(
+            row.get::<&str, serde_json::Value>("attributes"),
+        )
+        .map_or_else(|_| None, |p| Some(p));
 
         RealmModel {
             realm_id: row.get("realm_id"),
@@ -43,7 +51,7 @@ impl RdsRealmProvider {
             login_with_email_allowed: row.get("login_with_email_allowed"),
             duplicated_email_allowed: row.get("duplicated_email_allowed"),
             ssl_enforcement: row.get("ssl_enforcement"),
-            password_policy: password_policy.map_or_else(|m| None, |m| Some(m)),
+            password_policy: password_policy,
             edit_user_name_allowed: row.get("edit_user_name_allowed"),
             refresh_token_max_reuse: row.get("refresh_token_max_reuse"),
             access_token_lifespan: row.get("access_token_lifespan"),
@@ -56,7 +64,7 @@ impl RdsRealmProvider {
             remember_me: row.get("remember_me"),
             events_enabled: row.get("events_enabled"),
             admin_events_enabled: row.get("admin_events_enabled"),
-            attributes: row.get("attributes"),
+            attributes: attributes,
             metadata: Some(AuditableModel {
                 tenant: row.get("tenant"),
                 created_by: row.get("created_by"),
@@ -127,11 +135,7 @@ impl IRealmProvider for RdsRealmProvider {
         let client = client.unwrap();
         let update_realm_stmt = client.prepare_cached(&create_realm_sql).await.unwrap();
         let metadata = realm.metadata.as_ref().unwrap();
-        let password_policy = if let Some(p) = &realm.password_policy {
-            Some(serde_json::to_string(p).unwrap())
-        } else {
-            None
-        };
+
         client
             .execute(
                 &update_realm_stmt,
@@ -146,7 +150,7 @@ impl IRealmProvider for RdsRealmProvider {
                     &realm.duplicated_email_allowed,
                     &realm.register_email_as_username,
                     &realm.ssl_enforcement,
-                    &password_policy,
+                    &json!(&realm.password_policy),
                     &realm.edit_user_name_allowed,
                     &realm.revoke_refresh_token,
                     &realm.refresh_token_max_reuse,

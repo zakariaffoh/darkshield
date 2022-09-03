@@ -63,7 +63,7 @@ impl IRealmService for RealmService {
         realm.metadata = AuditableModel::from_updator("tenant".to_owned(), "zaffoh".to_owned());
         let updated_realm = self.realm_provider.update_realm(&realm).await;
         match updated_realm {
-            Ok(_) => ApiResult::Data(()),
+            Ok(_) => ApiResult::no_content(),
             Err(_) => ApiResult::from_error(500, "500", "failed to update realm"),
         }
     }
