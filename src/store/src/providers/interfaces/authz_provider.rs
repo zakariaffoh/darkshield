@@ -30,12 +30,12 @@ pub trait IRoleProvider: Interface {
     ) -> Result<Option<RoleModel>, String>;
 
     async fn exists_by_name(&self, realm_id: &str, name: &str) -> Result<bool, String>;
-    async fn exists_by_role_id(
-        &self,
-        realm_id: &str,
-        role_id: &str,
-        client_role: bool,
-    ) -> Result<bool, String>;
+
+    async fn client_role_exists_by_id(&self, realm_id: &str, role_id: &str)
+        -> Result<bool, String>;
+
+    async fn role_exists_by_id(&self, realm_id: &str, role_id: &str) -> Result<bool, String>;
+
     async fn count_roles(&self, realm_id: &str) -> Result<i64, String>;
 
     async fn load_client_roles(
@@ -63,6 +63,20 @@ pub trait IGroupProvider: Interface {
 
     async fn load_groups_by_realm(&self, realm_id: &str) -> Result<Vec<GroupModel>, String>;
     async fn count_groups(&self, realm_id: &str) -> Result<i64, String>;
+    async fn exists_groups_by_id(&self, realm_id: &str, realm_id: &str) -> Result<bool, String>;
+    async fn add_group_role_mapping(
+        &self,
+        realm_id: &str,
+        group_id: &str,
+        role_id: &str,
+    ) -> Result<(), String>;
+
+    async fn remove_group_role_mapping(
+        &self,
+        realm_id: &str,
+        group_id: &str,
+        role_id: &str,
+    ) -> Result<(), String>;
 }
 
 #[async_trait]

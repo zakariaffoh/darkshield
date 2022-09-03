@@ -563,8 +563,8 @@ impl IClientScopeProvider for RdsClientScopeProvider {
                     };
 
                     let roles = roles_rows
-                        .into_iter()
-                        .map(|row| role_reader.read_role_record(row))
+                        .iter()
+                        .map(|row| role_reader.read_role_record(&row))
                         .collect();
 
                     let protocol_mapper_stmt = client

@@ -132,7 +132,7 @@ pub async fn update_group(
         &group_model.name,
         &realm_id
     );
-    group_service.create_group(group_model).await
+    group_service.udpate_group(group_model).await
 }
 
 #[get("/realm/{realm_id}/group/{group_id}")]
@@ -187,6 +187,42 @@ pub async fn count_groups_by_realm(
     let group_service: &dyn IGroupService = context.services().resolve_ref();
     log::info!("Counting groups for realm: {}", &realm_id.as_str());
     group_service.count_groups(&realm_id.as_str()).await
+}
+
+#[post("/realm/{realm_id}/group/{group_id}/role/{role_id}")]
+pub async fn add_group_role(
+    params: web::Path<(String, String, String)>,
+    context: web::Data<DarkShieldContext>,
+) -> impl Responder {
+    let group_service: &dyn IGroupService = context.services().resolve_ref();
+    let (realm_id, group_id, role_id) = params.into_inner();
+    log::info!(
+        "Adding role:{} to group: {} for realm: {}",
+        role_id.as_str(),
+        group_id.as_str(),
+        realm_id.as_str()
+    );
+    group_service
+        .add_group_role(realm_id.as_str(), group_id.as_str(), role_id.as_str())
+        .await
+}
+
+#[put("/realm/{realm_id}/group/{group_id}/role/{role_id}")]
+pub async fn remove_group_role(
+    params: web::Path<(String, String, String)>,
+    context: web::Data<DarkShieldContext>,
+) -> impl Responder {
+    let group_service: &dyn IGroupService = context.services().resolve_ref();
+    let (realm_id, group_id, role_id) = params.into_inner();
+    log::info!(
+        "Adding role:{} to group: {} for realm: {}",
+        role_id.as_str(),
+        group_id.as_str(),
+        realm_id.as_str()
+    );
+    group_service
+        .remove_group_role(realm_id.as_str(), group_id.as_str(), role_id.as_str())
+        .await
 }
 
 #[post("/realm/{realm_id}/identity_provider/create")]

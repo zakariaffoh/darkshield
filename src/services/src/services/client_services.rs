@@ -244,7 +244,7 @@ impl IClientService for ClientService {
 
         let existing_role = self
             .role_provider
-            .exists_by_role_id(&realm_id, &role_id, true)
+            .client_role_exists_by_id(&realm_id, &role_id)
             .await;
         if let Ok(res) = existing_role {
             if !res {
@@ -283,7 +283,7 @@ impl IClientService for ClientService {
 
         let existing_role = self
             .role_provider
-            .exists_by_role_id(&realm_id, &role_id, true)
+            .client_role_exists_by_id(&realm_id, &role_id)
             .await;
         if let Ok(res) = existing_role {
             if !res {
@@ -988,7 +988,7 @@ impl IClientScopeService for ClientScopeService {
 
         let existing_protocol_mapper = self
             .role_provider
-            .exists_by_role_id(&realm_id, &role_id, true)
+            .client_role_exists_by_id(&realm_id, &role_id)
             .await;
         if let Ok(res) = existing_protocol_mapper {
             if !res {
@@ -1033,7 +1033,7 @@ impl IClientScopeService for ClientScopeService {
 
         let existing_protocol_mapper = self
             .role_provider
-            .exists_by_role_id(&realm_id, &role_id, true)
+            .client_role_exists_by_id(&realm_id, &role_id)
             .await;
         if let Ok(res) = existing_protocol_mapper {
             if !res {

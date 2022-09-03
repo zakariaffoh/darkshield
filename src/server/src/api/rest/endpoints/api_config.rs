@@ -23,11 +23,14 @@ pub fn register_apis(api_config: &mut web::ServiceConfig) {
                     .service(authz::count_roles_by_realm)
                     /* Group Api */
                     .service(authz::create_group)
-                    .service(authz::update_role)
+                    .service(authz::update_group)
+                    .service(authz::load_group_by_id)
                     .service(authz::load_groups_by_realm)
                     .service(authz::delete_group_by_id)
                     .service(authz::load_groups_by_realm)
                     .service(authz::count_groups_by_realm)
+                    .service(authz::add_group_role)
+                    .service(authz::remove_group_role)
                     /* Authentication Execution API */
                     .service(auth::create_authentication_execution)
                     .service(auth::update_authentication_execution)
