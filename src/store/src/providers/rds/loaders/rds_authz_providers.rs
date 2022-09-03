@@ -7,8 +7,9 @@ use async_trait::async_trait;
 use deadpool_postgres::Object;
 use log;
 use models::{auditable::AuditableModel, entities::authz::*};
+use serde_json::json;
 use shaku::Component;
-use std::{error::Error, sync::Arc};
+use std::{collections::HashMap, error::Error, sync::Arc};
 use tokio_postgres::Row;
 
 #[allow(dead_code)]
@@ -550,8 +551,8 @@ impl IGroupProvider for RdsGroupProvider {
                     &group_model.description,
                     &group_model.display_name,
                     &group_model.is_default,
-                    &metadata.updated_at,
                     &metadata.updated_by,
+                    &metadata.updated_at,
                     &group_model.realm_id,
                     &group_model.group_id,
                 ],
@@ -716,6 +717,7 @@ impl IGroupProvider for RdsGroupProvider {
             Err(err) => Err(err.to_string()),
         }
     }
+
     async fn exists_groups_by_id(&self, realm_id: &str, group_id: &str) -> Result<bool, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
@@ -740,6 +742,7 @@ impl IGroupProvider for RdsGroupProvider {
             Err(error) => Err(error.to_string()),
         }
     }
+
     async fn add_group_role_mapping(
         &self,
         realm_id: &str,
@@ -811,6 +814,11 @@ pub struct RdsIdentityProvider {
 
 impl RdsIdentityProvider {
     fn read_idp_record(&self, row: Row) -> IdentityProviderModel {
+        let configs = serde_json::from_value::<HashMap<String, Option<String>>>(
+            row.get::<&str, serde_json::Value>("configs"),
+        )
+        .map_or_else(|_| None, |p| Some(p));
+
         IdentityProviderModel {
             internal_id: row.get("internal_id"),
             provider_id: row.get("provider_id"),
@@ -820,7 +828,7 @@ impl RdsIdentityProvider {
             display_name: row.get("display_name"),
             trust_email: row.get("trust_email"),
             enabled: row.get("enabled"),
-            configs: row.get("configs"),
+            configs: configs,
             metadata: Some(AuditableModel {
                 tenant: row.get("tenant"),
                 created_by: row.get("created_by"),
@@ -841,8 +849,12 @@ impl IIdentityProvider for RdsIdentityProvider {
             return Err(err);
         }
         let create_idp_sql = InsertRequestBuilder::new()
-            .table_name(authz_tables::IDENTITY_PROVIDER_TABLE.table_name.clone())
-            .columns(authz_tables::IDENTITY_PROVIDER_TABLE.insert_columns.clone())
+            .table_name(authz_tables::IDENTITIES_PROVIDERS_TABLE.table_name.clone())
+            .columns(
+                authz_tables::IDENTITIES_PROVIDERS_TABLE
+                    .insert_columns
+                    .clone(),
+            )
             .resolve_conflict(false)
             .sql_query()
             .unwrap();
@@ -851,6 +863,7 @@ impl IIdentityProvider for RdsIdentityProvider {
         let create_idp_stmt = client.prepare_cached(&create_idp_sql).await.unwrap();
 
         let metadata = idp.metadata.as_ref().unwrap();
+
         let response = client
             .execute(
                 &create_idp_stmt,
@@ -864,7 +877,7 @@ impl IIdentityProvider for RdsIdentityProvider {
                     &idp.description,
                     &idp.trust_email,
                     &idp.enabled,
-                    &idp.configs,
+                    &json!(&idp.configs),
                     &metadata.created_by,
                     &metadata.created_at,
                     &metadata.version,
@@ -884,8 +897,12 @@ impl IIdentityProvider for RdsIdentityProvider {
             return Err(err);
         }
         let update_idp_sql = UpdateRequestBuilder::new()
-            .table_name(authz_tables::IDENTITY_PROVIDER_TABLE.table_name.clone())
-            .columns(authz_tables::IDENTITY_PROVIDER_TABLE.update_columns.clone())
+            .table_name(authz_tables::IDENTITIES_PROVIDERS_TABLE.table_name.clone())
+            .columns(
+                authz_tables::IDENTITIES_PROVIDERS_TABLE
+                    .update_columns
+                    .clone(),
+            )
             .where_clauses(vec![
                 SqlCriteriaBuilder::is_equals("tenant".to_string()),
                 SqlCriteriaBuilder::is_equals("realm_id".to_string()),
@@ -908,9 +925,9 @@ impl IIdentityProvider for RdsIdentityProvider {
                     &idp.description,
                     &idp.trust_email,
                     &idp.enabled,
-                    &idp.configs,
-                    &metadata.updated_at,
+                    &json!(idp.configs),
                     &metadata.updated_by,
+                    &metadata.updated_at,
                     &metadata.tenant,
                     &idp.realm_id,
                     &idp.internal_id,
@@ -934,7 +951,7 @@ impl IIdentityProvider for RdsIdentityProvider {
             return Err(err);
         }
         let load_idp_sql = SelectRequestBuilder::new()
-            .table_name(authz_tables::IDENTITY_PROVIDER_TABLE.table_name.clone())
+            .table_name(authz_tables::IDENTITIES_PROVIDERS_TABLE.table_name.clone())
             .where_clauses(vec![
                 SqlCriteriaBuilder::is_equals("realm_id".to_string()),
                 SqlCriteriaBuilder::is_equals("internal_id".to_string()),
@@ -968,7 +985,7 @@ impl IIdentityProvider for RdsIdentityProvider {
             return Err(err);
         }
         let load_idp_sql = SelectRequestBuilder::new()
-            .table_name(authz_tables::IDENTITY_PROVIDER_TABLE.table_name.clone())
+            .table_name(authz_tables::IDENTITIES_PROVIDERS_TABLE.table_name.clone())
             .where_clauses(vec![SqlCriteriaBuilder::is_equals("realm_id".to_string())])
             .sql_query()
             .unwrap();
@@ -995,7 +1012,7 @@ impl IIdentityProvider for RdsIdentityProvider {
             return Err(err);
         }
         let remove_idp_sql = DeleteQueryBuilder::new()
-            .table_name(authz_tables::IDENTITY_PROVIDER_TABLE.table_name.clone())
+            .table_name(authz_tables::IDENTITIES_PROVIDERS_TABLE.table_name.clone())
             .where_clauses(vec![
                 SqlCriteriaBuilder::is_equals("realm_id".to_string()),
                 SqlCriteriaBuilder::is_equals("internal_id".to_string()),
@@ -1020,7 +1037,7 @@ impl IIdentityProvider for RdsIdentityProvider {
             return Err(err);
         }
         let load_idp_by_alias_sql = SelectCountRequestBuilder::new()
-            .table_name(authz_tables::IDENTITY_PROVIDER_TABLE.table_name.clone())
+            .table_name(authz_tables::IDENTITIES_PROVIDERS_TABLE.table_name.clone())
             .where_clauses(vec![
                 SqlCriteriaBuilder::is_equals("realm_id".to_string()),
                 SqlCriteriaBuilder::is_equals("alias".to_string()),
@@ -1034,7 +1051,7 @@ impl IIdentityProvider for RdsIdentityProvider {
             .query_one(&load_idp_by_alias_stmt, &[&realm_id, &alias])
             .await;
         match result {
-            Ok(row) => Ok(row.get::<usize, u32>(0) as u32 > 0),
+            Ok(row) => Ok(row.get::<usize, i64>(0) as u32 > 0),
             Err(error) => Err(error.to_string()),
         }
     }

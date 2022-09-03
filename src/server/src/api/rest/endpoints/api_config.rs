@@ -31,6 +31,12 @@ pub fn register_apis(api_config: &mut web::ServiceConfig) {
                     .service(authz::count_groups_by_realm)
                     .service(authz::add_group_role)
                     .service(authz::remove_group_role)
+                    /* Identity provider API*/
+                    .service(authz::create_identity_provider)
+                    .service(authz::update_identity_provider)
+                    .service(authz::load_identity_provider)
+                    .service(authz::delete_identity_provider)
+                    .service(authz::load_identity_providers_by_realm)
                     /* Authentication Execution API */
                     .service(auth::create_authentication_execution)
                     .service(auth::update_authentication_execution)

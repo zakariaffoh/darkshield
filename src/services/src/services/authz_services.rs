@@ -52,7 +52,15 @@ impl IRoleService for RoleService {
         let created_role = self.role_provider.create_role(&role).await;
         match created_role {
             Ok(_) => ApiResult::Data(role),
-            Err(_) => ApiResult::from_error(500, "500", "failed to create role"),
+            Err(err) => {
+                log::error!(
+                    "Failed to create role: {}, realm: {}. Error: {}",
+                    &role.name,
+                    &role.realm_id,
+                    err
+                );
+                ApiResult::from_error(500, "500", "failed to create role")
+            }
         }
     }
 
@@ -77,7 +85,12 @@ impl IRoleService for RoleService {
         match updated_role {
             Ok(_) => ApiResult::no_content(),
             Err(err) => {
-                log::error!("Failed to update role. Error: {}", err.to_string());
+                log::error!(
+                    "Failed to update role: {}, realm: {}. Error: {}",
+                    &role.role_id,
+                    &role.realm_id,
+                    err
+                );
                 ApiResult::from_error(500, "500", "failed to update role")
             }
         }
@@ -94,10 +107,18 @@ impl IRoleService for RoleService {
                 return ApiResult::from_error(404, "404", "role not found");
             }
         }
-        let updated_role = self.role_provider.delete_role(&realm_id, &role_id).await;
-        match updated_role {
+        let deleted_role = self.role_provider.delete_role(&realm_id, &role_id).await;
+        match deleted_role {
             Ok(_) => ApiResult::no_content(),
-            Err(_) => ApiResult::from_error(500, "500", "failed to update role"),
+            Err(err) => {
+                log::error!(
+                    "Failed to delete role: {}, realm: {}. Error: {}",
+                    &role_id,
+                    &realm_id,
+                    err
+                );
+                ApiResult::from_error(500, "500", "failed to update role")
+            }
         }
     }
 
@@ -189,7 +210,15 @@ impl IGroupService for GroupService {
         let created_group = self.group_provider.create_group(&group).await;
         match created_group {
             Ok(_) => ApiResult::Data(group),
-            Err(_) => ApiResult::from_error(500, "500", "failed to create group"),
+            Err(err) => {
+                log::error!(
+                    "Failed to create group: {}, realm: {}. Error: {}",
+                    &group.name,
+                    &group.realm_id,
+                    err.to_string()
+                );
+                ApiResult::from_error(500, "500", "failed to create group")
+            }
         }
     }
 
@@ -201,19 +230,34 @@ impl IGroupService for GroupService {
         if let Ok(response) = existing_group {
             if response.is_some() {
                 log::error!(
-                    "group: {} already exists in realm: {}",
+                    "Group: {} already exists in realm: {}",
                     &group.name,
                     &group.realm_id
                 );
-                return ApiResult::from_error(409, "500", "role already exists");
+                return ApiResult::from_error(409, "500", "group already exists");
             }
         }
         let mut group = group;
         group.metadata = AuditableModel::from_updator("tenant".to_owned(), "zaffoh".to_owned());
-        let updated_group = self.group_provider.create_group(&group).await;
+        let updated_group = self.group_provider.update_group(&group).await;
         match updated_group {
-            Ok(_) => ApiResult::no_content(),
-            Err(_) => ApiResult::from_error(500, "500", "failed to update group"),
+            Ok(_) => {
+                log::info!(
+                    "Group updated for id: {} and realm: {}",
+                    &group.group_id,
+                    &group.realm_id
+                );
+                ApiResult::no_content()
+            }
+            Err(err) => {
+                log::error!(
+                    "Failed to update group: {}, realm: {}. Error: {}",
+                    &group.group_id,
+                    &group.realm_id,
+                    &err
+                );
+                ApiResult::from_error(500, "500", "failed to update group")
+            }
         }
     }
 
@@ -400,7 +444,15 @@ impl IIdentityProviderService for IdentityProviderService {
         let created_idp = self.identity_provider.create_identity_provider(&idp).await;
         match created_idp {
             Ok(_) => ApiResult::Data(idp),
-            Err(_) => ApiResult::from_error(500, "500", "failed to create identity privider"),
+            Err(err) => {
+                log::error!(
+                    "Failed to create identity provider: {}, realm: {}. Error: {}",
+                    &idp.name,
+                    &idp.realm_id,
+                    err
+                );
+                ApiResult::from_error(500, "500", "failed to create identity privider")
+            }
         }
     }
 
@@ -412,8 +464,8 @@ impl IIdentityProviderService for IdentityProviderService {
         if let Ok(response) = existing_idp {
             if response.is_none() {
                 log::error!(
-                    "identity provider: {} already exists in realm: {}",
-                    &idp.internal_id,
+                    "Identity provider: {} already exists in realm: {}",
+                    &idp.name,
                     &idp.realm_id
                 );
                 return ApiResult::from_error(409, "500", "identity provider already exists");
@@ -445,7 +497,15 @@ impl IIdentityProviderService for IdentityProviderService {
         let updated_idp = self.identity_provider.udpate_identity_provider(&idp).await;
         match updated_idp {
             Ok(_) => ApiResult::no_content(),
-            Err(_) => ApiResult::from_error(500, "500", "failed to update identity provider"),
+            Err(err) => {
+                log::error!(
+                    "Failed to update identity provider: {}, realm: {}. Error: {}",
+                    &idp.name,
+                    &idp.realm_id,
+                    err
+                );
+                ApiResult::from_error(500, "500", "failed to update role")
+            }
         }
     }
 
@@ -516,7 +576,15 @@ impl IIdentityProviderService for IdentityProviderService {
             .await;
         match updated_idp {
             Ok(_) => ApiResult::no_content(),
-            Err(_) => ApiResult::from_error(500, "500", "failed to update identity provider"),
+            Err(err) => {
+                log::error!(
+                    "Failed to update identity provider: {}, realm: {}. Error: {}",
+                    &internal_id,
+                    &realm_id,
+                    err
+                );
+                ApiResult::from_error(500, "500", "failed to update identity provider")
+            }
         }
     }
 
