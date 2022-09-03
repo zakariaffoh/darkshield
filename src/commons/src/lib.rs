@@ -17,7 +17,8 @@ pub struct ApiError {
 pub enum ApiResult<T = ()> {
     Data(T),
     Error(ApiError),
-    Empty,
+    NotFound,
+    NoContent,
 }
 
 #[allow(dead_code)]
@@ -29,7 +30,7 @@ impl<T> ApiResult<T> {
     pub fn from_option(data: Option<T>) -> Self {
         match data {
             Some(d) => ApiResult::Data(d),
-            None => ApiResult::Empty,
+            None => ApiResult::NotFound,
         }
     }
 
@@ -47,7 +48,7 @@ impl<T> ApiResult<T> {
         })
     }
     pub fn no_content() -> Self {
-        ApiResult::<T>::Empty
+        ApiResult::<T>::NoContent
     }
 }
 
@@ -65,7 +66,10 @@ where
             ApiResult::Error(error) => HttpResponse::Ok()
                 .content_type(ContentType::json())
                 .body(serde_json::to_string(error).unwrap()),
-            ApiResult::Empty => HttpResponse::NoContent()
+            ApiResult::NotFound => HttpResponse::NotFound()
+                .content_type(ContentType::json())
+                .body(()),
+            ApiResult::NoContent => HttpResponse::NoContent()
                 .content_type(ContentType::json())
                 .body(()),
         }
