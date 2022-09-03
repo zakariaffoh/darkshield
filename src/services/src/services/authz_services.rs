@@ -147,6 +147,13 @@ pub trait IGroupService: Interface {
     async fn load_group_by_id(&self, realm_id: &str, group_id: &str) -> ApiResult<GroupModel>;
     async fn load_groups_by_realm(&self, realm_id: &str) -> ApiResult<Vec<GroupModel>>;
     async fn count_groups(&self, realm_id: &str) -> ApiResult<i64>;
+    async fn add_group_role(&self, realm_id: &str, group_id: &str, role_id: &str) -> ApiResult<()>;
+    async fn remove_group_role(
+        &self,
+        realm_id: &str,
+        group_id: &str,
+        role_id: &str,
+    ) -> ApiResult<()>;
 }
 
 #[allow(dead_code)]
@@ -223,7 +230,7 @@ impl IGroupService for GroupService {
         }
         let result = self.group_provider.delete_group(&realm_id, &group_id).await;
         match result {
-            Ok(_) => ApiResult::Data(()),
+            Ok(_) => ApiResult::no_content(),
             Err(_) => ApiResult::from_error(500, "500", "failed to update role"),
         }
     }
@@ -262,6 +269,79 @@ impl IGroupService for GroupService {
         match response {
             Ok(count) => ApiResult::from_data(count),
             Err(err) => ApiResult::from_error(500, "500", &err),
+        }
+    }
+
+    async fn add_group_role(&self, realm_id: &str, group_id: &str, role_id: &str) -> ApiResult<()> {
+        let existing_group = self
+            .group_provider
+            .exists_groups_by_id(&realm_id, &group_id)
+            .await;
+        if let Ok(response) = existing_group {
+            if !response {
+                log::error!("group: {} not found in realm: {}", group_id, realm_id);
+                return ApiResult::from_error(409, "404", "group not found");
+            }
+        }
+
+        let existing_role = self
+            .role_provider
+            .role_exists_by_id(&realm_id, &role_id)
+            .await;
+        if let Ok(res) = existing_role {
+            if !res {
+                log::error!("role: {} not found in realm: {}", &role_id, &realm_id,);
+                return ApiResult::from_error(409, "404", "role not found");
+            }
+        }
+
+        let response = self
+            .group_provider
+            .add_group_role_mapping(&realm_id, &group_id, &role_id)
+            .await;
+
+        match response {
+            Ok(_) => ApiResult::no_content(),
+            Err(_) => ApiResult::from_error(500, "500", "failed to add role to group"),
+        }
+    }
+
+    async fn remove_group_role(
+        &self,
+        realm_id: &str,
+        group_id: &str,
+        role_id: &str,
+    ) -> ApiResult<()> {
+        let existing_group = self
+            .group_provider
+            .exists_groups_by_id(&realm_id, &group_id)
+            .await;
+        if let Ok(response) = existing_group {
+            if !response {
+                log::error!("group: {} not found in realm: {}", group_id, realm_id);
+                return ApiResult::from_error(409, "404", "group not found");
+            }
+        }
+
+        let existing_role = self
+            .role_provider
+            .role_exists_by_id(&realm_id, &role_id)
+            .await;
+        if let Ok(res) = existing_role {
+            if !res {
+                log::error!("role: {} not found in realm: {}", &role_id, &realm_id,);
+                return ApiResult::from_error(409, "404", "role not found");
+            }
+        }
+
+        let response = self
+            .group_provider
+            .remove_group_role_mapping(&realm_id, &group_id, &role_id)
+            .await;
+
+        match response {
+            Ok(_) => ApiResult::no_content(),
+            Err(_) => ApiResult::from_error(500, "500", "failed to remove role from group"),
         }
     }
 }
@@ -364,7 +444,7 @@ impl IIdentityProviderService for IdentityProviderService {
         idp.metadata = AuditableModel::from_updator("tenant".to_owned(), "zaffoh".to_owned());
         let updated_idp = self.identity_provider.udpate_identity_provider(&idp).await;
         match updated_idp {
-            Ok(_) => ApiResult::Data(()),
+            Ok(_) => ApiResult::no_content(),
             Err(_) => ApiResult::from_error(500, "500", "failed to update identity provider"),
         }
     }
@@ -435,7 +515,7 @@ impl IIdentityProviderService for IdentityProviderService {
             .remove_identity_provider(&realm_id, &internal_id)
             .await;
         match updated_idp {
-            Ok(_) => ApiResult::Data(()),
+            Ok(_) => ApiResult::no_content(),
             Err(_) => ApiResult::from_error(500, "500", "failed to update identity provider"),
         }
     }

@@ -98,3 +98,71 @@ CREATE INDEX ROLES_REALM_ID_IDX ON ROLES(REALM_ID);
 CREATE INDEX ROLES_NAME_IDX ON ROLES(NAME);
 CREATE INDEX ROLES_CLIENT_ROLE_IDX ON ROLES(CLIENT_ROLE);
 CREATE INDEX ROLES_DISPLAY_NAME_IDX ON ROLES(DISPLAY_NAME);
+
+
+/***********************************************************************************
+*                                 GROUPS Table
+************************************************************************************/
+CREATE TABLE IF NOT EXISTS GROUPS
+(
+    ID                                    serial                  PRIMARY KEY,
+    TENANT                                varchar(50)             NOT NULL,
+    GROUP_ID                              varchar(250)            UNIQUE NOT NULL,
+    REALM_ID                              varchar(250)            NOT NULL,
+    NAME                                  varchar(200)            NOT NULL,
+
+    DISPLAY_NAME                          TEXT                    NOT NULL,
+    IS_DEFAULT                            boolean,
+    DESCRIPTION                           TEXT                    NOT NULL,
+
+    CREATED_BY                            varchar(250)            NOT NULL,
+    CREATED_AT                            timestamptz             NOT NULL,
+    UPDATED_BY                            varchar(250),
+    UPDATED_AT                            timestamptz,
+    VERSION                               integer                 DEFAULT 1   CHECK(version > 0),
+
+    CONSTRAINT FK_REALM_GROUPS FOREIGN KEY(REALM_ID) REFERENCES REALMS(REALM_ID) ON DELETE CASCADE,
+    CONSTRAINT UNIQUE_GROUPS_REALM_ID_GROUP_ID UNIQUE (REALM_ID, GROUP_ID),
+    CONSTRAINT UNIQUE_GROUPS_REALM_ID_DISPLAY_NAME UNIQUE (REALM_ID, DISPLAY_NAME)
+);
+
+DROP INDEX IF EXISTS GROUPS_GROUP_ID_IDX;
+DROP INDEX IF EXISTS GROUPS_REALM_ID_IDX;
+DROP INDEX IF EXISTS GROUPS_NAME_IDX;
+DROP INDEX IF EXISTS GROUPS_DISPLAY_NAME_IDX;
+
+CREATE INDEX GROUPS_GROUP_ID_IDX ON GROUPS(GROUP_ID);
+CREATE INDEX GROUPS_REALM_ID_IDX ON GROUPS(REALM_ID);
+CREATE INDEX GROUPS_NAME_IDX ON GROUPS(NAME);
+CREATE INDEX GROUPS_DISPLAY_NAME_IDX ON GROUPS(DISPLAY_NAME);
+
+
+/***********************************************************************************
+*                           GROUPS_ROLES JOIN Table
+************************************************************************************/
+
+CREATE TABLE IF NOT EXISTS GROUPS_ROLES
+(
+    REALM_ID                              varchar(250)             NOT NULL,
+    GROUP_ID                              varchar(250)             NOT NULL,
+    ROLE_ID                               varchar(250)             NOT NULL,
+
+    CONSTRAINT FK_GROUPS_ROLES_REALMS_GROUP_ID FOREIGN KEY(REALM_ID)
+    REFERENCES REALMS(REALM_ID) ON DELETE CASCADE,
+
+    CONSTRAINT FK_GROUPS_ROLES_GROUPS_GROUP_ID FOREIGN KEY(GROUP_ID)
+    REFERENCES GROUPS(GROUP_ID) ON DELETE CASCADE,
+
+    CONSTRAINT FK_GROUPS_ROLES_ROLES_ROLE_ID FOREIGN KEY(ROLE_ID)
+    REFERENCES ROLES(ROLE_ID) ON DELETE CASCADE,
+
+    CONSTRAINT UNIQUE_GROUPS_ROLES_ROLE_ID_GROUP_ID UNIQUE (REALM_ID, GROUP_ID,ROLE_ID)
+);
+
+DROP INDEX IF EXISTS GROUPS_ROLES_REALM_ID_IDX;
+DROP INDEX IF EXISTS GROUPS_ROLES_GROUP_ID_IDX;
+DROP INDEX IF EXISTS GROUPS_ROLES_ROLE_ID_IDX;
+
+CREATE INDEX GROUPS_ROLES_REALM_ID_IDX ON GROUPS_ROLES(REALM_ID);
+CREATE INDEX GROUPS_ROLES_GROUP_ID_IDX ON GROUPS_ROLES(GROUP_ID);
+CREATE INDEX GROUPS_ROLES_ROLE_ID_IDX ON GROUPS_ROLES(ROLE_ID);

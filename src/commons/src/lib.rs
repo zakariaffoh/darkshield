@@ -63,9 +63,23 @@ where
             ApiResult::Data(data) => HttpResponse::Ok()
                 .content_type(ContentType::json())
                 .body(serde_json::to_string(data).unwrap()),
-            ApiResult::Error(error) => HttpResponse::Ok()
-                .content_type(ContentType::json())
-                .body(serde_json::to_string(error).unwrap()),
+            ApiResult::Error(error) => match error.status_code {
+                400 => HttpResponse::BadRequest()
+                    .content_type(ContentType::json())
+                    .body(serde_json::to_string(error).unwrap()),
+                403 => HttpResponse::Unauthorized()
+                    .content_type(ContentType::json())
+                    .body(serde_json::to_string(error).unwrap()),
+                404 => HttpResponse::NotFound()
+                    .content_type(ContentType::json())
+                    .body(serde_json::to_string(error).unwrap()),
+                409 => HttpResponse::Conflict()
+                    .content_type(ContentType::json())
+                    .body(serde_json::to_string(error).unwrap()),
+                _ => HttpResponse::InternalServerError()
+                    .content_type(ContentType::json())
+                    .body(serde_json::to_string(error).unwrap()),
+            },
             ApiResult::NotFound => HttpResponse::NotFound()
                 .content_type(ContentType::json())
                 .body(()),

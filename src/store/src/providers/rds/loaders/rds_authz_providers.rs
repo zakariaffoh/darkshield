@@ -1,15 +1,15 @@
-use async_trait::async_trait;
-use log;
-use models::{auditable::AuditableModel, entities::authz::*};
-use shaku::Component;
-use std::sync::Arc;
-use tokio_postgres::Row;
-
 use crate::providers::{
     core::builder::*,
     interfaces::authz_provider::*,
     rds::{client::postgres_client::IDataBaseManager, tables::authz_tables},
 };
+use async_trait::async_trait;
+use deadpool_postgres::Object;
+use log;
+use models::{auditable::AuditableModel, entities::authz::*};
+use shaku::Component;
+use std::{error::Error, sync::Arc};
+use tokio_postgres::Row;
 
 #[allow(dead_code)]
 #[derive(Component)]
@@ -20,7 +20,7 @@ pub struct RdsRoleProvider {
 }
 
 impl RdsRoleProvider {
-    pub fn read_role_record(&self, row: Row) -> RoleModel {
+    pub fn read_role_record(&self, row: &Row) -> RoleModel {
         RoleModel {
             role_id: row.get("role_id"),
             realm_id: row.get("realm_id"),
@@ -155,10 +155,7 @@ impl IRoleProvider for RdsRoleProvider {
             .query(&load_roles_stmt, &[&realm_id, &roles_ids])
             .await;
         match result {
-            Ok(rows) => Ok(rows
-                .into_iter()
-                .map(|row| self.read_role_record(row))
-                .collect()),
+            Ok(rows) => Ok(rows.iter().map(|row| self.read_role_record(&row)).collect()),
             Err(err) => Err(err.to_string()),
         }
     }
@@ -178,10 +175,7 @@ impl IRoleProvider for RdsRoleProvider {
         let load_roles_stmt = client.prepare_cached(&load_roles_sql).await.unwrap();
         let result = client.query(&load_roles_stmt, &[&realm_id]).await;
         match result {
-            Ok(rows) => Ok(rows
-                .into_iter()
-                .map(|row| self.read_role_record(row))
-                .collect()),
+            Ok(rows) => Ok(rows.iter().map(|row| self.read_role_record(&row)).collect()),
             Err(err) => Err(err.to_string()),
         }
     }
@@ -208,7 +202,7 @@ impl IRoleProvider for RdsRoleProvider {
         let result = client
             .query_opt(&load_realm_sql, &[&realm_id, &role_name])
             .await;
-        match result {
+        match &result {
             Ok(row) => {
                 if let Some(r) = row {
                     Ok(Some(self.read_role_record(r)))
@@ -269,7 +263,7 @@ impl IRoleProvider for RdsRoleProvider {
         let result = client
             .query_opt(&load_realm_stmt, &[&realm_id, &name, &false])
             .await;
-        match result {
+        match &result {
             Ok(row) => {
                 if let Some(r) = row {
                     Ok(Some(self.read_role_record(r)))
@@ -303,7 +297,7 @@ impl IRoleProvider for RdsRoleProvider {
         let result = client
             .query_opt(&load_realm_sql, &[&realm_id, &role_id])
             .await;
-        match result {
+        match &result {
             Ok(row) => {
                 if let Some(r) = row {
                     Ok(Some(self.read_role_record(r)))
@@ -339,17 +333,17 @@ impl IRoleProvider for RdsRoleProvider {
             Err(error) => Err(error.to_string()),
         }
     }
-    async fn exists_by_role_id(
+
+    async fn client_role_exists_by_id(
         &self,
         realm_id: &str,
         role_id: &str,
-        client_role: bool,
     ) -> Result<bool, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
         }
-        let load_realm_sql = SelectCountRequestBuilder::new()
+        let load_role_sql = SelectCountRequestBuilder::new()
             .table_name(authz_tables::ROLE_TABLE.table_name.clone())
             .where_clauses(vec![
                 SqlCriteriaBuilder::is_equals("realm_id".to_string()),
@@ -360,15 +354,41 @@ impl IRoleProvider for RdsRoleProvider {
             .unwrap();
 
         let client = client.unwrap();
-        let load_realm_stmt = client.prepare_cached(&load_realm_sql).await.unwrap();
+        let load_role_stmt = client.prepare_cached(&load_role_sql).await.unwrap();
         let result = client
-            .query_one(&load_realm_stmt, &[&realm_id, &role_id, &client_role])
+            .query_one(&load_role_stmt, &[&realm_id, &role_id, &true])
             .await;
         match result {
             Ok(row) => Ok(row.get::<usize, i64>(0) > 0),
             Err(error) => Err(error.to_string()),
         }
     }
+
+    async fn role_exists_by_id(&self, realm_id: &str, role_id: &str) -> Result<bool, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let load_realm_sql = SelectCountRequestBuilder::new()
+            .table_name(authz_tables::ROLE_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("role_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let client = client.unwrap();
+        let load_realm_stmt = client.prepare_cached(&load_realm_sql).await.unwrap();
+        let result = client
+            .query_one(&load_realm_stmt, &[&realm_id, &role_id])
+            .await;
+        match result {
+            Ok(row) => Ok(row.get::<usize, i64>(0) > 0),
+            Err(error) => Err(error.to_string()),
+        }
+    }
+
     async fn count_roles(&self, realm_id: &str) -> Result<i64, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
@@ -407,7 +427,7 @@ pub struct RdsGroupProvider {
 }
 
 impl RdsGroupProvider {
-    fn read_group_record(&self, row: Row) -> GroupModel {
+    fn read_group_record(&self, row: Row, roles: Vec<RoleModel>) -> GroupModel {
         GroupModel {
             group_id: row.get("group_id"),
             realm_id: row.get("realm_id"),
@@ -415,7 +435,7 @@ impl RdsGroupProvider {
             description: row.get("description"),
             is_default: row.get("is_default"),
             display_name: row.get("display_name"),
-            roles: None,
+            roles: Some(roles),
             metadata: Some(AuditableModel {
                 tenant: row.get("tenant"),
                 created_by: row.get("created_by"),
@@ -424,6 +444,36 @@ impl RdsGroupProvider {
                 updated_at: row.get("updated_at"),
                 version: row.get("version"),
             }),
+        }
+    }
+
+    async fn read_group_roles(
+        &self,
+        client: &Object,
+        realm_id: &str,
+        group_id: &str,
+    ) -> Result<Vec<RoleModel>, String> {
+        let load_roles_stmt = client
+            .prepare_cached(&authz_tables::GROUPS_ROLES_SELECT_BY_ROLE_ID_QUERY)
+            .await
+            .unwrap();
+        let roles_rows = client
+            .query(&load_roles_stmt, &[&realm_id, &group_id])
+            .await;
+
+        match &roles_rows {
+            Ok(rs) => {
+                let role_mapper = RdsRoleProvider {
+                    database_manager: self.database_manager.clone(),
+                };
+                let roles: Vec<RoleModel> = roles_rows
+                    .unwrap()
+                    .iter()
+                    .map(|r| role_mapper.read_role_record(&r))
+                    .collect();
+                Ok(roles)
+            }
+            Err(err) => Err(err.to_string()),
         }
     }
 }
@@ -456,10 +506,9 @@ impl IGroupProvider for RdsGroupProvider {
                     &group_model.group_id,
                     &group_model.realm_id,
                     &group_model.name,
-                    &group_model.description,
                     &group_model.display_name,
+                    &group_model.description,
                     &group_model.is_default,
-                    &metadata.tenant,
                     &metadata.created_by,
                     &metadata.created_at,
                     &metadata.version,
@@ -562,7 +611,12 @@ impl IGroupProvider for RdsGroupProvider {
         match result {
             Ok(row) => {
                 if let Some(r) = row {
-                    Ok(Some(self.read_group_record(r)))
+                    let group_id = r.get::<&str, String>("group_id");
+                    let roles_records = self.read_group_roles(&client, realm_id, &group_id).await;
+                    match roles_records {
+                        Ok(roles) => Ok(Some(self.read_group_record(r, roles))),
+                        Err(err) => Err(err),
+                    }
                 } else {
                     Ok(None)
                 }
@@ -596,7 +650,12 @@ impl IGroupProvider for RdsGroupProvider {
         match result {
             Ok(row) => {
                 if let Some(r) = row {
-                    Ok(Some(self.read_group_record(r)))
+                    let group_id = r.get::<&str, String>("group_id");
+                    let roles_records = self.read_group_roles(&client, realm_id, &group_id).await;
+                    match roles_records {
+                        Ok(roles) => Ok(Some(self.read_group_record(r, roles))),
+                        Err(err) => Err(err),
+                    }
                 } else {
                     Ok(None)
                 }
@@ -640,11 +699,104 @@ impl IGroupProvider for RdsGroupProvider {
         let load_groups_stmt = client.prepare_cached(&load_groups_sql).await.unwrap();
         let result = client.query(&load_groups_stmt, &[&realm_id]).await;
         match result {
-            Ok(rows) => Ok(rows
-                .into_iter()
-                .map(|row| self.read_group_record(row))
-                .collect()),
+            Ok(rows) => {
+                let mut groups = Vec::new();
+                for r in rows {
+                    let roles_records = self
+                        .read_group_roles(&client, realm_id, &r.get::<&str, &str>("group_id"))
+                        .await;
+                    if roles_records.is_ok() {
+                        groups.push(self.read_group_record(r, roles_records.unwrap()));
+                    } else {
+                        return Err(roles_records.err().unwrap());
+                    }
+                }
+                Ok(groups)
+            }
             Err(err) => Err(err.to_string()),
+        }
+    }
+    async fn exists_groups_by_id(&self, realm_id: &str, group_id: &str) -> Result<bool, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let load_group_sql = SelectCountRequestBuilder::new()
+            .table_name(authz_tables::GROUP_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("group_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let client = client.unwrap();
+        let load_group_stmt = client.prepare_cached(&load_group_sql).await.unwrap();
+        let result = client
+            .query_one(&load_group_stmt, &[&realm_id, &group_id])
+            .await;
+        match result {
+            Ok(row) => Ok(row.get::<usize, i64>(0) > 0),
+            Err(error) => Err(error.to_string()),
+        }
+    }
+    async fn add_group_role_mapping(
+        &self,
+        realm_id: &str,
+        group_id: &str,
+        role_id: &str,
+    ) -> Result<(), String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let add_group_role_sql = InsertRequestBuilder::new()
+            .table_name(authz_tables::GROUPS_ROLES_TABLE.table_name.clone())
+            .columns(authz_tables::GROUPS_ROLES_TABLE.insert_columns.clone())
+            .resolve_conflict(true)
+            .sql_query()
+            .unwrap();
+
+        let client = client.unwrap();
+        let add_group_role_stmt = client.prepare_cached(&add_group_role_sql).await.unwrap();
+        let response = client
+            .execute(&add_group_role_stmt, &[&realm_id, &group_id, &role_id])
+            .await;
+
+        match response {
+            Err(err) => Err(err.to_string()),
+            Ok(_) => Ok(()),
+        }
+    }
+
+    async fn remove_group_role_mapping(
+        &self,
+        realm_id: &str,
+        group_id: &str,
+        role_id: &str,
+    ) -> Result<(), String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let delete_group_role_sql = DeleteQueryBuilder::new()
+            .table_name(authz_tables::GROUPS_ROLES_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("group_id".to_string()),
+                SqlCriteriaBuilder::is_equals("role_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let client = client.unwrap();
+        let delete_group_role_stmt = client.prepare_cached(&delete_group_role_sql).await.unwrap();
+        let result = client
+            .execute(&delete_group_role_stmt, &[&realm_id, &group_id, &role_id])
+            .await;
+        match result {
+            Ok(_) => Ok(()),
+            Err(error) => Err(error.to_string()),
         }
     }
 }
