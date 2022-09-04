@@ -1,5 +1,13 @@
 use crate::services::{
-    auth_services::*, authz_services::*, client_services::*, realm_service::RealmService,
+    auth_services::{
+        AuthenticationExecutionService, AuthenticationFlowService, AuthenticatorConfigService,
+        RequiredActionService,
+    },
+    authz_services::{
+        GroupService, IdentityProviderService, ResourceServerService, RoleService, ScopeService,
+    },
+    client_services::{ClientScopeService, ClientService, ProtocolMapperService},
+    realm_service::RealmService,
 };
 
 use shaku::{module, Component, HasComponent, Interface};
@@ -8,7 +16,10 @@ use store::providers::rds::{
     client::postgres_client::DataBaseManager,
     loaders::{
         rds_auth_providers::*,
-        rds_authz_providers::*,
+        rds_authz_providers::{
+            RdsGroupProvider, RdsIdentityProvider, RdsResourceServerProvider, RdsRoleProvider,
+            RdsScopeProvider,
+        },
         rds_client_provider::{
             RdsClientProvider, RdsClientScopeProvider, RdsProtocolMapperProvider,
         },
@@ -31,6 +42,8 @@ module! {
             RdsClientScopeProvider,
             RdsProtocolMapperProvider,
             RdsClientProvider,
+            RdsScopeProvider,
+            RdsResourceServerProvider,
             RealmService,
             RoleService,
             GroupService,
@@ -42,6 +55,8 @@ module! {
             ClientScopeService,
             ProtocolMapperService,
             ClientService,
+            ResourceServerService,
+            ScopeService,
         ],
         providers = [],
     }
