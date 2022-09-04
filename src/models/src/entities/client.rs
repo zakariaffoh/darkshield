@@ -5,16 +5,23 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::str::FromStr;
 
-#[derive(Debug, Serialize, Deserialize, ToSql, FromSql, PartialEq, Eq, Hash)]
+#[derive(Debug, Serialize, Deserialize, ToSql, FromSql, PartialEq)]
+#[postgres(name = "protocolenum")]
 pub enum ProtocolEnum {
+    #[serde(alias = "openid-connect")]
+    #[postgres(name = "openid-connect")]
     OpendId,
+
+    #[serde(alias = "docker")]
+    #[postgres(name = "docker")]
+    Docker,
 }
 
 impl FromStr for ProtocolEnum {
     type Err = String;
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         match input {
-            "OpendId" => Ok(ProtocolEnum::OpendId),
+            "openid-connect" => Ok(ProtocolEnum::OpendId),
             _ => Err(format!("unsupported enum type: {0}", input)),
         }
     }
@@ -185,8 +192,6 @@ pub struct ClientScopeMutationModel {
     pub name: String,
     pub description: String,
     pub protocol: ProtocolEnum,
-    pub roles: Option<Vec<RoleModel>>,
-    pub protocol_mappers: Option<Vec<ProtocolMapperModel>>,
     pub default_scope: Option<bool>,
     pub configs: Option<HashMap<String, Option<String>>>,
 }
@@ -199,8 +204,8 @@ impl Into<ClientScopeModel> for ClientScopeMutationModel {
             name: self.name,
             description: self.description,
             protocol: self.protocol,
-            roles: self.roles,
-            protocol_mappers: self.protocol_mappers,
+            roles: None,
+            protocol_mappers: None,
             default_scope: self.default_scope,
             configs: self.configs,
             metadata: None,

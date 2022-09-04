@@ -1,6 +1,11 @@
-use std::sync::Arc;
-
+use super::rds_authz_providers::RdsRoleProvider;
+use crate::providers::{
+    core::builder::*,
+    interfaces::client_provider::{IClientProvider, IClientScopeProvider, IProtocolMapperProvider},
+    rds::{client::postgres_client::IDataBaseManager, tables::client_tables},
+};
 use async_trait::async_trait;
+use log;
 use models::{
     auditable::AuditableModel,
     entities::{
@@ -8,16 +13,10 @@ use models::{
         client::{ClientModel, ClientScopeModel, ProtocolEnum, ProtocolMapperModel},
     },
 };
+use serde_json::json;
 use shaku::Component;
+use std::{collections::HashMap, sync::Arc};
 use tokio_postgres::Row;
-
-use crate::providers::{
-    core::builder::*,
-    interfaces::client_provider::{IClientProvider, IClientScopeProvider, IProtocolMapperProvider},
-    rds::{client::postgres_client::IDataBaseManager, tables::client_tables},
-};
-
-use super::rds_authz_providers::RdsRoleProvider;
 
 #[allow(dead_code)]
 #[derive(Component)]
@@ -29,13 +28,18 @@ pub struct RdsProtocolMapperProvider {
 
 impl RdsProtocolMapperProvider {
     pub fn read_protocol_mapper_record(&self, row: Row) -> ProtocolMapperModel {
+        let configs = serde_json::from_value::<HashMap<String, Option<String>>>(
+            row.get::<&str, serde_json::Value>("configs"),
+        )
+        .map_or_else(|_| None, |p| Some(p));
+
         ProtocolMapperModel {
             mapper_id: row.get("mapper_id"),
             realm_id: row.get("realm_id"),
             name: row.get("name"),
             mapper_type: row.get("mapper_type"),
             protocol: row.get("protocol"),
-            configs: row.get("configs"),
+            configs: configs,
             metadata: Some(AuditableModel {
                 tenant: row.get("tenant"),
                 created_by: row.get("created_by"),
@@ -80,7 +84,7 @@ impl IProtocolMapperProvider for RdsProtocolMapperProvider {
                     &mapper.name,
                     &mapper.protocol,
                     &mapper.mapper_type,
-                    &mapper.configs,
+                    &json!(mapper.configs),
                     &metadata.created_by,
                     &metadata.created_at,
                     &metadata.version,
@@ -88,7 +92,11 @@ impl IProtocolMapperProvider for RdsProtocolMapperProvider {
             )
             .await;
         match response {
-            Err(err) => Err(err.to_string()),
+            Err(err) => {
+                let error = err.to_string();
+                log::error!("Failed to create protocol mapper: {}", error);
+                Err(error)
+            }
             Ok(_) => Ok(()),
         }
     }
@@ -124,7 +132,7 @@ impl IProtocolMapperProvider for RdsProtocolMapperProvider {
                     &mapper.name,
                     &mapper.protocol,
                     &mapper.mapper_type,
-                    &mapper.configs,
+                    &json!(mapper.configs),
                     &metadata.updated_by,
                     &metadata.updated_at,
                     &metadata.tenant,
@@ -135,7 +143,13 @@ impl IProtocolMapperProvider for RdsProtocolMapperProvider {
             .await;
         match response {
             Err(err) => Err(err.to_string()),
-            Ok(_) => Ok(()),
+            Ok(response) => {
+                if response == 1 {
+                    Ok(())
+                } else {
+                    Err("Failed to update protocol mapper".to_string())
+                }
+            }
         }
     }
 
@@ -200,8 +214,14 @@ impl IProtocolMapperProvider for RdsProtocolMapperProvider {
             .execute(&delete_protocol_mapper_stmt, &[&realm_id, &mapper_id])
             .await;
         match result {
-            Ok(_) => Ok(()),
             Err(error) => Err(error.to_string()),
+            Ok(response) => {
+                if response == 1 {
+                    Ok(())
+                } else {
+                    Err("Failed to delete protocol mapper".to_string())
+                }
+            }
         }
     }
 
@@ -405,6 +425,10 @@ impl RdsClientScopeProvider {
         roles: Vec<RoleModel>,
         mappers: Vec<ProtocolMapperModel>,
     ) -> ClientScopeModel {
+        let configs = serde_json::from_value::<HashMap<String, Option<String>>>(
+            row.get::<&str, serde_json::Value>("configs"),
+        )
+        .map_or_else(|_| None, |p| Some(p));
         ClientScopeModel {
             client_scope_id: row.get("client_scope_id"),
             realm_id: row.get("realm_id"),
@@ -414,7 +438,7 @@ impl RdsClientScopeProvider {
             default_scope: row.get("default_scope"),
             roles: Some(roles),
             protocol_mappers: Some(mappers),
-            configs: row.get("configs"),
+            configs: configs,
             metadata: Some(AuditableModel {
                 tenant: row.get("tenant"),
                 created_by: row.get("created_by"),
@@ -461,7 +485,7 @@ impl IClientScopeProvider for RdsClientScopeProvider {
                     &client_scope.description,
                     &client_scope.protocol,
                     &client_scope.default_scope,
-                    &client_scope.configs,
+                    &json!(client_scope.configs),
                     &metadata.created_by,
                     &metadata.created_at,
                     &metadata.version,
@@ -469,7 +493,11 @@ impl IClientScopeProvider for RdsClientScopeProvider {
             )
             .await;
         match response {
-            Err(err) => Err(err.to_string()),
+            Err(err) => {
+                let error = err.to_string();
+                log::error!("Failed to create client scope: {}", error);
+                Err(error)
+            }
             Ok(_) => Ok(()),
         }
     }
@@ -506,7 +534,7 @@ impl IClientScopeProvider for RdsClientScopeProvider {
                     &client_scope.description,
                     &client_scope.protocol,
                     &client_scope.default_scope,
-                    &client_scope.configs,
+                    &json!(client_scope.configs),
                     &metadata.updated_by,
                     &metadata.updated_at,
                     &metadata.tenant,
@@ -516,7 +544,11 @@ impl IClientScopeProvider for RdsClientScopeProvider {
             )
             .await;
         match response {
-            Err(err) => Err(err.to_string()),
+            Err(err) => {
+                let error = err.to_string();
+                log::error!("Failed to create client scope: {}", error);
+                Err(error)
+            }
             Ok(_) => Ok(()),
         }
     }
@@ -533,10 +565,10 @@ impl IClientScopeProvider for RdsClientScopeProvider {
         let client = client.unwrap();
 
         let load_client_scope_sql = SelectRequestBuilder::new()
-            .table_name(client_tables::PROTOCOL_MAPPER_TABLE.table_name.clone())
+            .table_name(client_tables::CLIENT_SCOPE_TABLE.table_name.clone())
             .where_clauses(vec![
                 SqlCriteriaBuilder::is_equals("realm_id".to_string()),
-                SqlCriteriaBuilder::is_equals("mapper_id".to_string()),
+                SqlCriteriaBuilder::is_equals("client_scope_id".to_string()),
             ])
             .sql_query()
             .unwrap();
@@ -605,15 +637,57 @@ impl IClientScopeProvider for RdsClientScopeProvider {
         realm_id: &str,
         name: &str,
     ) -> Result<bool, String> {
-        todo!()
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let load_client_scope_sql = SelectCountRequestBuilder::new()
+            .table_name(client_tables::CLIENT_SCOPE_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("name".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let client = client.unwrap();
+        let load_client_scope_stmt = client.prepare_cached(&load_client_scope_sql).await.unwrap();
+        let result = client
+            .query_one(&load_client_scope_stmt, &[&realm_id, &name])
+            .await;
+        match result {
+            Ok(row) => Ok(row.get::<usize, i64>(0) > 0),
+            Err(error) => Err(error.to_string()),
+        }
     }
 
     async fn client_scope_exists_by_scope_id(
         &self,
         realm_id: &str,
-        scope_id: &str,
+        client_scope_id: &str,
     ) -> Result<bool, String> {
-        todo!()
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let load_client_scope_sql = SelectCountRequestBuilder::new()
+            .table_name(client_tables::CLIENT_SCOPE_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("client_scope_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let client = client.unwrap();
+        let load_client_scope_stmt = client.prepare_cached(&load_client_scope_sql).await.unwrap();
+        let result = client
+            .query_one(&load_client_scope_stmt, &[&realm_id, &client_scope_id])
+            .await;
+        match result {
+            Ok(row) => Ok(row.get::<usize, i64>(0) > 0),
+            Err(error) => Err(error.to_string()),
+        }
     }
 
     async fn add_client_scope_protocol_mapper(
@@ -622,7 +696,49 @@ impl IClientScopeProvider for RdsClientScopeProvider {
         client_scope_id: &str,
         mapper_id: &str,
     ) -> Result<(), String> {
-        todo!()
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let create_client_scope_protocol_mapper_sql = InsertRequestBuilder::new()
+            .table_name(
+                client_tables::CLIENTS_SCOPES_PROTOCOLS_MAPPERS_TABLE
+                    .table_name
+                    .clone(),
+            )
+            .columns(
+                client_tables::CLIENTS_SCOPES_PROTOCOLS_MAPPERS_TABLE
+                    .insert_columns
+                    .clone(),
+            )
+            .resolve_conflict(false)
+            .sql_query()
+            .unwrap();
+
+        let client = client.unwrap();
+        let create_client_scope_protocol_stmt = client
+            .prepare_cached(&create_client_scope_protocol_mapper_sql)
+            .await
+            .unwrap();
+
+        let response = client
+            .execute(
+                &create_client_scope_protocol_stmt,
+                &[&realm_id, &client_scope_id, &mapper_id],
+            )
+            .await;
+        match response {
+            Err(err) => {
+                let error = err.to_string();
+                log::error!(
+                    "Failed to add protocol mapper to client scope: {}. Error: {}",
+                    client_scope_id,
+                    error
+                );
+                Err(error)
+            }
+            _ => Ok(()),
+        }
     }
 
     async fn remove_client_scope_protocol_mapper(
@@ -631,7 +747,45 @@ impl IClientScopeProvider for RdsClientScopeProvider {
         client_scope_id: &str,
         mapper_id: &str,
     ) -> Result<(), String> {
-        todo!()
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let remove_client_scope_protocol_mapper_sql = DeleteQueryBuilder::new()
+            .table_name(
+                client_tables::CLIENTS_SCOPES_PROTOCOLS_MAPPERS_TABLE
+                    .table_name
+                    .clone(),
+            )
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("client_scope_id".to_string()),
+                SqlCriteriaBuilder::is_equals("mapper_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let client = client.unwrap();
+        let remove_client_scope_protocol_stmt = client
+            .prepare_cached(&remove_client_scope_protocol_mapper_sql)
+            .await
+            .unwrap();
+        let result = client
+            .execute(
+                &remove_client_scope_protocol_stmt,
+                &[&realm_id, &client_scope_id, &mapper_id],
+            )
+            .await;
+        match result {
+            Err(error) => Err(error.to_string()),
+            Ok(response) => {
+                if response == 1 {
+                    Ok(())
+                } else {
+                    Err("Failed to remove protocol mapper from client scope".to_string())
+                }
+            }
+        }
     }
 
     async fn add_client_scope_role_mapping(
@@ -640,7 +794,45 @@ impl IClientScopeProvider for RdsClientScopeProvider {
         client_scope_id: &str,
         role_id: &str,
     ) -> Result<(), String> {
-        todo!()
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let create_client_scope_role_sql = InsertRequestBuilder::new()
+            .table_name(client_tables::CLIENTS_SCOPES_ROLES_TABLE.table_name.clone())
+            .columns(
+                client_tables::CLIENTS_SCOPES_ROLES_TABLE
+                    .insert_columns
+                    .clone(),
+            )
+            .resolve_conflict(false)
+            .sql_query()
+            .unwrap();
+
+        let client = client.unwrap();
+        let create_client_scope_role_stmt = client
+            .prepare_cached(&create_client_scope_role_sql)
+            .await
+            .unwrap();
+
+        let response = client
+            .execute(
+                &create_client_scope_role_stmt,
+                &[&realm_id, &client_scope_id, &role_id],
+            )
+            .await;
+        match response {
+            Err(err) => {
+                let error = err.to_string();
+                log::error!(
+                    "Failed to add role to client scope: {}. Error: {}",
+                    client_scope_id,
+                    error
+                );
+                Err(error)
+            }
+            _ => Ok(()),
+        }
     }
 
     async fn remove_client_scope_role_mapping(
@@ -649,7 +841,41 @@ impl IClientScopeProvider for RdsClientScopeProvider {
         client_scope_id: &str,
         role_id: &str,
     ) -> Result<(), String> {
-        todo!()
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let remove_client_scope_role_sql = DeleteQueryBuilder::new()
+            .table_name(client_tables::CLIENTS_SCOPES_ROLES_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("client_scope_id".to_string()),
+                SqlCriteriaBuilder::is_equals("role_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let client = client.unwrap();
+        let remove_client_scope_role_stmt = client
+            .prepare_cached(&remove_client_scope_role_sql)
+            .await
+            .unwrap();
+        let result = client
+            .execute(
+                &remove_client_scope_role_stmt,
+                &[&realm_id, &client_scope_id, &role_id],
+            )
+            .await;
+        match result {
+            Err(error) => Err(error.to_string()),
+            Ok(response) => {
+                if response == 1 {
+                    Ok(())
+                } else {
+                    Err("Failed to remove role from client scope".to_string())
+                }
+            }
+        }
     }
 
     async fn delete_client_scope(

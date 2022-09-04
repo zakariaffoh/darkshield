@@ -13,6 +13,10 @@ CREATE TYPE PolicyEnforcementModeEnum  AS ENUM ('Enforcing','Permissive','Disabl
 **********************************************************************************************/
 CREATE TYPE DecisionStrategyEnum  AS ENUM ('Affirmative','Unanimous','Consensus');
 
+/*********************************************************************************************
+*                                     ProtocolEnum Enum
+**********************************************************************************************/
+CREATE TYPE ProtocolEnum  AS ENUM ('openid-connect','docker');
 
 /*********************************************************************************************
 *                                         REALMS Table
@@ -376,3 +380,128 @@ CREATE INDEX RESOURCE_SCOPES_REALM_ID_IDX ON RESOURCE_SCOPES(REALM_ID);
 CREATE INDEX RESOURCE_SCOPES_SERVER_ID_IDX ON RESOURCE_SCOPES(SERVER_ID);
 CREATE INDEX RESOURCE_SCOPES_RESOURCE_ID_IDX ON RESOURCE_SCOPES(RESOURCE_ID);
 CREATE INDEX RESOURCE_SCOPES_SCOPE_ID_IDX ON RESOURCE_SCOPES(SCOPE_ID);
+
+
+/*********************************************************************************************************
+*                                       PROTOCOLS_MAPPERS Table
+**********************************************************************************************************/
+
+CREATE TABLE IF NOT EXISTS PROTOCOLS_MAPPERS
+(
+    ID                                      serial                  PRIMARY KEY,
+    TENANT                                  varchar(50)             NOT NULL,
+    MAPPER_ID                               varchar(250)            UNIQUE NOT NULL,
+    REALM_ID                                varchar(250)            NOT NULL,
+
+    PROTOCOL                                ProtocolEnum            NOT NULL,
+    NAME                                    varchar(250)            NOT NULL,
+    MAPPER_TYPE                             varchar(250)            NOT NULL,
+
+    CONFIGS                                 JSON,
+    CREATED_BY                              varchar(250)            NOT NULL,
+    CREATED_AT                              timestamptz             NOT NULL,
+    UPDATED_BY                              varchar(250),
+    UPDATED_AT                              timestamptz,
+    VERSION                                 integer                 DEFAULT 1   CHECK(version > 0),
+
+    CONSTRAINT FK_PM_REALM_ID FOREIGN KEY(REALM_ID) REFERENCES    REALMS(REALM_ID) ON DELETE CASCADE,
+    CONSTRAINT UNIQUE_PROTOCOLS_MAPPERS_REALM_ID_NAME UNIQUE (REALM_ID, NAME)
+
+);
+
+DROP INDEX IF EXISTS PROTOCOLS_MAPPERS_MAPPER_ID_IDX;
+DROP INDEX IF EXISTS PROTOCOLS_MAPPERS_REALM_ID_IDX;
+DROP INDEX IF EXISTS PROTOCOLS_MAPPERS_PROTOCOL_ID_IDX;
+DROP INDEX IF EXISTS PROTOCOLS_MAPPERS_MAPPER_TYPE_IDX;
+
+CREATE INDEX PROTOCOLS_MAPPERS_MAPPER_ID_IDX ON PROTOCOLS_MAPPERS(MAPPER_ID);
+CREATE INDEX PROTOCOLS_MAPPERS_REALM_ID_IDX ON PROTOCOLS_MAPPERS(REALM_ID);
+CREATE INDEX PROTOCOLS_MAPPERS_PROTOCOL_ID_IDX ON PROTOCOLS_MAPPERS(PROTOCOL);
+CREATE INDEX PROTOCOLS_MAPPERS_MAPPER_TYPE_IDX ON PROTOCOLS_MAPPERS(MAPPER_TYPE);
+
+
+/*****************************************************************************************************
+*                                            CLIENTS_SCOPES Table
+******************************************************************************************************/
+
+CREATE TABLE IF NOT EXISTS CLIENTS_SCOPES
+(
+    ID                                      serial                  PRIMARY KEY,
+    TENANT                                  varchar(50)             NOT NULL,
+    CLIENT_SCOPE_ID                         varchar(250)            UNIQUE NOT NULL,
+    REALM_ID                                varchar(250)            NOT NULL,
+    NAME                                    TEXT                    NOT NULL,
+    DESCRIPTION                             TEXT,
+    PROTOCOL                                ProtocolEnum,
+    DEFAULT_SCOPE                           boolean,
+    CONFIGS                                 json,
+
+    CREATED_BY                              varchar(250)            NOT NULL,
+    CREATED_AT                              timestamptz             NOT NULL,
+    UPDATED_BY                              varchar(250),
+    UPDATED_AT                              timestamptz,
+    VERSION                                 integer                 DEFAULT 1   CHECK(version > 0),
+
+    CONSTRAINT FK_CLIENTS_SCOPES_REALM_ID FOREIGN KEY(REALM_ID) REFERENCES  REALMS(REALM_ID) ON DELETE CASCADE
+);
+
+DROP INDEX IF EXISTS CLIENTS_SCOPES_CLIENT_SCOPE_ID_IDX;
+DROP INDEX IF EXISTS CLIENTS_SCOPES_CLIENT_REALM_ID_IDX;
+DROP INDEX IF EXISTS CLIENTS_SCOPES_CLIENT_PROTOCOL_IDX;
+
+CREATE INDEX CLIENTS_SCOPES_CLIENT_SCOPE_ID_IDX ON CLIENTS_SCOPES(CLIENT_SCOPE_ID);
+CREATE INDEX CLIENTS_SCOPES_CLIENT_REALM_ID_IDX ON CLIENTS_SCOPES(REALM_ID);
+CREATE INDEX CLIENTS_SCOPES_CLIENT_PROTOCOL_IDX ON CLIENTS_SCOPES(PROTOCOL);
+
+
+/*********************************************************************************************************
+*                                             CLIENT_SCOPES_ROLES Table
+**********************************************************************************************************/
+
+CREATE TABLE IF NOT EXISTS CLIENTS_SCOPES_ROLES
+(
+    REALM_ID                                   varchar(250)            NOT NULL,
+    CLIENT_SCOPE_ID                            varchar(250)             NOT NULL,
+    ROLE_ID                                    varchar(250)             NOT NULL,
+
+    CONSTRAINT FK_REALMS_ID FOREIGN KEY(REALM_ID) REFERENCES REALMS(REALM_ID) ON DELETE CASCADE,
+    CONSTRAINT FK_CLIENT_SCOPE_ID FOREIGN KEY(CLIENT_SCOPE_ID) REFERENCES CLIENTS_SCOPES(CLIENT_SCOPE_ID) ON DELETE CASCADE,
+    CONSTRAINT FK_ROLE_ID FOREIGN KEY(ROLE_ID) REFERENCES ROLES(ROLE_ID) ON DELETE CASCADE,
+
+
+    CONSTRAINT UNIQUE_CLIENT_SCOPES_ROLES_REALM_ID_CLIENT_SCOPE_ID_ROLE_ID UNIQUE (REALM_ID, CLIENT_SCOPE_ID, ROLE_ID)
+);
+
+DROP INDEX IF EXISTS CLIENTS_SCOPES_ROLES_REALM_ID_IDX;
+DROP INDEX IF EXISTS CLIENTS_SCOPES_ROLES_CLIENT_SCOPE_ID_IDX;
+DROP INDEX IF EXISTS CLIENTS_SCOPES_ROLES_ROLE_ID_IDX;
+
+CREATE INDEX CLIENTS_SCOPES_ROLES_REALM_ID_IDX ON CLIENTS_SCOPES_ROLES(REALM_ID);
+CREATE INDEX CLIENTS_SCOPES_ROLES_CLIENT_SCOPE_ID_IDX ON CLIENTS_SCOPES_ROLES(CLIENT_SCOPE_ID);
+CREATE INDEX CLIENTS_SCOPES_ROLES_ROLE_ID_IDX ON CLIENTS_SCOPES_ROLES(ROLE_ID);
+
+
+/*********************************************************************************************************
+*                                       CLIENTS_SCOPES_PROTOCOLS_MAPPERS Table
+**********************************************************************************************************/
+
+CREATE TABLE IF NOT EXISTS CLIENTS_SCOPES_PROTOCOLS_MAPPERS
+(
+    REALM_ID                                   varchar(250)             NOT NULL,
+    CLIENT_SCOPE_ID                            varchar(250)             NOT NULL,
+    MAPPER_ID                                  varchar(250)             NOT NULL,
+
+    CONSTRAINT FK_REALMS_ID FOREIGN KEY(REALM_ID) REFERENCES REALMS(REALM_ID) ON DELETE CASCADE,
+    CONSTRAINT FK_CLIENT_SCOPE_ID FOREIGN KEY(CLIENT_SCOPE_ID) REFERENCES CLIENTS_SCOPES(CLIENT_SCOPE_ID) ON DELETE CASCADE,
+    CONSTRAINT FK_MAPPER_ID FOREIGN KEY(MAPPER_ID) REFERENCES PROTOCOLS_MAPPERS(MAPPER_ID) ON DELETE CASCADE,
+
+    CONSTRAINT UNIQUE_CLIENT_SCOPE_MAPPERS_ID_MAPPER_ID UNIQUE (REALM_ID, CLIENT_SCOPE_ID, MAPPER_ID)
+);
+
+DROP INDEX IF EXISTS CLIENTS_SCOPES_PROTOCOLS_MAPPERS_REALM_ID_IDX;
+DROP INDEX IF EXISTS CLIENTS_SCOPES_PROTOCOLS_MAPPERS_CLIENT_SCOPE_ID_IDX;
+DROP INDEX IF EXISTS CLIENTS_SCOPES_PROTOCOLS_MAPPERS_MAPPER_ID_IDX;
+
+CREATE INDEX CLIENTS_SCOPES_PROTOCOLS_MAPPERS_REALM_ID_IDX ON CLIENTS_SCOPES_PROTOCOLS_MAPPERS(REALM_ID);
+CREATE INDEX CLIENTS_SCOPES_PROTOCOLS_MAPPERS_CLIENT_SCOPE_ID_IDX ON CLIENTS_SCOPES_PROTOCOLS_MAPPERS(CLIENT_SCOPE_ID);
+CREATE INDEX CLIENTS_SCOPES_PROTOCOLS_MAPPERS_MAPPER_ID_IDX ON CLIENTS_SCOPES_PROTOCOLS_MAPPERS(MAPPER_ID);
