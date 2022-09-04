@@ -1,7 +1,18 @@
 /*********************************************************************************************
 *                                         SSLEnforcement Enum
 **********************************************************************************************/
-CREATE TYPE SslEnforcementEnum  AS ENUM ("NONE","ALL","EXTERNAL");
+CREATE TYPE SslEnforcementEnum  AS ENUM ('NONE','ALL','EXTERNAL');
+
+/*********************************************************************************************
+*                                         PolicyEnforcementModeEnum Enum
+**********************************************************************************************/
+CREATE TYPE PolicyEnforcementModeEnum  AS ENUM ('Enforcing','Permissive','Disabled');
+
+/*********************************************************************************************
+*                                         DecisionStrategyEnum Enum
+**********************************************************************************************/
+CREATE TYPE DecisionStrategyEnum  AS ENUM ('Affirmative','Unanimous','Consensus');
+
 
 /*********************************************************************************************
 *                                         REALMS Table
@@ -205,3 +216,85 @@ DROP INDEX IF EXISTS IDENTITIES_PROVIDERS_NAME;
 CREATE INDEX IDENTITIES_PROVIDERS_PROVIDER_ID ON IDENTITIES_PROVIDERS(PROVIDER_ID);
 CREATE INDEX IDENTITIES_PROVIDERS_REALM_ID ON IDENTITIES_PROVIDERS(REALM_ID);
 CREATE INDEX IDENTITIES_PROVIDERS_NAME ON IDENTITIES_PROVIDERS(NAME);
+
+/***************************************************************************************************
+*                                         RESOURCES_SERVERS Table
+****************************************************************************************************/
+
+CREATE TABLE IF NOT EXISTS RESOURCES_SERVERS
+(
+    ID                                    serial                  PRIMARY KEY,
+    TENANT                                varchar(50)             NOT NULL,
+    SERVER_ID                             varchar(250)            UNIQUE NOT NULL,
+    REALM_ID                              varchar(250)            NOT NULL,
+    NAME                                  TEXT                    NOT NULL,
+    DISPLAY_NAME                          TEXT                    NOT NULL,
+    DESCRIPTION                           TEXT                    NOT NULL,
+
+    POLICY_ENFORCEMENT_MODE               varchar(150)            NOT NULL,
+    DECISION_STRATEGY                     varchar(150)            NOT NULL,
+    SERVER_ICON_URI                       TEXT,
+    REMOTE_RESOURCE_MANAGEMENT            bool,
+    USER_MANAGED_ACCESS_ENABLED           bool,
+    ATTRIBUTES                            json,
+
+    CREATED_BY                            varchar(250)            NOT NULL,
+    CREATED_AT                            timestamptz             NOT NULL,
+    UPDATED_BY                            varchar(250),
+    UPDATED_AT                            timestamptz,
+    VERSION                               integer                 DEFAULT 1   CHECK(version > 0),
+
+    CONSTRAINT FK_REALM_SCOPES FOREIGN KEY(REALM_ID) REFERENCES REALMS(REALM_ID) ON DELETE CASCADE,
+    CONSTRAINT UNIQUE_RESOURCES_SERVERS_REALM_ID_NAME UNIQUE (REALM_ID, NAME),
+    CONSTRAINT UNIQUE_RESOURCES_SERVERS_REALM_ID_DISPLAY_NAME UNIQUE (REALM_ID, DISPLAY_NAME)
+
+);
+
+DROP INDEX IF EXISTS RESOURCES_SERVERS_ID_IDX;
+DROP INDEX IF EXISTS RESOURCES_REALM_ID_IDX;
+DROP INDEX IF EXISTS RESOURCES_SERVERS_NAME_IDX;
+DROP INDEX IF EXISTS RESOURCES_SERVERS_DISPLAY_NAME_IDX;
+
+CREATE INDEX RESOURCES_SERVERS_ID_IDX ON RESOURCES_SERVERS(SERVER_ID);
+CREATE INDEX RESOURCES_REALM_ID_IDX ON RESOURCES_SERVERS(REALM_ID);
+CREATE INDEX RESOURCES_SERVERS_NAME_IDX ON RESOURCES_SERVERS(NAME);
+CREATE INDEX RESOURCES_SERVERS_DISPLAY_NAME_IDX ON RESOURCES_SERVERS(DISPLAY_NAME);
+
+
+/***********************************************************************************
+*                                   SCOPES Table
+************************************************************************************/
+
+CREATE TABLE IF NOT EXISTS SCOPES
+(
+    ID                                    serial                  PRIMARY KEY,
+    TENANT                                varchar(50)             NOT NULL,
+    SCOPE_ID                              varchar(250)            UNIQUE NOT NULL,
+    REALM_ID                              varchar(250)            NOT NULL,
+    SERVER_ID                             varchar(250)            NOT NULL,
+
+    NAME                                  varchar(200)            NOT NULL,
+    DISPLAY_NAME                          varchar(200)            NOT NULL,
+    DESCRIPTION                           varchar(200)            NOT NULL,
+
+    CREATED_BY                            varchar(250)            NOT NULL,
+    CREATED_AT                            timestamptz             NOT NULL,
+    UPDATED_BY                            varchar(250),
+    UPDATED_AT                            timestamptz,
+    VERSION                               integer                 DEFAULT 1   CHECK(version > 0),
+
+    CONSTRAINT FK_REALM_SCOPES FOREIGN KEY(REALM_ID) REFERENCES REALMS(REALM_ID) ON DELETE CASCADE,
+    CONSTRAINT FK_RESOURCES_SERVER_SCOPES FOREIGN KEY(SERVER_ID) REFERENCES RESOURCES_SERVERS(SERVER_ID) ON DELETE CASCADE,
+    CONSTRAINT UNIQUE_SCOPES_REALM_ID_SERVER_ID_NAME UNIQUE (REALM_ID, SERVER_ID, NAME),
+    CONSTRAINT UNIQUE_SCOPES_REALM_ID_SERVER_ID_DISPLAY_NAME UNIQUE (REALM_ID, SERVER_ID, DISPLAY_NAME)
+);
+
+DROP INDEX IF EXISTS SCOPES_SCOPE_ID_IDX;
+DROP INDEX IF EXISTS SCOPES_NAME_IDX;
+DROP INDEX IF EXISTS SCOPES_DISPLAY_NAME_IDX;
+DROP INDEX IF EXISTS SCOPES_SERVER_ID_IDX;
+
+CREATE INDEX SCOPES_SCOPE_ID_IDX ON SCOPES(SCOPE_ID);
+CREATE INDEX SCOPES_NAME_IDX ON SCOPES(NAME);
+CREATE INDEX SCOPES_DISPLAY_NAME_IDX ON SCOPES(DISPLAY_NAME);
+CREATE INDEX SCOPES_SERVER_ID_IDX ON SCOPES(SERVER_ID);

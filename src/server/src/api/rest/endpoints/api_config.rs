@@ -31,6 +31,18 @@ pub fn register_apis(api_config: &mut web::ServiceConfig) {
                     .service(authz::count_groups_by_realm)
                     .service(authz::add_group_role)
                     .service(authz::remove_group_role)
+                    /* Scope Api */
+                    .service(authz::create_scope)
+                    .service(authz::update_scope)
+                    .service(authz::load_scope)
+                    .service(authz::load_scope_by_realm_and_server)
+                    .service(authz::delete_scope_by_id)
+                    /* Resource Server Api */
+                    .service(authz::create_resource_server)
+                    .service(authz::update_resource_server)
+                    .service(authz::load_resource_server)
+                    .service(authz::load_resource_servers_by_realms)
+                    .service(authz::delete_resource_server_by_id)
                     /* Identity provider API*/
                     .service(authz::create_identity_provider)
                     .service(authz::update_identity_provider)

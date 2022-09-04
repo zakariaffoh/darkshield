@@ -1,5 +1,7 @@
 use async_trait::async_trait;
-use models::entities::authz::{GroupModel, IdentityProviderModel, RoleModel};
+use models::entities::authz::{
+    GroupModel, IdentityProviderModel, ResourceServerModel, RoleModel, ScopeModel,
+};
 use shaku::Interface;
 
 #[async_trait]
@@ -80,9 +82,6 @@ pub trait IGroupProvider: Interface {
 }
 
 #[async_trait]
-pub trait IScopeProvider: Interface {}
-
-#[async_trait]
 pub trait IIdentityProvider: Interface {
     async fn create_identity_provider(&self, idp: &IdentityProviderModel) -> Result<(), String>;
 
@@ -106,4 +105,72 @@ pub trait IIdentityProvider: Interface {
     ) -> Result<bool, String>;
 
     async fn exists_by_alias(&self, realm_id: &str, provider_id: &str) -> Result<bool, String>;
+}
+
+#[async_trait]
+pub trait IResourceServerProvider: Interface {
+    async fn create_resource_server(&self, server: &ResourceServerModel) -> Result<(), String>;
+
+    async fn udpate_resource_server(&self, server: &ResourceServerModel) -> Result<(), String>;
+
+    async fn load_resource_server_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+    ) -> Result<Option<ResourceServerModel>, String>;
+
+    async fn resource_server_exists_by_alias(
+        &self,
+        realm_id: &str,
+        name: &str,
+    ) -> Result<bool, String>;
+
+    async fn resource_server_exists_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+    ) -> Result<bool, String>;
+
+    async fn load_resource_servers_by_realm(
+        &self,
+        realm_id: &str,
+    ) -> Result<Vec<ResourceServerModel>, String>;
+
+    async fn delete_resource_server(&self, realm_id: &str, server_id: &str) -> Result<(), String>;
+}
+
+#[async_trait]
+pub trait IScopeProvider: Interface {
+    async fn create_scope(&self, scope: &ScopeModel) -> Result<(), String>;
+
+    async fn udpate_scope(&self, scope: &ScopeModel) -> Result<(), String>;
+
+    async fn load_scope_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        scope_id: &str,
+    ) -> Result<Option<ScopeModel>, String>;
+
+    async fn load_scopes_by_realm(&self, realm_id: &str) -> Result<Vec<ScopeModel>, String>;
+
+    async fn load_scopes_by_realm_and_server(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+    ) -> Result<Vec<ScopeModel>, String>;
+
+    async fn delete_scope_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        scope_id: &str,
+    ) -> Result<(), String>;
+
+    async fn scope_exists_by_name(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        name: &str,
+    ) -> Result<bool, String>;
 }

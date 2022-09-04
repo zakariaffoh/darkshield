@@ -9,9 +9,12 @@ use shaku::HasComponent;
 use crate::context::DarkShieldContext;
 use models::entities::authz::{
     GroupModel, GroupMutationModel, IdentityProviderModel, IdentityProviderMutationModel,
-    RoleModel, RoleMutationModel,
+    ResourceServerModel, ResourceServerMutationModel, RoleModel, RoleMutationModel, ScopeModel,
+    ScopeMutationModel,
 };
-use services::services::authz_services::{IGroupService, IIdentityProviderService, IRoleService};
+use services::services::authz_services::{
+    IGroupService, IIdentityProviderService, IResourceServerService, IRoleService, IScopeService,
+};
 
 #[post("/realm/{realm_id}/role/create")]
 pub async fn create_role(
@@ -311,5 +314,187 @@ pub async fn delete_identity_provider(
     );
     identity_provider_service
         .delete_identity_provider(realm_id.as_str(), internal_id.as_str())
+        .await
+}
+
+#[post("/realm/{realm_id}/resource_server/create")]
+pub async fn create_resource_server(
+    realm_id: web::Path<String>,
+    resource_server: web::Json<ResourceServerMutationModel>,
+    context: web::Data<DarkShieldContext>,
+) -> impl Responder {
+    let resource_server_server: &dyn IResourceServerService = context.services().resolve_ref();
+    let mut resource_server_model: ResourceServerModel = resource_server.0.into();
+    resource_server_model.realm_id = realm_id.to_string();
+    log::info!(
+        "Creating resource server: {}, realm: {}",
+        &resource_server_model.name,
+        realm_id.as_str()
+    );
+    resource_server_server
+        .create_resource_server(resource_server_model)
+        .await
+}
+
+#[put("/realm/{realm_id}/resource_server/{server_id}")]
+pub async fn update_resource_server(
+    params: web::Path<(String, String)>,
+    resource_server: web::Json<ResourceServerMutationModel>,
+    context: web::Data<DarkShieldContext>,
+) -> impl Responder {
+    let resource_server_service: &dyn IResourceServerService = context.services().resolve_ref();
+    let (realm_id, server_id) = params.into_inner();
+    let mut resource_server_model: ResourceServerModel = resource_server.0.into();
+    log::info!(
+        "Updating resource server: {}, realm: {}",
+        server_id.as_str(),
+        realm_id.as_str(),
+    );
+    resource_server_model.realm_id = realm_id;
+    resource_server_model.server_id = server_id;
+    resource_server_service
+        .udpate_resource_server(resource_server_model)
+        .await
+}
+
+#[get("/realm/{realm_id}/resource_server/{server_id}")]
+pub async fn load_resource_server(
+    params: web::Path<(String, String)>,
+    context: web::Data<DarkShieldContext>,
+) -> impl Responder {
+    let resource_server_service: &dyn IResourceServerService = context.services().resolve_ref();
+    let (realm_id, server_id) = params.into_inner();
+    log::info!(
+        "Updating resource server: {}, realm: {}",
+        server_id.as_str(),
+        realm_id.as_str()
+    );
+    resource_server_service
+        .load_resource_server_by_id(realm_id.as_str(), server_id.as_str())
+        .await
+}
+
+#[get("/realm/{realm_id}/resources_servers/all")]
+pub async fn load_resource_servers_by_realms(
+    realm_id: web::Path<String>,
+    context: web::Data<DarkShieldContext>,
+) -> impl Responder {
+    let resource_server_service: &dyn IResourceServerService = context.services().resolve_ref();
+    log::info!("Loading resources servers by realm: {}", realm_id.as_str());
+    resource_server_service
+        .load_resource_servers_by_realm(realm_id.as_str())
+        .await
+}
+
+#[delete("/realm/{realm_id}/resource_server/{server_id}")]
+pub async fn delete_resource_server_by_id(
+    params: web::Path<(String, String)>,
+    context: web::Data<DarkShieldContext>,
+) -> impl Responder {
+    let resource_server_service: &dyn IResourceServerService = context.services().resolve_ref();
+    let (realm_id, server_id) = params.into_inner();
+    log::info!(
+        "Deleting resource server: {}, realm: {}",
+        server_id.as_str(),
+        realm_id.as_str()
+    );
+    resource_server_service
+        .delete_resource_server_by_id(realm_id.as_str(), server_id.as_str())
+        .await
+}
+
+#[post("/realm/{realm_id}/resource_server/{server_id}/scope/create")]
+pub async fn create_scope(
+    params: web::Path<(String, String)>,
+    scope: web::Json<ScopeMutationModel>,
+    context: web::Data<DarkShieldContext>,
+) -> impl Responder {
+    let scope_service: &dyn IScopeService = context.services().resolve_ref();
+    let (realm_id, server_id) = params.into_inner();
+    let mut scope_model: ScopeModel = scope.0.into();
+    scope_model.server_id = server_id;
+    scope_model.realm_id = realm_id;
+
+    log::info!(
+        "Creating scope: {}, resource server: {}, realm: {}",
+        &scope_model.name,
+        &scope_model.server_id,
+        &scope_model.realm_id,
+    );
+    scope_service.create_scope(scope_model).await
+}
+
+#[put("/realm/{realm_id}/resource_server/{server_id}/scope/{scope_id}")]
+pub async fn update_scope(
+    params: web::Path<(String, String, String)>,
+    scope: web::Json<ScopeMutationModel>,
+    context: web::Data<DarkShieldContext>,
+) -> impl Responder {
+    let scope_service: &dyn IScopeService = context.services().resolve_ref();
+    let (realm_id, server_id, scope_id) = params.into_inner();
+    let mut scope_model: ScopeModel = scope.0.into();
+    scope_model.server_id = server_id;
+    scope_model.realm_id = realm_id;
+    scope_model.scope_id = scope_id;
+
+    log::info!(
+        "Updating scope {}, server: {}, realm: {}",
+        &scope_model.scope_id,
+        &scope_model.server_id,
+        &scope_model.realm_id,
+    );
+    scope_service.udpate_scope(scope_model).await
+}
+
+#[get("/realm/{realm_id}/resource_server/{server_id}/scope/{scope_id}")]
+pub async fn load_scope(
+    params: web::Path<(String, String, String)>,
+    context: web::Data<DarkShieldContext>,
+) -> impl Responder {
+    let scope_service: &dyn IScopeService = context.services().resolve_ref();
+    let (realm_id, server_id, scope_id) = params.into_inner();
+    log::info!(
+        "Loading scope: {} resource server: {}, realm: {}",
+        scope_id.as_str(),
+        server_id.as_str(),
+        realm_id.as_str()
+    );
+    scope_service
+        .load_scope_by_id(realm_id.as_str(), server_id.as_str(), scope_id.as_str())
+        .await
+}
+
+#[get("/realm/{realm_id}/resource_server/{server_id}/scopes/load_all")]
+pub async fn load_scope_by_realm_and_server(
+    params: web::Path<(String, String)>,
+    context: web::Data<DarkShieldContext>,
+) -> impl Responder {
+    let scope_service: &dyn IScopeService = context.services().resolve_ref();
+    let (realm_id, server_id) = params.into_inner();
+    log::info!(
+        "Loading scopes server: {}, realm: {}",
+        server_id.as_str(),
+        realm_id.as_str()
+    );
+    scope_service
+        .load_scopes_by_realm(realm_id.as_str(), server_id.as_str())
+        .await
+}
+
+#[delete("/realm/{realm_id}/resource_server/{server_id}/scope/{scope_id}")]
+pub async fn delete_scope_by_id(
+    params: web::Path<(String, String, String)>,
+    context: web::Data<DarkShieldContext>,
+) -> impl Responder {
+    let scope_service: &dyn IScopeService = context.services().resolve_ref();
+    let (realm_id, server_id, scope_id) = params.into_inner();
+    log::info!(
+        "Deleting scope {}, resource server: {}, realm: {}",
+        scope_id.as_str(),
+        server_id.as_str(),
+        realm_id.as_str()
+    );
+    scope_service
+        .delete_scope_by_id(realm_id.as_str(), server_id.as_str(), &scope_id.as_str())
         .await
 }
