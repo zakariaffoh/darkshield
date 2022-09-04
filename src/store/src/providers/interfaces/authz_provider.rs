@@ -102,7 +102,7 @@ pub trait IIdentityProvider: Interface {
         &self,
         realm_id: &str,
         provider_id: &str,
-    ) -> Result<bool, String>;
+    ) -> Result<(), String>;
 
     async fn exists_by_alias(&self, realm_id: &str, provider_id: &str) -> Result<bool, String>;
 }
@@ -172,5 +172,12 @@ pub trait IScopeProvider: Interface {
         realm_id: &str,
         server_id: &str,
         name: &str,
+    ) -> Result<bool, String>;
+
+    async fn scope_exists_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        scope_id: &str,
     ) -> Result<bool, String>;
 }

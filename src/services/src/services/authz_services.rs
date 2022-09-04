@@ -684,11 +684,11 @@ impl IResourceServerService for ResourceServerService {
         if let Ok(response) = existing_resource_server {
             if response.is_none() {
                 log::error!(
-                    "Resource server: {} already exists in realm: {}",
+                    "Resource server: {} does not exists in realm: {}",
                     &server.server_id,
                     &server.realm_id
                 );
-                return ApiResult::from_error(409, "500", "Resource server already exists");
+                return ApiResult::from_error(404, "404", "Resource server does not exists");
             }
             let existing_server = response.unwrap();
             if existing_server.name != server.name {
@@ -928,11 +928,11 @@ impl IScopeService for ScopeService {
 
         let existing_scope = self
             .scope_provider
-            .load_scope_by_id(&scope.realm_id, &scope.server_id, &scope.name)
+            .scope_exists_by_id(&scope.realm_id, &scope.server_id, &scope.scope_id)
             .await;
 
         if let Ok(res) = existing_scope {
-            if res.is_none() {
+            if !res {
                 log::error!(
                     "Scope: {}, resource server: {} does not exists in realm: {}",
                     &scope.scope_id,
@@ -944,7 +944,6 @@ impl IScopeService for ScopeService {
         }
 
         let mut scope = scope;
-        scope.scope_id = uuid::Uuid::new_v4().to_string();
         scope.metadata = AuditableModel::from_updator("tenant".to_owned(), "zaffoh".to_owned());
 
         let updated_scope = self.scope_provider.udpate_scope(&scope).await;

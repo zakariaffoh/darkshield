@@ -9,7 +9,7 @@ use log;
 use models::{auditable::AuditableModel, entities::authz::*};
 use serde_json::json;
 use shaku::Component;
-use std::{collections::HashMap, error::Error, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 use tokio_postgres::Row;
 
 #[allow(dead_code)]
@@ -128,7 +128,13 @@ impl IRoleProvider for RdsRoleProvider {
             .await;
         match response {
             Err(err) => Err(err.to_string()),
-            Ok(_) => Ok(()),
+            Ok(response) => {
+                if response == 1 {
+                    Ok(())
+                } else {
+                    Err("Failed to update role".to_string())
+                }
+            }
         }
     }
 
@@ -235,8 +241,14 @@ impl IRoleProvider for RdsRoleProvider {
             .execute(&delete_role_stmt, &[&realm_id, &role_id])
             .await;
         match result {
-            Ok(_) => Ok(()),
             Err(error) => Err(error.to_string()),
+            Ok(response) => {
+                if response == 1 {
+                    Ok(())
+                } else {
+                    Err("Failed to delete role".to_string())
+                }
+            }
         }
     }
 
@@ -419,7 +431,6 @@ impl IRoleProvider for RdsRoleProvider {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Component)]
 #[shaku(interface = IGroupProvider)]
 pub struct RdsGroupProvider {
@@ -479,9 +490,7 @@ impl RdsGroupProvider {
     }
 }
 
-#[allow(dead_code)]
 #[async_trait]
-
 impl IGroupProvider for RdsGroupProvider {
     async fn create_group(&self, group_model: &GroupModel) -> Result<(), String> {
         let client = self.database_manager.connection().await;
@@ -561,7 +570,13 @@ impl IGroupProvider for RdsGroupProvider {
 
         match response {
             Err(err) => Err(err.to_string()),
-            Ok(_) => Ok(()),
+            Ok(response) => {
+                if response == 1 {
+                    Ok(())
+                } else {
+                    Err("Failed to update group".to_string())
+                }
+            }
         }
     }
 
@@ -585,8 +600,14 @@ impl IGroupProvider for RdsGroupProvider {
             .execute(&delete_group_stmt, &[&realm_id, &group_id])
             .await;
         match result {
-            Ok(_) => Ok(()),
             Err(error) => Err(error.to_string()),
+            Ok(response) => {
+                if response == 1 {
+                    Ok(())
+                } else {
+                    Err("Failed to delete group".to_string())
+                }
+            }
         }
     }
 
@@ -769,7 +790,13 @@ impl IGroupProvider for RdsGroupProvider {
 
         match response {
             Err(err) => Err(err.to_string()),
-            Ok(_) => Ok(()),
+            Ok(response) => {
+                if response == 1 {
+                    Ok(())
+                } else {
+                    Err("Failed to add role to group".to_string())
+                }
+            }
         }
     }
 
@@ -799,8 +826,14 @@ impl IGroupProvider for RdsGroupProvider {
             .execute(&delete_group_role_stmt, &[&realm_id, &group_id, &role_id])
             .await;
         match result {
-            Ok(_) => Ok(()),
             Err(error) => Err(error.to_string()),
+            Ok(response) => {
+                if response == 1 {
+                    Ok(())
+                } else {
+                    Err("Failed to remove role from group".to_string())
+                }
+            }
         }
     }
 }
@@ -938,7 +971,13 @@ impl IIdentityProvider for RdsIdentityProvider {
 
         match response {
             Err(err) => Err(err.to_string()),
-            Ok(_) => Ok(()),
+            Ok(response) => {
+                if response == 1 {
+                    Ok(())
+                } else {
+                    Err("Failed to update identity provider".to_string())
+                }
+            }
         }
     }
 
@@ -1007,7 +1046,7 @@ impl IIdentityProvider for RdsIdentityProvider {
         &self,
         realm_id: &str,
         internal_id: &str,
-    ) -> Result<bool, String> {
+    ) -> Result<(), String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
@@ -1027,8 +1066,14 @@ impl IIdentityProvider for RdsIdentityProvider {
             .execute(&remove_idp_stmt, &[&realm_id, &internal_id])
             .await;
         match result {
-            Ok(result) => Ok(result > 0),
             Err(error) => Err(error.to_string()),
+            Ok(response) => {
+                if response == 1 {
+                    Ok(())
+                } else {
+                    Err("Failed to delete identity provider".to_string())
+                }
+            }
         }
     }
 
@@ -1189,7 +1234,13 @@ impl IResourceServerProvider for RdsResourceServerProvider {
 
         match response {
             Err(err) => Err(err.to_string()),
-            Ok(_) => Ok(()),
+            Ok(response) => {
+                if response == 1 {
+                    Ok(())
+                } else {
+                    Err("Failed to update resource server".to_string())
+                }
+            }
         }
     }
 
@@ -1287,8 +1338,14 @@ impl IResourceServerProvider for RdsResourceServerProvider {
             .execute(&delete_resource_server_stmt, &[&realm_id, &server_id])
             .await;
         match result {
-            Ok(_) => Ok(()),
             Err(error) => Err(error.to_string()),
+            Ok(response) => {
+                if response == 1 {
+                    Ok(())
+                } else {
+                    Err("Failed to delete resource server".to_string())
+                }
+            }
         }
     }
 
@@ -1367,11 +1424,6 @@ pub struct RdsScopeProvider {
 
 impl RdsScopeProvider {
     fn read_scope_record(&self, row: &Row) -> ScopeModel {
-        let configs = serde_json::from_value::<HashMap<String, Option<String>>>(
-            row.get::<&str, serde_json::Value>("configs"),
-        )
-        .map_or_else(|_| None, |p| Some(p));
-
         ScopeModel {
             scope_id: row.get("scope_id"),
             server_id: row.get("server_id"),
@@ -1399,8 +1451,8 @@ impl IScopeProvider for RdsScopeProvider {
             return Err(err);
         }
         let create_scope_sql = InsertRequestBuilder::new()
-            .table_name(authz_tables::RESOURCES_SERVERS_TABLE.table_name.clone())
-            .columns(authz_tables::RESOURCES_SERVERS_TABLE.insert_columns.clone())
+            .table_name(authz_tables::SCOPES_TABLE.table_name.clone())
+            .columns(authz_tables::SCOPES_TABLE.insert_columns.clone())
             .resolve_conflict(false)
             .sql_query()
             .unwrap();
@@ -1464,14 +1516,20 @@ impl IScopeProvider for RdsScopeProvider {
                     &metadata.updated_at,
                     &scope.realm_id,
                     &scope.server_id,
-                    &scope.server_id,
+                    &scope.scope_id,
                 ],
             )
             .await;
 
         match response {
             Err(err) => Err(err.to_string()),
-            Ok(_) => Ok(()),
+            Ok(response) => {
+                if response == 1 {
+                    Ok(())
+                } else {
+                    Err("Failed to update scope".to_string())
+                }
+            }
         }
     }
 
@@ -1596,7 +1654,44 @@ impl IScopeProvider for RdsScopeProvider {
             .execute(&delete_scope_stmt, &[&realm_id, &server_id, &scope_id])
             .await;
         match result {
-            Ok(_) => Ok(()),
+            Err(error) => Err(error.to_string()),
+            Ok(response) => {
+                if response == 1 {
+                    Ok(())
+                } else {
+                    Err("Failed to update scope".to_string())
+                }
+            }
+        }
+    }
+
+    async fn scope_exists_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        scope_id: &str,
+    ) -> Result<bool, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let load_scope_sql = SelectCountRequestBuilder::new()
+            .table_name(authz_tables::SCOPES_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("server_id".to_string()),
+                SqlCriteriaBuilder::is_equals("scope_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let client = client.unwrap();
+        let load_scope_stmt = client.prepare_cached(&load_scope_sql).await.unwrap();
+        let result = client
+            .query_one(&load_scope_stmt, &[&realm_id, &server_id, &scope_id])
+            .await;
+        match result {
+            Ok(row) => Ok(row.get::<usize, i64>(0) > 0),
             Err(error) => Err(error.to_string()),
         }
     }
