@@ -4,7 +4,8 @@ use crate::services::{
         RequiredActionService,
     },
     authz_services::{
-        GroupService, IdentityProviderService, ResourceServerService, RoleService, ScopeService,
+        GroupService, IdentityProviderService, ResourceServerService, ResourceService, RoleService,
+        ScopeService,
     },
     client_services::{ClientScopeService, ClientService, ProtocolMapperService},
     realm_service::RealmService,
@@ -17,8 +18,8 @@ use store::providers::rds::{
     loaders::{
         rds_auth_providers::*,
         rds_authz_providers::{
-            RdsGroupProvider, RdsIdentityProvider, RdsResourceServerProvider, RdsRoleProvider,
-            RdsScopeProvider,
+            RdsGroupProvider, RdsIdentityProvider, RdsResourceProvider, RdsResourceServerProvider,
+            RdsRoleProvider, RdsScopeProvider,
         },
         rds_client_provider::{
             RdsClientProvider, RdsClientScopeProvider, RdsProtocolMapperProvider,
@@ -44,6 +45,7 @@ module! {
             RdsClientProvider,
             RdsScopeProvider,
             RdsResourceServerProvider,
+            RdsResourceProvider,
             RealmService,
             RoleService,
             GroupService,
@@ -57,6 +59,7 @@ module! {
             ClientService,
             ResourceServerService,
             ScopeService,
+            ResourceService,
         ],
         providers = [],
     }
