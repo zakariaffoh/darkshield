@@ -10,6 +10,7 @@ use models::entities::user::UserModel;
 use shaku::Component;
 use shaku::Interface;
 use std::str::FromStr;
+//use std::str::FromStr;
 use std::sync::Arc;
 use store::providers::interfaces::authz_provider::IRoleProvider;
 use store::providers::interfaces::client_provider::IClientProvider;
@@ -528,7 +529,7 @@ pub trait IProtocolMapperService: Interface {
         &self,
         realm_id: &str,
         mapper_id: &str,
-    ) -> ApiResult<Option<ProtocolMapperModel>>;
+    ) -> ApiResult<ProtocolMapperModel>;
     async fn load_protocol_mappers_by_realm(
         &self,
         realm_id: &str,
@@ -610,17 +611,17 @@ impl IProtocolMapperService for ProtocolMapperService {
             .update_protocol_mapper(&mapper)
             .await;
         match updated_protocol_mapper {
-            Ok(_) => ApiResult::Data(()),
+            Ok(_) => ApiResult::no_content(),
             Err(_) => ApiResult::from_error(500, "500", "failed to update protocol mapper"),
         }
     }
 
     async fn delete_protocol_mapper(&self, realm_id: &str, mapper_id: &str) -> ApiResult<()> {
-        let existing_client_scope = self
+        let existing_protocol_mapper = self
             .protocol_mapper_provider
             .exists_protocol_mapper_by_id(&realm_id, &mapper_id)
             .await;
-        if let Ok(res) = existing_client_scope {
+        if let Ok(res) = existing_protocol_mapper {
             if !res {
                 log::error!(
                     "protocol mapper: {} not found in realm: {}",
@@ -635,8 +636,16 @@ impl IProtocolMapperService for ProtocolMapperService {
             .delete_protocol_mapper(&realm_id, &mapper_id)
             .await;
         match response {
-            Ok(_) => ApiResult::Data(()),
-            Err(_) => ApiResult::from_error(500, "500", "failed to delete protocol mapper"),
+            Ok(_) => ApiResult::no_content(),
+            Err(err) => {
+                log::error!(
+                    "Failed to delete protocol mapper: {}, realm: {}. Error: {}",
+                    &mapper_id,
+                    &realm_id,
+                    err
+                );
+                ApiResult::from_error(500, "500", "failed to delete protocol mapper")
+            }
         }
     }
 
@@ -644,13 +653,13 @@ impl IProtocolMapperService for ProtocolMapperService {
         &self,
         realm_id: &str,
         mapper_id: &str,
-    ) -> ApiResult<Option<ProtocolMapperModel>> {
+    ) -> ApiResult<ProtocolMapperModel> {
         let loaded_protocol_mapper = self
             .protocol_mapper_provider
             .load_protocol_mapper_by_mapper_id(&realm_id, &mapper_id)
             .await;
         match loaded_protocol_mapper {
-            Ok(mapper) => ApiResult::from_data(mapper),
+            Ok(mapper) => ApiResult::<ProtocolMapperModel>::from_option(mapper),
             Err(err) => ApiResult::from_error(500, "500", &err),
         }
     }
@@ -716,8 +725,8 @@ pub trait IClientScopeService: Interface {
     async fn load_client_scope_by_scope_id(
         &self,
         realm_id: &str,
-        scope_id: &str,
-    ) -> ApiResult<Option<ClientScopeModel>>;
+        client_scope_id: &str,
+    ) -> ApiResult<ClientScopeModel>;
 
     async fn add_client_scope_protocol_mapper(
         &self,
@@ -786,11 +795,11 @@ impl IClientScopeService for ClientScopeService {
         client_scope.client_scope_id = uuid::Uuid::new_v4().to_string();
         client_scope.metadata =
             AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
-        let created_role = self
+        let created_client_scope = self
             .client_scope_provider
             .create_client_scope(&client_scope)
             .await;
-        match created_role {
+        match created_client_scope {
             Ok(_) => ApiResult::Data(client_scope),
             Err(_) => ApiResult::from_error(500, "500", "failed to create client scope"),
         }
@@ -799,13 +808,10 @@ impl IClientScopeService for ClientScopeService {
     async fn update_client_scope(&self, client_scope: ClientScopeModel) -> ApiResult<()> {
         let existing_client_scope = self
             .client_scope_provider
-            .load_client_scope_by_client_scope_id(
-                &client_scope.realm_id,
-                &client_scope.client_scope_id,
-            )
+            .client_scope_exists_by_scope_id(&client_scope.realm_id, &client_scope.client_scope_id)
             .await;
         if let Ok(response) = existing_client_scope {
-            if response.is_none() {
+            if !response {
                 log::error!(
                     "client scope: {} not found in realm: {}",
                     &client_scope.name,
@@ -817,13 +823,21 @@ impl IClientScopeService for ClientScopeService {
         let mut client_scope = client_scope;
         client_scope.metadata =
             AuditableModel::from_updator("tenant".to_owned(), "zaffoh".to_owned());
-        let updated_role = self
+        let updated_client_scope = self
             .client_scope_provider
             .update_client_scope(&client_scope)
             .await;
-        match updated_role {
-            Ok(_) => ApiResult::Data(()),
-            Err(_) => ApiResult::from_error(500, "500", "failed to update client scope"),
+        match updated_client_scope {
+            Ok(_) => ApiResult::no_content(),
+            Err(err) => {
+                log::error!(
+                    "Failed to update client scope: {}, realm: {}. Error: {}",
+                    &client_scope.client_scope_id,
+                    &client_scope.realm_id,
+                    err
+                );
+                ApiResult::from_error(500, "500", "failed to update client scope")
+            }
         }
     }
 
@@ -842,13 +856,21 @@ impl IClientScopeService for ClientScopeService {
                 return ApiResult::from_error(404, "404", "client scope not found");
             }
         }
-        let updated_role = self
+        let deleted_client_scope = self
             .client_scope_provider
             .delete_client_scope(&realm_id, &client_scope_id)
             .await;
-        match updated_role {
-            Ok(_) => ApiResult::Data(()),
-            Err(_) => ApiResult::from_error(500, "500", "failed to delete client scope"),
+        match deleted_client_scope {
+            Ok(_) => ApiResult::no_content(),
+            Err(err) => {
+                log::error!(
+                    "Failed to delete client scope: {}, realm: {}. Error: {}",
+                    &client_scope_id,
+                    &realm_id,
+                    err
+                );
+                ApiResult::from_error(500, "500", "failed to delete client scope")
+            }
         }
     }
 
@@ -856,13 +878,13 @@ impl IClientScopeService for ClientScopeService {
         &self,
         realm_id: &str,
         client_scope_id: &str,
-    ) -> ApiResult<Option<ClientScopeModel>> {
+    ) -> ApiResult<ClientScopeModel> {
         let loaded_client_scope = self
             .client_scope_provider
             .load_client_scope_by_client_scope_id(&realm_id, &client_scope_id)
             .await;
         match loaded_client_scope {
-            Ok(scope) => ApiResult::from_data(scope),
+            Ok(scope) => ApiResult::<ClientScopeModel>::from_option(scope),
             Err(err) => ApiResult::from_error(500, "500", &err),
         }
     }
@@ -905,11 +927,11 @@ impl IClientScopeService for ClientScopeService {
 
         let response = self
             .client_scope_provider
-            .add_client_scope_protocol_mapper(&realm_id, &mapper_id, &mapper_id)
+            .add_client_scope_protocol_mapper(&realm_id, &scope_id, &mapper_id)
             .await;
 
         match response {
-            Ok(_) => ApiResult::Data(()),
+            Ok(_) => ApiResult::no_content(),
             Err(_) => {
                 ApiResult::from_error(500, "500", "failed to add client scope protocol mapper")
             }
@@ -954,11 +976,11 @@ impl IClientScopeService for ClientScopeService {
 
         let response = self
             .client_scope_provider
-            .remove_client_scope_protocol_mapper(&realm_id, &mapper_id, &mapper_id)
+            .remove_client_scope_protocol_mapper(&realm_id, &scope_id, &mapper_id)
             .await;
 
         match response {
-            Ok(_) => ApiResult::Data(()),
+            Ok(_) => ApiResult::no_content(),
             Err(_) => {
                 ApiResult::from_error(500, "500", "failed to remove client scope protocol mapper")
             }
@@ -1003,7 +1025,7 @@ impl IClientScopeService for ClientScopeService {
             .await;
 
         match response {
-            Ok(_) => ApiResult::Data(()),
+            Ok(_) => ApiResult::no_content(),
             Err(_) => {
                 ApiResult::from_error(500, "500", "failed to add client role client scope mapping")
             }
@@ -1048,7 +1070,7 @@ impl IClientScopeService for ClientScopeService {
             .await;
 
         match response {
-            Ok(_) => ApiResult::Data(()),
+            Ok(_) => ApiResult::no_content(),
             Err(_) => ApiResult::from_error(
                 500,
                 "500",

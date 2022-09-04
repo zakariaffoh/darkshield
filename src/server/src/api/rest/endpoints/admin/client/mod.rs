@@ -15,7 +15,7 @@ use services::services::client_services::{
     IClientScopeService, IClientService, IProtocolMapperService,
 };
 
-#[post("/realm/{realm_id}/clients_scope/create")]
+#[post("/realm/{realm_id}/client_scope/create")]
 pub async fn create_client_scope(
     realm_id: web::Path<String>,
     scope: web::Json<ClientScopeMutationModel>,
@@ -34,7 +34,7 @@ pub async fn create_client_scope(
         .await
 }
 
-#[put("/realm/{realm_id}/clients_scope/{client_scope_id}/update")]
+#[put("/realm/{realm_id}/client_scope/{client_scope_id}")]
 pub async fn update_client_scope(
     params: web::Path<(String, String)>,
     scope: web::Json<ClientScopeMutationModel>,
@@ -55,7 +55,7 @@ pub async fn update_client_scope(
         .await
 }
 
-#[get("/realm/{realm_id}/clients_scopes/{client_scope_id}")]
+#[get("/realm/{realm_id}/client_scope/{client_scope_id}")]
 pub async fn load_client_scope_by_id(
     params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
@@ -72,7 +72,7 @@ pub async fn load_client_scope_by_id(
         .await
 }
 
-#[delete("/realm/{realm_id}/clients_scopes/{client_scope_id}")]
+#[delete("/realm/{realm_id}/client_scope/{client_scope_id}")]
 pub async fn delete_client_scope_by_id(
     params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
@@ -89,7 +89,7 @@ pub async fn delete_client_scope_by_id(
         .await
 }
 
-#[put("/realm/{realm_id}/clients_scopes/{client_scope_id}/protocol_mapper/{mapper_id}")]
+#[put("/realm/{realm_id}/client_scope/{client_scope_id}/protocol_mapper/{mapper_id}")]
 pub async fn add_client_scope_protocol_mapper(
     params: web::Path<(String, String, String)>,
     context: web::Data<DarkShieldContext>,
@@ -111,7 +111,7 @@ pub async fn add_client_scope_protocol_mapper(
         .await
 }
 
-#[delete("/realm/{realm_id}/clients_scopes/{client_scope_id}/protocol_mapper/{mapper_id}")]
+#[delete("/realm/{realm_id}/client_scope/{client_scope_id}/protocol_mapper/{mapper_id}")]
 pub async fn delete_client_scope_protocol_mapper(
     params: web::Path<(String, String, String)>,
     context: web::Data<DarkShieldContext>,
@@ -134,7 +134,7 @@ pub async fn delete_client_scope_protocol_mapper(
         .await
 }
 
-#[put("/realm/{realm_id}/clients_scopes/{client_scope_id}/role/{role_id}")]
+#[put("/realm/{realm_id}/client_scope/{client_scope_id}/role/{role_id}")]
 pub async fn add_client_scope_role_mapping(
     params: web::Path<(String, String, String)>,
     context: web::Data<DarkShieldContext>,
@@ -157,7 +157,7 @@ pub async fn add_client_scope_role_mapping(
         .await
 }
 
-#[delete("/realm/{realm_id}/clients_scopes/{client_scope_id}/role/{role_id}")]
+#[delete("/realm/{realm_id}/client_scope/{client_scope_id}/role/{role_id}")]
 pub async fn remove_client_scope_role_mapping(
     params: web::Path<(String, String, String)>,
     context: web::Data<DarkShieldContext>,
@@ -239,7 +239,24 @@ pub async fn load_protocol_mapper_by_id(
         .await
 }
 
-#[get("/realm/{realm_id}/protocol_mapper/protocol/{protocol}")]
+#[delete("/realm/{realm_id}/protocol_mapper/{mapper_id}")]
+pub async fn delete_protocol_mappers_by_id(
+    params: web::Path<(String, String)>,
+    context: web::Data<DarkShieldContext>,
+) -> impl Responder {
+    let protocol_mapper_service: &dyn IProtocolMapperService = context.services().resolve_ref();
+    let (realm_id, mapper_id) = params.into_inner();
+    log::info!(
+        "Deleting protocol mapper by mapper_id: {} for realm: {}",
+        mapper_id.as_str(),
+        realm_id.as_str()
+    );
+    protocol_mapper_service
+        .delete_protocol_mapper(realm_id.as_str(), mapper_id.as_str())
+        .await
+}
+
+#[get("/realm/{realm_id}/protocol_mappers/protocol/{protocol}")]
 pub async fn load_protocol_mappers_by_protocol(
     params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
@@ -419,7 +436,7 @@ pub async fn add_client_scope_mapping(
 }
 
 #[delete("/realm/{realm_id}/client/{client_id}/client_scope/{client_scope_id}")]
-pub async fn remove_client_protocol_mapping(
+pub async fn remove_client_scope_mapping(
     params: web::Path<(String, String, String)>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
@@ -476,7 +493,7 @@ pub async fn add_client_protocol_mapper(
 }
 
 #[delete("/realm/{realm_id}/client/{client_id}/protocol_mapper/{mapper_id}")]
-pub async fn remove_client_protocol_mapper_mapper(
+pub async fn remove_client_protocol_mapper(
     params: web::Path<(String, String, String)>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {

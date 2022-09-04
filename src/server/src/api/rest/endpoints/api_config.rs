@@ -1,6 +1,11 @@
 use actix_web::web;
 
-use super::{admin::auth, admin::authz, admin::realm, metrics_api::metrics_handler};
+use super::{
+    admin::auth,
+    admin::authz,
+    admin::{client, realm},
+    metrics_api::metrics_handler,
+};
 
 pub fn register_apis(api_config: &mut web::ServiceConfig) {
     api_config
@@ -86,7 +91,39 @@ pub fn register_apis(api_config: &mut web::ServiceConfig) {
                     .service(auth::update_required_action)
                     .service(auth::load_requied_action_by_id)
                     .service(auth::load_requied_action_by_realm)
-                    .service(auth::remove_requied_action_by_id),
+                    .service(auth::remove_requied_action_by_id)
+                    /* Client API */
+                    .service(client::create_client)
+                    .service(client::update_client)
+                    .service(client::load_client_by_id)
+                    .service(client::delete_client_by_id)
+                    .service(client::add_client_roles_mapping)
+                    .service(client::remove_client_roles_mapping)
+                    .service(client::load_client_roles_mapping)
+                    .service(client::add_client_scope_mapping)
+                    .service(client::remove_client_scope_mapping)
+                    .service(client::load_client_scopes_by_client_id)
+                    .service(client::add_client_protocol_mapper)
+                    .service(client::remove_client_protocol_mapper)
+                    .service(client::load_client_protocol_mappers)
+                    .service(client::load_client_associated_service_account)
+                    /* Client Scope APi */
+                    .service(client::create_client_scope)
+                    .service(client::update_client_scope)
+                    .service(client::load_client_scope_by_id)
+                    .service(client::delete_client_scope_by_id)
+                    .service(client::add_client_scope_protocol_mapper)
+                    .service(client::remove_client_protocol_mapper)
+                    .service(client::add_client_scope_role_mapping)
+                    .service(client::remove_client_scope_role_mapping)
+                    /* Protocol Mapper APi */
+                    .service(client::create_protocol_mapper)
+                    .service(client::update_protocol_mapper)
+                    .service(client::load_protocol_mapper_by_id)
+                    .service(client::delete_protocol_mappers_by_id)
+                    .service(client::remove_client_protocol_mapper)
+                    .service(client::load_protocol_mappers_by_client_id)
+                    .service(client::load_protocol_mappers_by_protocol),
             ),
         )
         .service(metrics_handler);
