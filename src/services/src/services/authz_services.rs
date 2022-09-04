@@ -8,6 +8,7 @@ use shaku::Interface;
 use std::sync::Arc;
 use store::providers::interfaces::authz_provider::IGroupProvider;
 use store::providers::interfaces::authz_provider::IIdentityProvider;
+use store::providers::interfaces::authz_provider::IResourceProvider;
 use store::providers::interfaces::authz_provider::IResourceServerProvider;
 use store::providers::interfaces::authz_provider::IRoleProvider;
 use store::providers::interfaces::authz_provider::IScopeProvider;
@@ -812,6 +813,387 @@ impl IResourceServerService for ResourceServerService {
                 );
                 ApiResult::from_error(500, "500", "failed to update resource server")
             }
+        }
+    }
+}
+
+#[async_trait]
+pub trait IResourceService: Interface {
+    async fn create_resource(&self, resource: ResourceModel) -> ApiResult<ResourceModel>;
+
+    async fn udpate_resource(&self, resource: ResourceModel) -> ApiResult<()>;
+
+    async fn load_resource_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        resource_id: &str,
+    ) -> ApiResult<ResourceModel>;
+
+    async fn load_resources_by_server(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+    ) -> ApiResult<Vec<ResourceModel>>;
+
+    async fn load_resources_by_realm(&self, realm_id: &str) -> ApiResult<Vec<ResourceModel>>;
+
+    async fn delete_resource_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        resource_id: &str,
+    ) -> ApiResult<()>;
+
+    async fn add_resource_scope(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        resource_id: &str,
+        scope_id: &str,
+    ) -> ApiResult<()>;
+
+    async fn remove_resource_scope(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        resource_id: &str,
+        scope_id: &str,
+    ) -> ApiResult<()>;
+}
+
+#[allow(dead_code)]
+#[derive(Component)]
+#[shaku(interface = IResourceService)]
+pub struct ResourceService {
+    #[shaku(inject)]
+    resource_provider: Arc<dyn IResourceProvider>,
+
+    #[shaku(inject)]
+    scope_provider: Arc<dyn IScopeProvider>,
+}
+
+#[async_trait]
+impl IResourceService for ResourceService {
+    async fn create_resource(&self, resource: ResourceModel) -> ApiResult<ResourceModel> {
+        let existing_resource = self
+            .resource_provider
+            .resource_exists_by_name(&resource.realm_id, &resource.server_id, &resource.name)
+            .await;
+
+        if let Ok(response) = existing_resource {
+            if response {
+                log::error!(
+                    "Resource: {}, server: {} already exists in realm: {}",
+                    &resource.name,
+                    &resource.server_id,
+                    &resource.realm_id
+                );
+                return ApiResult::from_error(409, "409", "Resource already exists");
+            }
+        }
+        let mut resource = resource;
+        resource.resource_id = uuid::Uuid::new_v4().to_string();
+        resource.metadata = AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
+        let created_resource = self.resource_provider.create_resource(&resource).await;
+        match created_resource {
+            Ok(_) => ApiResult::Data(resource),
+            Err(err) => {
+                log::error!(
+                    "Failed to create resource: {}, server: {}, realm: {}. Error: {}",
+                    &resource.resource_id,
+                    &resource.server_id,
+                    &resource.realm_id,
+                    err
+                );
+                ApiResult::from_error(500, "500", "Failed to create resource")
+            }
+        }
+    }
+
+    async fn udpate_resource(&self, resource: ResourceModel) -> ApiResult<()> {
+        let existing_resource = self
+            .resource_provider
+            .load_resource_by_id(
+                &resource.realm_id,
+                &resource.server_id,
+                &resource.resource_id,
+            )
+            .await;
+
+        if let Ok(response) = existing_resource {
+            if response.is_none() {
+                log::error!(
+                    "Resource: {}, server: {} does not exists in realm: {}",
+                    &resource.resource_id,
+                    &resource.server_id,
+                    &resource.realm_id
+                );
+                return ApiResult::from_error(404, "404", "Resource does not exists");
+            }
+            let existing_resource = response.unwrap();
+            if existing_resource.name != resource.name {
+                let resource_with_name = self
+                    .resource_provider
+                    .resource_exists_by_name(
+                        &resource.realm_id,
+                        &resource.server_id,
+                        &resource.resource_id,
+                    )
+                    .await;
+
+                if let Ok(res) = resource_with_name {
+                    if res {
+                        log::error!(
+                            "Resource with name: {}, server: {} already exists in realm: {}",
+                            &existing_resource.name,
+                            &existing_resource.server_id,
+                            &existing_resource.realm_id
+                        );
+                        return ApiResult::from_error(
+                            409,
+                            "500",
+                            &format!("resource already for name {0}", &existing_resource.name),
+                        );
+                    }
+                }
+            }
+        }
+        let mut resource = resource;
+        resource.metadata = AuditableModel::from_updator("tenant".to_owned(), "zaffoh".to_owned());
+        let updated_resource = self.resource_provider.udpate_resource(&resource).await;
+        match updated_resource {
+            Ok(_) => ApiResult::no_content(),
+            Err(err) => {
+                log::error!(
+                    "Failed to update resource: {}, server: {}, realm: {}. Error: {}",
+                    &resource.name,
+                    &resource.server_id,
+                    &resource.realm_id,
+                    err
+                );
+                ApiResult::from_error(500, "500", "Failed to update resource")
+            }
+        }
+    }
+
+    async fn load_resource_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        resource_id: &str,
+    ) -> ApiResult<ResourceModel> {
+        let loaded_resource = self
+            .resource_provider
+            .load_resource_by_id(&realm_id, &server_id, &resource_id)
+            .await;
+
+        match loaded_resource {
+            Ok(resource) => ApiResult::<ResourceModel>::from_option(resource),
+            Err(err) => ApiResult::from_error(500, "500", &err),
+        }
+    }
+
+    async fn load_resources_by_server(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+    ) -> ApiResult<Vec<ResourceModel>> {
+        let loaded_resources = self
+            .resource_provider
+            .load_resources_by_server(&realm_id, &server_id)
+            .await;
+
+        match loaded_resources {
+            Ok(resources) => {
+                log::info!(
+                    "[{}] resource loaded for server: {}, realm: {}",
+                    resources.len(),
+                    &server_id,
+                    &realm_id
+                );
+                if resources.is_empty() {
+                    ApiResult::no_content()
+                } else {
+                    ApiResult::from_data(resources)
+                }
+            }
+            Err(err) => {
+                log::error!(
+                    "Failed to load resources for server: {}, realm: {}",
+                    &server_id,
+                    &realm_id
+                );
+                ApiResult::from_error(500, "500", &err)
+            }
+        }
+    }
+
+    async fn load_resources_by_realm(&self, realm_id: &str) -> ApiResult<Vec<ResourceModel>> {
+        let loaded_resources = self
+            .resource_provider
+            .load_resource_by_realm(&realm_id)
+            .await;
+
+        match loaded_resources {
+            Ok(resources) => {
+                log::info!(
+                    "[{}] resources loaded for  realm: {}",
+                    resources.len(),
+                    &realm_id
+                );
+                if resources.is_empty() {
+                    ApiResult::no_content()
+                } else {
+                    ApiResult::from_data(resources)
+                }
+            }
+            Err(err) => {
+                log::error!("Failed to load resources for realm: {}", &realm_id);
+                ApiResult::from_error(500, "500", &err)
+            }
+        }
+    }
+
+    async fn delete_resource_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        resource_id: &str,
+    ) -> ApiResult<()> {
+        let existing_resource = self
+            .resource_provider
+            .load_resource_by_id(&realm_id, &server_id, &resource_id)
+            .await;
+
+        if let Ok(response) = existing_resource {
+            if response.is_none() {
+                log::error!(
+                    "resource: {}, server: {},  not found in realm: {}",
+                    &resource_id,
+                    &server_id,
+                    &realm_id
+                );
+                return ApiResult::from_error(404, "404", "resource not found");
+            }
+        }
+        let updated_resource = self
+            .resource_provider
+            .delete_resource_by_id(&realm_id, &server_id, &resource_id)
+            .await;
+
+        match updated_resource {
+            Ok(_) => ApiResult::no_content(),
+            Err(err) => {
+                log::error!(
+                    "Failed to update resource: {}, server: {}, realm: {}. Error: {}",
+                    &resource_id,
+                    &server_id,
+                    &realm_id,
+                    err
+                );
+                ApiResult::from_error(500, "500", "failed to update resource")
+            }
+        }
+    }
+
+    async fn add_resource_scope(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        resource_id: &str,
+        scope_id: &str,
+    ) -> ApiResult<()> {
+        let existing_resource = self
+            .resource_provider
+            .resource_exists_by_id(&realm_id, &server_id, &resource_id)
+            .await;
+        if let Ok(response) = existing_resource {
+            if !response {
+                log::error!(
+                    "Resource: {}, server: {} does not exists in realm: {}",
+                    &resource_id,
+                    &server_id,
+                    &realm_id
+                );
+                return ApiResult::from_error(404, "404", "Resource does not exists");
+            }
+        }
+
+        let existing_scope = self
+            .scope_provider
+            .scope_exists_by_id(&realm_id, &server_id, &scope_id)
+            .await;
+        if let Ok(res) = existing_scope {
+            if !res {
+                log::error!(
+                    "Scope: {}, server: {} does not exists in realm: {}",
+                    &scope_id,
+                    &server_id,
+                    &realm_id
+                );
+                return ApiResult::from_error(404, "404", "Scope does not exists");
+            }
+        }
+
+        let response = self
+            .resource_provider
+            .add_resource_scope_mapping(&realm_id, &server_id, &resource_id, &scope_id)
+            .await;
+
+        match response {
+            Ok(_) => ApiResult::no_content(),
+            Err(_) => ApiResult::from_error(500, "500", "failed to add scope to resource"),
+        }
+    }
+
+    async fn remove_resource_scope(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        resource_id: &str,
+        scope_id: &str,
+    ) -> ApiResult<()> {
+        let existing_resource = self
+            .resource_provider
+            .resource_exists_by_id(&realm_id, &server_id, &resource_id)
+            .await;
+        if let Ok(response) = existing_resource {
+            if !response {
+                log::error!(
+                    "Resource: {}, server: {} does not exists in realm: {}",
+                    &resource_id,
+                    &server_id,
+                    &realm_id
+                );
+                return ApiResult::from_error(404, "404", "Resource does not exists");
+            }
+        }
+
+        let existing_scope = self
+            .scope_provider
+            .scope_exists_by_id(&realm_id, &server_id, &scope_id)
+            .await;
+        if let Ok(res) = existing_scope {
+            if !res {
+                log::error!(
+                    "Scope: {}, server: {} does not exists in realm: {}",
+                    &scope_id,
+                    &server_id,
+                    &realm_id
+                );
+                return ApiResult::from_error(404, "404", "Scope does not exists");
+            }
+        }
+
+        let response = self
+            .resource_provider
+            .remove_resource_scope_mapping(&realm_id, &server_id, &resource_id, &scope_id)
+            .await;
+
+        match response {
+            Ok(_) => ApiResult::no_content(),
+            Err(_) => ApiResult::from_error(500, "500", "failed to add scope to resource"),
         }
     }
 }

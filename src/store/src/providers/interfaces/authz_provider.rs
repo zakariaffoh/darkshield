@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use models::entities::authz::{
-    GroupModel, IdentityProviderModel, ResourceServerModel, RoleModel, ScopeModel,
+    GroupModel, IdentityProviderModel, ResourceModel, ResourceServerModel, RoleModel, ScopeModel,
 };
 use shaku::Interface;
 
@@ -137,6 +137,66 @@ pub trait IResourceServerProvider: Interface {
     ) -> Result<Vec<ResourceServerModel>, String>;
 
     async fn delete_resource_server(&self, realm_id: &str, server_id: &str) -> Result<(), String>;
+}
+
+#[async_trait]
+pub trait IResourceProvider: Interface {
+    async fn create_resource(&self, resource: &ResourceModel) -> Result<(), String>;
+
+    async fn udpate_resource(&self, resource: &ResourceModel) -> Result<(), String>;
+
+    async fn load_resource_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        resource_id: &str,
+    ) -> Result<Option<ResourceModel>, String>;
+
+    async fn resource_exists_by_name(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        name: &str,
+    ) -> Result<bool, String>;
+
+    async fn resource_exists_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        resource_id: &str,
+    ) -> Result<bool, String>;
+
+    async fn load_resource_by_realm(&self, realm_id: &str) -> Result<Vec<ResourceModel>, String>;
+
+    async fn load_resources_by_server(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+    ) -> Result<Vec<ResourceModel>, String>;
+
+    async fn delete_resource_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        resource_id: &str,
+    ) -> Result<(), String>;
+
+    async fn add_resource_scope_mapping(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        resource_id: &str,
+        scope_id: &str,
+    ) -> Result<(), String>;
+
+    async fn remove_resource_scope_mapping(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        resource_id: &str,
+        scope_id: &str,
+    ) -> Result<(), String>;
+    
 }
 
 #[async_trait]

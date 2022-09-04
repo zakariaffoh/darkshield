@@ -43,7 +43,21 @@ pub fn register_apis(api_config: &mut web::ServiceConfig) {
                     .service(authz::load_resource_server)
                     .service(authz::load_resource_servers_by_realms)
                     .service(authz::delete_resource_server_by_id)
-                    /* Identity provider API*/
+                    /* Resource Server Api */
+                    .service(authz::create_resource)
+                    .service(authz::update_resource)
+                    .service(authz::load_resource)
+                    .service(authz::load_resources_by_server)
+                    .service(authz::delete_resource_by_id)
+                    .service(authz::add_scope_to_resource)
+                    .service(authz::remove_resource_scope)
+                    /* Create Scope Api */
+                    .service(authz::create_scope)
+                    .service(authz::update_scope)
+                    .service(authz::load_scope)
+                    .service(authz::load_scope_by_realm_and_server)
+                    .service(authz::delete_scope_by_id)
+                    /* Identity Provider API*/
                     .service(authz::create_identity_provider)
                     .service(authz::update_identity_provider)
                     .service(authz::load_identity_provider)

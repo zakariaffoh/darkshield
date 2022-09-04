@@ -140,4 +140,46 @@ lazy_static! {
             "updated_at".to_owned()
         ]
     };
+    pub static ref RESOURCES_TABLE: RdsTable = RdsTable {
+        table_name: "RESOURCES".to_owned(),
+        insert_columns: vec![
+            "tenant".to_owned(),
+            "realm_id".to_owned(),
+            "server_id".to_owned(),
+            "resource_id".to_owned(),
+            "name".to_owned(),
+            "display_name".to_owned(),
+            "description".to_owned(),
+            "resource_uris".to_owned(),
+            "resource_type".to_owned(),
+            "resource_owner".to_owned(),
+            "user_managed_access_enabled".to_owned(),
+            "configs".to_owned(),
+            "created_by".to_owned(),
+            "created_at".to_owned(),
+            "version".to_owned(),
+        ],
+        update_columns: vec![
+            "name".to_owned(),
+            "display_name".to_owned(),
+            "description".to_owned(),
+            "resource_uris".to_owned(),
+            "resource_type".to_owned(),
+            "resource_owner".to_owned(),
+            "user_managed_access_enabled".to_owned(),
+            "configs".to_owned(),
+            "updated_by".to_owned(),
+            "updated_at".to_owned()
+        ]
+    };
+    pub static ref RESOURCES_SCOPES_TABLE: RdsTable = RdsTable {
+        table_name: "RESOURCES_SCOPES".to_owned(),
+        insert_columns: vec![
+            "realm_id".to_owned(),
+            "server_id".to_owned(),
+            "resource_id".to_owned(),
+            "scope_id".to_owned()
+        ],
+        update_columns: vec![]
+    };
 }

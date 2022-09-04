@@ -1416,6 +1416,430 @@ impl IResourceServerProvider for RdsResourceServerProvider {
 
 #[allow(dead_code)]
 #[derive(Component)]
+#[shaku(interface = IResourceProvider)]
+pub struct RdsResourceProvider {
+    #[shaku(inject)]
+    database_manager: Arc<dyn IDataBaseManager>,
+}
+
+impl RdsResourceProvider {
+    fn read_resource_record(&self, row: &Row) -> ResourceModel {
+        let configs = serde_json::from_value::<HashMap<String, Option<String>>>(
+            row.get::<&str, serde_json::Value>("configs"),
+        )
+        .map_or_else(|_| None, |p| Some(p));
+
+        ResourceModel {
+            resource_id: row.get("resource_id"),
+            server_id: row.get("server_id"),
+            realm_id: row.get("realm_id"),
+            name: row.get("name"),
+            display_name: row.get("display_name"),
+            description: row.get("description"),
+            resource_uris: row.get("resource_uris"),
+            resource_type: row.get("resource_type"),
+            resource_owner: row.get("resource_owner"),
+            user_managed_access_enabled: row.get("user_managed_access_enabled"),
+            configs: configs,
+            metadata: Some(AuditableModel {
+                tenant: row.get("tenant"),
+                created_by: row.get("created_by"),
+                updated_by: row.get("updated_by"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+                version: row.get("version"),
+            }),
+        }
+    }
+}
+
+#[async_trait]
+impl IResourceProvider for RdsResourceProvider {
+    async fn create_resource(&self, resource: &ResourceModel) -> Result<(), String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let create_resource_sql = InsertRequestBuilder::new()
+            .table_name(authz_tables::RESOURCES_TABLE.table_name.clone())
+            .columns(authz_tables::RESOURCES_TABLE.insert_columns.clone())
+            .resolve_conflict(false)
+            .sql_query()
+            .unwrap();
+
+        let client = client.unwrap();
+        let create_resource_stmt = client.prepare_cached(&create_resource_sql).await.unwrap();
+        let metadata = resource.metadata.as_ref().unwrap();
+
+        let response = client
+            .execute(
+                &create_resource_stmt,
+                &[
+                    &metadata.tenant,
+                    &resource.realm_id,
+                    &resource.server_id,
+                    &resource.resource_id,
+                    &resource.name,
+                    &resource.display_name,
+                    &resource.description,
+                    &resource.resource_uris,
+                    &resource.resource_type,
+                    &resource.resource_owner,
+                    &resource.user_managed_access_enabled,
+                    &json!(resource.configs),
+                    &metadata.created_by,
+                    &metadata.created_at,
+                    &metadata.version,
+                ],
+            )
+            .await;
+
+        match response {
+            Err(err) => Err(err.to_string()),
+            Ok(_) => Ok(()),
+        }
+    }
+
+    async fn udpate_resource(&self, resource: &ResourceModel) -> Result<(), String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let update_resource_sql = UpdateRequestBuilder::new()
+            .table_name(authz_tables::RESOURCES_TABLE.table_name.clone())
+            .columns(authz_tables::RESOURCES_TABLE.update_columns.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("server_id".to_string()),
+                SqlCriteriaBuilder::is_equals("resource_id".to_string()),
+            ])
+            .manage_version(true)
+            .sql_query()
+            .unwrap();
+
+        let client = client.unwrap();
+        let update_resource_stmt = client.prepare_cached(&update_resource_sql).await.unwrap();
+        let metadata = resource.metadata.as_ref().unwrap();
+        let response = client
+            .execute(
+                &update_resource_stmt,
+                &[
+                    &resource.name,
+                    &resource.display_name,
+                    &resource.description,
+                    &resource.resource_uris,
+                    &resource.resource_type,
+                    &resource.resource_owner,
+                    &resource.user_managed_access_enabled,
+                    &json!(resource.configs),
+                    &metadata.updated_by,
+                    &metadata.updated_at,
+                    &resource.realm_id,
+                    &resource.server_id,
+                    &resource.resource_id,
+                ],
+            )
+            .await;
+
+        match response {
+            Err(err) => Err(err.to_string()),
+            Ok(response) => {
+                if response == 1 {
+                    Ok(())
+                } else {
+                    Err("Failed to update resource".to_string())
+                }
+            }
+        }
+    }
+
+    async fn load_resource_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        resource_id: &str,
+    ) -> Result<Option<ResourceModel>, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let load_resource_sql = SelectRequestBuilder::new()
+            .table_name(authz_tables::RESOURCES_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("server_id".to_string()),
+                SqlCriteriaBuilder::is_equals("resource_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let client = client.unwrap();
+        let load_resource_stmt = client.prepare_cached(&load_resource_sql).await.unwrap();
+        let result = client
+            .query_opt(&load_resource_stmt, &[&realm_id, &server_id, &resource_id])
+            .await;
+
+        match &result {
+            Ok(row) => {
+                if let Some(r) = row {
+                    Ok(Some(self.read_resource_record(r)))
+                } else {
+                    Ok(None)
+                }
+            }
+            Err(err) => Err(err.to_string()),
+        }
+    }
+
+    async fn resource_exists_by_name(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        name: &str,
+    ) -> Result<bool, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let load_resource_sql = SelectCountRequestBuilder::new()
+            .table_name(authz_tables::RESOURCES_SERVERS_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("server_id".to_string()),
+                SqlCriteriaBuilder::is_equals("name".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let client = client.unwrap();
+        let load_resource_stmt = client.prepare_cached(&load_resource_sql).await.unwrap();
+        let result = client
+            .query_one(&load_resource_stmt, &[&realm_id, &server_id, &name])
+            .await;
+        match result {
+            Ok(row) => Ok(row.get::<usize, i64>(0) > 0),
+            Err(error) => Err(error.to_string()),
+        }
+    }
+
+    async fn resource_exists_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        resource_id: &str,
+    ) -> Result<bool, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let load_resource_sql = SelectCountRequestBuilder::new()
+            .table_name(authz_tables::RESOURCES_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("server_id".to_string()),
+                SqlCriteriaBuilder::is_equals("resource_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let client = client.unwrap();
+        let load_resource_stmt = client.prepare_cached(&load_resource_sql).await.unwrap();
+        let result = client
+            .query_one(&load_resource_stmt, &[&realm_id, &server_id, &resource_id])
+            .await;
+        match result {
+            Ok(row) => Ok(row.get::<usize, i64>(0) > 0),
+            Err(error) => Err(error.to_string()),
+        }
+    }
+
+    async fn load_resource_by_realm(&self, realm_id: &str) -> Result<Vec<ResourceModel>, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let load_resources_sql = SelectRequestBuilder::new()
+            .table_name(authz_tables::RESOURCES_TABLE.table_name.clone())
+            .where_clauses(vec![SqlCriteriaBuilder::is_equals("realm_id".to_string())])
+            .sql_query()
+            .unwrap();
+
+        let client = client.unwrap();
+        let load_resources_stmt = client.prepare_cached(&load_resources_sql).await.unwrap();
+        let result = client.query(&load_resources_stmt, &[&realm_id]).await;
+        match result {
+            Ok(rows) => Ok(rows
+                .iter()
+                .map(|row| self.read_resource_record(&row))
+                .collect()),
+            Err(err) => Err(err.to_string()),
+        }
+    }
+
+    async fn load_resources_by_server(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+    ) -> Result<Vec<ResourceModel>, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let load_resources_sql = SelectRequestBuilder::new()
+            .table_name(authz_tables::RESOURCES_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("server_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let client = client.unwrap();
+        let load_resources_stmt = client.prepare_cached(&load_resources_sql).await.unwrap();
+        let result = client
+            .query(&load_resources_stmt, &[&realm_id, &server_id])
+            .await;
+        match result {
+            Ok(rows) => Ok(rows
+                .iter()
+                .map(|row| self.read_resource_record(&row))
+                .collect()),
+            Err(err) => Err(err.to_string()),
+        }
+    }
+
+    async fn delete_resource_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        resource_id: &str,
+    ) -> Result<(), String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let delete_resource_sql = DeleteQueryBuilder::new()
+            .table_name(authz_tables::RESOURCES_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("server_id".to_string()),
+                SqlCriteriaBuilder::is_equals("resource_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let client = client.unwrap();
+        let delete_resource_stmt = client.prepare_cached(&delete_resource_sql).await.unwrap();
+        let result = client
+            .execute(
+                &delete_resource_stmt,
+                &[&realm_id, &server_id, &resource_id],
+            )
+            .await;
+        match result {
+            Err(error) => Err(error.to_string()),
+            Ok(response) => {
+                if response == 1 {
+                    Ok(())
+                } else {
+                    Err("Failed to delete resource".to_string())
+                }
+            }
+        }
+    }
+
+    async fn add_resource_scope_mapping(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        resource_id: &str,
+        scope_id: &str,
+    ) -> Result<(), String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let add_resource_scope_sql = InsertRequestBuilder::new()
+            .table_name(authz_tables::RESOURCES_SCOPES_TABLE.table_name.clone())
+            .columns(authz_tables::RESOURCES_SCOPES_TABLE.insert_columns.clone())
+            .resolve_conflict(true)
+            .sql_query()
+            .unwrap();
+
+        let client = client.unwrap();
+        let add_resource_scope_stmt = client
+            .prepare_cached(&add_resource_scope_sql)
+            .await
+            .unwrap();
+        let response = client
+            .execute(
+                &add_resource_scope_stmt,
+                &[&realm_id, &server_id, &resource_id, &scope_id],
+            )
+            .await;
+
+        match response {
+            Err(err) => Err(err.to_string()),
+            Ok(response) => {
+                if response == 1 {
+                    Ok(())
+                } else {
+                    Err("Failed to add scope to resource".to_string())
+                }
+            }
+        }
+    }
+
+    async fn remove_resource_scope_mapping(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        resource_id: &str,
+        scope_id: &str,
+    ) -> Result<(), String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let remove_resource_scope_sql = DeleteQueryBuilder::new()
+            .table_name(authz_tables::RESOURCES_SCOPES_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("server_id".to_string()),
+                SqlCriteriaBuilder::is_equals("resource_id".to_string()),
+                SqlCriteriaBuilder::is_equals("scope_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let client = client.unwrap();
+        let remove_resource_scope_stmt = client
+            .prepare_cached(&remove_resource_scope_sql)
+            .await
+            .unwrap();
+
+        let response = client
+            .execute(
+                &remove_resource_scope_stmt,
+                &[&realm_id, &server_id, &resource_id, &scope_id],
+            )
+            .await;
+
+        match response {
+            Err(err) => Err(err.to_string()),
+            Ok(response) => {
+                if response == 1 {
+                    Ok(())
+                } else {
+                    Err("Failed to remove scope from resource".to_string())
+                }
+            }
+        }
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Component)]
 #[shaku(interface = IScopeProvider)]
 pub struct RdsScopeProvider {
     #[shaku(inject)]

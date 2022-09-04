@@ -179,6 +179,53 @@ impl Into<ResourceServerModel> for ResourceServerMutationModel {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct ResourceModel {
+    pub resource_id: String,
+    pub server_id: String,
+    pub realm_id: String,
+    pub name: String,
+    pub display_name: String,
+    pub description: String,
+    pub resource_uris: Vec<String>,
+    pub resource_type: String,
+    pub resource_owner: String,
+    pub user_managed_access_enabled: Option<bool>,
+    pub configs: Option<HashMap<String, Option<String>>>,
+    pub metadata: Option<AuditableModel>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ResourceMutationModel {
+    pub name: String,
+    pub display_name: String,
+    pub description: String,
+    pub resource_uris: Vec<String>,
+    pub resource_type: String,
+    pub resource_owner: String,
+    pub user_managed_access_enabled: Option<bool>,
+    pub configs: Option<HashMap<String, Option<String>>>,
+}
+
+impl Into<ResourceModel> for ResourceMutationModel {
+    fn into(self) -> ResourceModel {
+        ResourceModel {
+            resource_id: String::new(),
+            server_id: String::new(),
+            realm_id: String::new(),
+            name: self.name,
+            display_name: self.display_name,
+            description: self.description,
+            resource_uris: self.resource_uris,
+            resource_type: self.resource_type,
+            resource_owner: self.resource_owner,
+            user_managed_access_enabled: self.user_managed_access_enabled,
+            configs: self.configs,
+            metadata: None,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ScopeModel {
     pub scope_id: String,
     pub server_id: String,
