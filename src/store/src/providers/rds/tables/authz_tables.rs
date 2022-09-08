@@ -26,6 +26,7 @@ lazy_static! {
             "updated_at".to_owned()
         ]
     };
+    pub static ref CLIENT_ROLES_SELECT_BY_CLIENT_ID_QUERY: &'static str = r#"SELECT r.* FROM ROLES r INNER JOIN CLIENTS_ROLES cr ON (r.role_id = cr.role_id AND r.realm_id = cr.realm_id) WHERE cr.realm_id = $1 AND cr.client_id = $2"#;
     pub static ref GROUP_TABLE: RdsTable = RdsTable {
         table_name: "GROUPS".to_owned(),
         insert_columns: vec![

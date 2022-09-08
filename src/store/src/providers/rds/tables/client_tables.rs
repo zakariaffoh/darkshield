@@ -26,8 +26,8 @@ lazy_static! {
             "updated_at".to_owned()
         ]
     };
-    pub static ref PROTOCOL_MAPPER_TABLE_SELECT_PROTOCOL_MAPPER_BY_CLIENT_ID_QUERY: &'static str = r#"SELECT p.* FROM PROTOCOLS_MAPPERS p INNER JOIN CLIENT_PROTOCOLS_MAPPERS cp ON p.mapper_id = cp.mapper_id WHERE cp.realm_id = $1 AND cp.client_id = $2"#;
-    pub static ref PROTOCOL_MAPPER_TABLE_SELECT_PROTOCOL_MAPPER_BY_CLIENT_SCOPE_ID_QUERY: &'static str = r#"SELECT p.* FROM PROTOCOLS_MAPPERS p INNER JOIN CLIENT_SCOPE_PROTOCOL_MAPPERS cspm ON cspm.mapper_id = cp.mapper_id WHERE cp.realm_id = $1 AND cspm.client_scope_id = $2"#;
+    pub static ref PROTOCOL_MAPPER_TABLE_SELECT_PROTOCOL_MAPPER_BY_CLIENT_ID_QUERY: &'static str = r#"SELECT p.* FROM PROTOCOLS_MAPPERS p INNER JOIN CLIENTS_PROTOCOLS_MAPPERS cp ON p.mapper_id = cp.mapper_id WHERE cp.realm_id = $1 AND cp.client_id = $2"#;
+    pub static ref PROTOCOL_MAPPER_TABLE_SELECT_PROTOCOL_MAPPER_BY_CLIENT_SCOPE_ID_QUERY: &'static str = r#"SELECT p.* FROM PROTOCOLS_MAPPERS p INNER JOIN CLIENTS_SCOPES_PROTOCOLS_MAPPERS cspm ON cspm.mapper_id = cp.mapper_id WHERE cp.realm_id = $1 AND cspm.client_scope_id = $2"#;
     pub static ref CLIENT_SCOPE_TABLE: RdsTable = RdsTable {
         table_name: "CLIENTS_SCOPES".to_owned(),
         insert_columns: vec![
@@ -150,6 +150,6 @@ lazy_static! {
     };
     pub static ref CLIENT_TABLE_SELECT_CLIENT_BY_ROLE: &'static str = r#"SELECT c.* FROM CLIENTS INNER JOIN CLIENTS_ROLES cr ON cr.role_id = c.role_id  WHERE cr.realm_id = $1 AND cr.role_id = $2 LIMIT 1"#;
     pub static ref CLIENT_TABLE_SELECT_ROLES_BY_CLIENT_ID: &'static str = r#"SELECT r.* FROM ROLES INNER JOIN CLIENTS_ROLES cr ON cr.role_id = r.role_id  WHERE cr.realm_id = $1 AND cr.client_id = $2"#;
-    pub static ref CLIENT_TABLE_SELECT_CLIENT_SCOPE_IDS_BY_CLIENT_ID: &'static str = r#"SELECT cs.client_scope_id FROM CLIENTS_SCOPES ccs INNER JOIN CLIENTS_CLIENTS_SCOPES ccs ON ccs.client_id = cs.client_id  WHERE ccs.realm_id = $1 AND ccs.client_id = $2"#;
+    pub static ref CLIENT_TABLE_SELECT_CLIENT_SCOPE_IDS_BY_CLIENT_ID: &'static str = r#"SELECT cs.client_scope_id FROM CLIENTS_SCOPES cs INNER JOIN CLIENTS_CLIENTS_SCOPES ccs ON (ccs.client_scope_id = cs.client_scope_id AND ccs.realm_id = cs.realm_id)  WHERE ccs.realm_id = $1 AND ccs.client_id = $2"#;
     pub static ref CLIENT_TABLE_SELECT_PROTOCOL_MAPPERS_IDS_BY_CLIENT_ID: &'static str = r#"SELECT cpm.mapper_id FROM CLIENTS_PROTOCOLS_MAPPERS cpm WHERE cpm.realm_id = $1 AND cpm.client_id = $2"#;
 }
