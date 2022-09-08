@@ -424,10 +424,25 @@ impl IRoleProvider for RdsRoleProvider {
 
     async fn load_client_roles(
         &self,
-        _realm_id: &str,
-        _client_id: &str,
+        realm_id: &str,
+        client_id: &str,
     ) -> Result<Vec<RoleModel>, String> {
-        todo!()
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let client = client.unwrap();
+        let load_roles_stmt = client
+            .prepare_cached(&authz_tables::CLIENT_ROLES_SELECT_BY_CLIENT_ID_QUERY)
+            .await
+            .unwrap();
+        let result = client
+            .query(&load_roles_stmt, &[&realm_id, &client_id])
+            .await;
+        match result {
+            Ok(rows) => Ok(rows.iter().map(|row| self.read_record(&row)).collect()),
+            Err(err) => Err(err.to_string()),
+        }
     }
 }
 

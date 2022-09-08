@@ -364,7 +364,7 @@ impl IClientService for ClientService {
 
         let response = self
             .client_provider
-            .add_client_scope_mapping(&realm_id, &client_id, &client_id)
+            .add_client_scope_mapping(&realm_id, &client_id, &client_scope_id)
             .await;
 
         match response {
@@ -407,7 +407,7 @@ impl IClientService for ClientService {
 
         let response = self
             .client_provider
-            .remove_client_scope_mapping(&realm_id, &client_id, &client_id)
+            .remove_client_scope_mapping(&realm_id, &client_id, &client_scope_id)
             .await;
 
         match response {

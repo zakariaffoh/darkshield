@@ -91,7 +91,7 @@ pub trait IClientProvider: Interface {
         client_id: &str,
     ) -> Result<Vec<String>, String>;
 
-    async fn load_client_roles_scope(
+    async fn load_client_roles(
         &self,
         realm_id: &str,
         client_id: &str,
@@ -104,6 +104,12 @@ pub trait IClientProvider: Interface {
         realm_id: &str,
         role_id: &str,
     ) -> Result<Option<ClientModel>, String>;
+
+    /*async fn load_client_scopes_by_client_id(
+        &self,
+        realm_id: &str,
+        client_id: &str,
+    ) -> Result<Vec<ClientScopeModel>, String>;*/
 }
 
 #[async_trait]

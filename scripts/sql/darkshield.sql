@@ -439,7 +439,7 @@ CREATE TABLE IF NOT EXISTS CLIENTS
     PUBLIC_CLIENT                         boolean,
     FULL_SCOPE_ALLOWED                    boolean,
 
-    PROTOCOL                              TEXT,
+    PROTOCOL                              ProtocolEnum,
     ROOT_URL                              TEXT,
     WEB_ORIGINS                           TEXT[],
     REDIRECT_URIS                         TEXT[],
@@ -455,7 +455,7 @@ CREATE TABLE IF NOT EXISTS CLIENTS
     BEARER_ONLY                           boolean,
     FRONT_CHANNEL_LOGOUT                  boolean,
 
-    ATTRIBUTES                            json,
+    CONFIGS                               json,
     CLIENT_AUTHENTICATOR_TYPE             text,
     SERVICE_ACCOUNT_ENABLED               boolean,
     AUTH_FLOW_BINDING_OVERRIDES           json,

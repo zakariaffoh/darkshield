@@ -5,6 +5,7 @@ use crate::providers::{
     rds::{client::postgres_client::IDataBaseManager, tables::client_tables},
 };
 use async_trait::async_trait;
+use deadpool_postgres::Object;
 use log;
 use models::{
     auditable::AuditableModel,
@@ -409,7 +410,7 @@ pub struct RdsClientScopeProvider {
 impl RdsClientScopeProvider {
     fn read_record(
         &self,
-        row: Row,
+        row: &Row,
         roles: Vec<RoleModel>,
         mappers: Vec<ProtocolMapperModel>,
     ) -> ClientScopeModel {
@@ -435,6 +436,77 @@ impl RdsClientScopeProvider {
                 updated_at: row.get("updated_at"),
                 version: row.get("version"),
             }),
+        }
+    }
+
+    async fn read_client_scope(
+        &self,
+        client: &Object,
+        realm_id: &str,
+        client_scope_id: &str,
+    ) -> Result<Option<ClientScopeModel>, String> {
+        let load_client_scope_sql = SelectRequestBuilder::new()
+            .table_name(client_tables::CLIENT_SCOPE_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("client_scope_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let result = client
+            .query_opt(&load_client_scope_sql, &[&realm_id, &client_scope_id])
+            .await;
+
+        match result {
+            Ok(res) => {
+                if let Some(row) = res {
+                    let scope_roles_stmt = client
+                        .prepare_cached(
+                            &client_tables::CLIENT_SCOPE_TABLE_SELECT_CLIENT_SCOPE_ROLES,
+                        )
+                        .await
+                        .unwrap();
+                    let roles_rows = client
+                        .query(&scope_roles_stmt, &[&realm_id, &client_scope_id])
+                        .await
+                        .unwrap();
+
+                    let role_reader = RdsRoleProvider {
+                        database_manager: self.database_manager.clone(),
+                    };
+
+                    let roles = roles_rows
+                        .iter()
+                        .map(|row| role_reader.read_record(&row))
+                        .collect();
+
+                    let protocol_mapper_stmt = client
+                        .prepare_cached(
+                            &client_tables::CLIENT_SCOPE_TABLE_SELECT_CLIENT_SCOPE_PROTOCOL_MAPPERS,
+                        )
+                        .await
+                        .unwrap();
+                    let protocol_mapper_rows = client
+                        .query(&protocol_mapper_stmt, &[&realm_id, &client_scope_id])
+                        .await
+                        .unwrap();
+
+                    let protocol_mapper_reader = RdsProtocolMapperProvider {
+                        database_manager: self.database_manager.clone(),
+                    };
+
+                    let protocol_mappers = protocol_mapper_rows
+                        .into_iter()
+                        .map(|row| protocol_mapper_reader.read_record(row))
+                        .collect();
+
+                    Ok(Some(self.read_record(&row, roles, protocol_mappers)))
+                } else {
+                    Ok(None)
+                }
+            }
+            Err(err) => Err(err.to_string()),
         }
     }
 }
@@ -551,69 +623,8 @@ impl IClientScopeProvider for RdsClientScopeProvider {
             return Err(err);
         }
         let client = client.unwrap();
-
-        let load_client_scope_sql = SelectRequestBuilder::new()
-            .table_name(client_tables::CLIENT_SCOPE_TABLE.table_name.clone())
-            .where_clauses(vec![
-                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
-                SqlCriteriaBuilder::is_equals("client_scope_id".to_string()),
-            ])
-            .sql_query()
-            .unwrap();
-        let result = client
-            .query_opt(&load_client_scope_sql, &[&realm_id, &client_scope_id])
-            .await;
-
-        match result {
-            Ok(res) => {
-                if let Some(row) = res {
-                    let scope_roles_stmt = client
-                        .prepare_cached(
-                            &client_tables::CLIENT_SCOPE_TABLE_SELECT_CLIENT_SCOPE_ROLES,
-                        )
-                        .await
-                        .unwrap();
-                    let roles_rows = client
-                        .query(&scope_roles_stmt, &[&realm_id, &client_scope_id])
-                        .await
-                        .unwrap();
-
-                    let role_reader = RdsRoleProvider {
-                        database_manager: self.database_manager.clone(),
-                    };
-
-                    let roles = roles_rows
-                        .iter()
-                        .map(|row| role_reader.read_record(&row))
-                        .collect();
-
-                    let protocol_mapper_stmt = client
-                        .prepare_cached(
-                            &client_tables::CLIENT_SCOPE_TABLE_SELECT_CLIENT_SCOPE_PROTOCOL_MAPPERS,
-                        )
-                        .await
-                        .unwrap();
-                    let protocol_mapper_rows = client
-                        .query(&protocol_mapper_stmt, &[&realm_id, &client_scope_id])
-                        .await
-                        .unwrap();
-
-                    let protocol_mapper_reader = RdsProtocolMapperProvider {
-                        database_manager: self.database_manager.clone(),
-                    };
-
-                    let protocol_mappers = protocol_mapper_rows
-                        .into_iter()
-                        .map(|row| protocol_mapper_reader.read_record(row))
-                        .collect();
-
-                    Ok(Some(self.read_record(row, roles, protocol_mappers)))
-                } else {
-                    Ok(None)
-                }
-            }
-            Err(err) => Err(err.to_string()),
-        }
+        self.read_client_scope(&client, &realm_id, &client_scope_id)
+            .await
     }
 
     async fn client_scope_exists_by_name(
@@ -919,7 +930,51 @@ impl IClientScopeProvider for RdsClientScopeProvider {
         realm_id: &str,
         client_id: &str,
     ) -> Result<Vec<ClientScopeModel>, String> {
-        todo!()
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let client = client.unwrap();
+        let client_scopes_stmt = client
+            .prepare_cached(&client_tables::CLIENT_TABLE_SELECT_CLIENT_SCOPE_IDS_BY_CLIENT_ID)
+            .await
+            .unwrap();
+        let client_scopes_rows = client
+            .query(&client_scopes_stmt, &[&realm_id, &client_id])
+            .await;
+
+        let mut scopes: Vec<ClientScopeModel> = Vec::new();
+        match client_scopes_rows {
+            Ok(rows) => {
+                for row in rows {
+                    let client_scope = self
+                        .read_client_scope(
+                            &client,
+                            realm_id,
+                            row.get::<&str, &str>("client_scope_id"),
+                        )
+                        .await;
+                    if client_scope.is_ok() {
+                        if let Some(s) = client_scope.unwrap() {
+                            scopes.push(s);
+                        }
+                    } else {
+                        return Err(client_scope.err().unwrap());
+                    }
+                }
+            }
+            Err(_) => {
+                log::info!(
+                    "Failed to load client scopes for client: {}, realm: {}",
+                    client_id,
+                    realm_id
+                );
+                return Err(format!(
+                    "Failed to load client scopes for client: {client_id}, realm: {realm_id}",
+                ));
+            }
+        }
+        Ok(scopes)
     }
 }
 
@@ -933,6 +988,16 @@ pub struct RdsClientProvider {
 
 impl RdsClientProvider {
     fn read_record(&self, row: &Row) -> ClientModel {
+        let configs = serde_json::from_value::<HashMap<String, Option<String>>>(
+            row.get::<&str, serde_json::Value>("configs"),
+        )
+        .map_or_else(|_| None, |p| Some(p));
+
+        let auth_flow_overrides = serde_json::from_value::<HashMap<String, Option<String>>>(
+            row.get::<&str, serde_json::Value>("auth_flow_binding_overrides"),
+        )
+        .map_or_else(|_| None, |p| Some(p));
+
         ClientModel {
             client_id: row.get("client_id"),
             realm_id: row.get("realm_id"),
@@ -952,16 +1017,15 @@ impl RdsClientProvider {
             authorization_code_flow_enabled: row.get("authorization_code_flow_enabled"),
             implicit_flow_enabled: row.get("implicit_flow_enabled"),
             direct_access_grants_enabled: row.get("direct_access_grants_enabled"),
-            direct_grants_enabled: row.get("direct_grants_enabled"),
             standard_flow_enabled: row.get("standard_flow_enabled"),
             is_surrogate_auth_required: row.get("is_surrogate_auth_required"),
             bearer_only: row.get("bearer_only"),
             front_channel_logout: row.get("front_channel_logout"),
-            attributes: row.get("attributes"),
+            configs: configs,
             not_before: row.get("not_before"),
             client_authenticator_type: row.get("client_authenticator_type"),
             service_account_enabled: row.get("service_account_enabled"),
-            auth_flow_binding_overrides: row.get("auth_flow_binding_overrides"),
+            auth_flow_binding_overrides: auth_flow_overrides,
             metadata: Some(AuditableModel {
                 tenant: row.get("tenant"),
                 created_by: row.get("created_by"),
@@ -1065,10 +1129,10 @@ impl IClientProvider for RdsClientProvider {
                     &client.not_before,
                     &client.bearer_only,
                     &client.front_channel_logout,
-                    &client.attributes,
+                    &json!(client.configs),
                     &client.client_authenticator_type,
                     &client.service_account_enabled,
-                    &client.auth_flow_binding_overrides,
+                    &json!(client.auth_flow_binding_overrides),
                     &metadata.updated_by,
                     &metadata.updated_at,
                     &metadata.tenant,
@@ -1233,7 +1297,7 @@ impl IClientProvider for RdsClientProvider {
         let create_client_role_sql = InsertRequestBuilder::new()
             .table_name(client_tables::CLIENTS_ROLES_TABLE.table_name.clone())
             .columns(client_tables::CLIENTS_ROLES_TABLE.insert_columns.clone())
-            .resolve_conflict(false)
+            .resolve_conflict(true)
             .sql_query()
             .unwrap();
 
@@ -1556,7 +1620,7 @@ impl IClientProvider for RdsClientProvider {
         }
     }
 
-    async fn load_client_roles_scope(
+    async fn load_client_roles(
         &self,
         realm_id: &str,
         client_id: &str,
