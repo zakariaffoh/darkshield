@@ -35,9 +35,8 @@ lazy_static! {
             "updated_at".to_owned()
         ]
     };
-
-    pub static ref AUTHENTICATOR_CONFIG_TABLE: RdsTable = RdsTable {
-        table_name: "AUTHENTICATOR_CONFIG".to_owned(),
+    pub static ref AUTHENTICATION_CONFIG_TABLE: RdsTable = RdsTable {
+        table_name: "AUTHENTICATION_CONFIG".to_owned(),
         insert_columns: vec![
             "tenant".to_owned(),
             "config_id".to_owned(),
@@ -55,9 +54,8 @@ lazy_static! {
             "updated_at".to_owned()
         ]
     };
-
     pub static ref AUTHENTICATION_EXECUTION_TABLE: RdsTable = RdsTable {
-        table_name: "AUTHENTICATOR_EXECUTION".to_owned(),
+        table_name: "AUTHENTICATION_EXECUTION".to_owned(),
         insert_columns: vec![
             "tenant".to_owned(),
             "execution_id".to_owned(),
@@ -68,8 +66,7 @@ lazy_static! {
             "priority".to_owned(),
             "authenticator".to_owned(),
             "authenticator_flow".to_owned(),
-            "authenticator_config".to_owned(),
-            "built_in".to_owned(),
+            "authenticator_config_id".to_owned(),
             "requirement".to_owned(),
             "created_by".to_owned(),
             "created_at".to_owned(),
@@ -82,16 +79,14 @@ lazy_static! {
             "priority".to_owned(),
             "authenticator".to_owned(),
             "authenticator_flow".to_owned(),
-            "authenticator_config".to_owned(),
-            "built_in".to_owned(),
+            "authenticator_config_id".to_owned(),
             "requirement".to_owned(),
             "updated_by".to_owned(),
             "updated_at".to_owned()
         ]
     };
-
     pub static ref AUTHENTICATION_FLOW_TABLE: RdsTable = RdsTable {
-        table_name: "AUTHENTICATOR_FLOW".to_owned(),
+        table_name: "AUTHENTICATION_FLOW".to_owned(),
         insert_columns: vec![
             "tenant".to_owned(),
             "flow_id".to_owned(),

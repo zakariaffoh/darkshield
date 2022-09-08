@@ -1,7 +1,10 @@
+use crate::auditable::AuditableModel;
 use postgres_types::{FromSql, ToSql};
 use serde::{Deserialize, Serialize};
-use std::{fmt::{Display, Formatter, Result}, collections::HashMap};
-use crate::auditable::AuditableModel;
+use std::{
+    collections::HashMap,
+    fmt::{Display, Formatter, Result},
+};
 
 #[derive(Debug, Serialize, Deserialize, ToSql, FromSql, PartialEq, Eq, Hash)]
 pub enum RequiredActionEnum {
@@ -87,7 +90,6 @@ pub struct AuthenticationFlowModel {
 #[derive(Serialize, Deserialize)]
 pub struct AuthenticationFlowMutationModel {
     pub alias: String,
-    pub realm_id: String,
     pub provider_id: String,
     pub description: String,
     pub top_level: Option<bool>,
@@ -98,7 +100,7 @@ impl Into<AuthenticationFlowModel> for AuthenticationFlowMutationModel {
     fn into(self) -> AuthenticationFlowModel {
         AuthenticationFlowModel {
             flow_id: String::new(),
-            realm_id: self.realm_id,
+            realm_id: String::new(),
             alias: self.alias,
             provider_id: self.provider_id,
             description: self.description,
@@ -109,8 +111,8 @@ impl Into<AuthenticationFlowModel> for AuthenticationFlowMutationModel {
     }
 }
 
-
 #[derive(Debug, Serialize, Deserialize, ToSql, FromSql, PartialEq, Eq, Hash)]
+#[postgres(name = "authenticatorrequirementenum")]
 pub enum AuthenticatorRequirementEnum {
     REQUIRED,
     CONDITIONAL,
@@ -130,41 +132,39 @@ impl Display for AuthenticatorRequirementEnum {
     }
 }
 
-
 #[derive(Serialize, Deserialize)]
 pub struct AuthenticationExecutionModel {
     pub execution_id: String,
     pub realm_id: String,
     pub alias: String,
     pub flow_id: String,
-    pub parent_flow_id: String,
-    pub priority: String,
+    pub parent_flow_id: Option<String>,
+    pub priority: i32,
     pub authenticator: String,
     pub authenticator_flow: Option<bool>,
     pub authenticator_config: Option<String>,
-    pub built_in: Option<bool>,
     pub requirement: AuthenticatorRequirementEnum,
     pub metadata: Option<AuditableModel>,
 }
 
 impl AuthenticationExecutionModel {
-    pub fn is_required(&self) -> bool{
+    pub fn is_required(&self) -> bool {
         self.requirement == AuthenticatorRequirementEnum::REQUIRED
     }
-    pub fn is_conditional(&self) -> bool{
-        return self.requirement == AuthenticatorRequirementEnum::CONDITIONAL
+    pub fn is_conditional(&self) -> bool {
+        return self.requirement == AuthenticatorRequirementEnum::CONDITIONAL;
     }
 
-    pub fn is_alternative(&self) -> bool{
-        return self.requirement == AuthenticatorRequirementEnum::ALTERNATIVE
+    pub fn is_alternative(&self) -> bool {
+        return self.requirement == AuthenticatorRequirementEnum::ALTERNATIVE;
     }
 
-    pub fn is_enabled(&self) -> bool{
-        return self.requirement != AuthenticatorRequirementEnum::DISABLED
+    pub fn is_enabled(&self) -> bool {
+        return self.requirement != AuthenticatorRequirementEnum::DISABLED;
     }
 
     pub fn is_disabled(&self) -> bool {
-        return self.requirement == AuthenticatorRequirementEnum::DISABLED
+        return self.requirement == AuthenticatorRequirementEnum::DISABLED;
     }
 }
 
@@ -172,8 +172,8 @@ impl AuthenticationExecutionModel {
 pub struct AuthenticationExecutionMutationModel {
     pub alias: String,
     pub flow_id: String,
-    pub parent_flow_id: String,
-    pub priority: String,
+    pub parent_flow_id: Option<String>,
+    pub priority: i32,
     pub authenticator: String,
     pub authenticator_flow: Option<bool>,
     pub authenticator_config: Option<String>,
@@ -186,14 +186,13 @@ impl Into<AuthenticationExecutionModel> for AuthenticationExecutionMutationModel
         AuthenticationExecutionModel {
             execution_id: String::new(),
             realm_id: String::new(),
-            alias: self.alias,
             flow_id: self.flow_id,
+            alias: self.alias,
             parent_flow_id: self.parent_flow_id,
             priority: self.priority,
             authenticator: self.authenticator,
             authenticator_flow: self.authenticator_flow,
             authenticator_config: self.authenticator_config,
-            built_in: self.built_in,
             requirement: self.requirement,
             metadata: None,
         }
@@ -201,19 +200,18 @@ impl Into<AuthenticationExecutionModel> for AuthenticationExecutionMutationModel
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct AuthenticatorConfigModel{
+pub struct AuthenticatorConfigModel {
     pub config_id: String,
-    pub realm_id:  String,
-    pub alias:  String,
-    pub configs: HashMap<String, Option<String>>,
+    pub realm_id: String,
+    pub alias: String,
+    pub configs: Option<HashMap<String, Option<String>>>,
     pub metadata: Option<AuditableModel>,
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct AuthenticatorConfigMutationModel{
-    alias:  String,
-    realm_id:  String,
-    configs: HashMap<String, Option<String>>,
+pub struct AuthenticatorConfigMutationModel {
+    alias: String,
+    configs: Option<HashMap<String, Option<String>>>,
 }
 
 impl Into<AuthenticatorConfigModel> for AuthenticatorConfigMutationModel {

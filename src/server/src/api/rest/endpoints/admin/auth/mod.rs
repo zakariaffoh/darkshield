@@ -264,7 +264,7 @@ pub async fn load_authenticator_config_by_id(
         .await
 }
 
-#[get("/realm/{realm_id}/auth/config/load_all")]
+#[get("/realm/{realm_id}/auth/configs/load_all")]
 pub async fn load_authenticator_configs_by_realm(
     realm_id: web::Path<String>,
     context: web::Data<DarkShieldContext>,

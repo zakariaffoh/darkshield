@@ -13,6 +13,7 @@ use store::providers::rds::client::postgres_client::{DataBaseManager, DataBaseMa
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
     //let config = EnvironmentConfig::from_env();
+
     let config = EnvironmentConfig::static_configs();
     let connection_pool = config
         .database_config()

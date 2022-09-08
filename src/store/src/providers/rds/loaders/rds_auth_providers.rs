@@ -1,15 +1,16 @@
-use async_trait::async_trait;
-use models::auditable::AuditableModel;
-use models::entities::auth::*;
-use shaku::Component;
-use std::collections::HashMap;
-use std::sync::Arc;
-use tokio_postgres::Row;
-
 use crate::providers::core::builder::*;
 use crate::providers::interfaces::auth_providers::*;
 use crate::providers::rds::client::postgres_client::IDataBaseManager;
 use crate::providers::rds::tables::auth_table;
+use async_trait::async_trait;
+use log;
+use models::auditable::AuditableModel;
+use models::entities::auth::*;
+use serde_json::json;
+use shaku::Component;
+use std::collections::HashMap;
+use std::sync::Arc;
+use tokio_postgres::Row;
 
 #[allow(dead_code)]
 #[derive(Component)]
@@ -88,7 +89,10 @@ impl IRequiredActionProvider for RdsRequiredActionProvider {
             .await;
 
         match response {
-            Err(err) => Err(err.to_string()),
+            Err(err) => {
+                log::error!("Failed to create required action: {}", action.action);
+                Err(err.to_string())
+            }
             Ok(_) => Ok(()),
         }
     }
@@ -138,8 +142,11 @@ impl IRequiredActionProvider for RdsRequiredActionProvider {
             )
             .await;
         match response {
-            Err(err) => Err(err.to_string()),
-            Ok(_) => Ok(()),
+            Err(err) => {
+                log::error!("Failed to update required action: {}", action.action);
+                Err(err.to_string())
+            }
+            _ => Ok(()),
         }
     }
 
@@ -346,7 +353,7 @@ impl IRequiredActionProvider for RdsRequiredActionProvider {
             .query_one(&load_required_action_stmt, &[&realm_id, &action])
             .await;
         match result {
-            Ok(row) => Ok(row.get::<usize, u32>(0) as u32 > 0),
+            Ok(row) => Ok(row.get::<usize, i64>(0) > 0),
             Err(error) => Err(error.to_string()),
         }
     }
@@ -421,8 +428,11 @@ impl IAuthenticationFlowProvider for RdsAuthenticationFlowProvider {
             )
             .await;
         match response {
-            Err(err) => Err(err.to_string()),
-            Ok(_) => Ok(()),
+            Err(err) => {
+                log::error!("Failed to create authentication flow: {}", err.to_string());
+                Err(err.to_string())
+            }
+            _ => Ok(()),
         }
     }
 
@@ -468,8 +478,11 @@ impl IAuthenticationFlowProvider for RdsAuthenticationFlowProvider {
             )
             .await;
         match response {
-            Err(err) => Err(err.to_string()),
-            Ok(_) => Ok(()),
+            Err(err) => {
+                log::error!("Failed to update authentication flow: {}", err.to_string());
+                Err(err.to_string())
+            }
+            _ => Ok(()),
         }
     }
 
@@ -504,7 +517,10 @@ impl IAuthenticationFlowProvider for RdsAuthenticationFlowProvider {
                     Ok(None)
                 }
             }
-            Err(err) => Err(err.to_string()),
+            Err(err) => {
+                log::error!("Failed to update authentication flow: {}", err.to_string());
+                Err(err.to_string())
+            }
         }
     }
 
@@ -528,7 +544,10 @@ impl IAuthenticationFlowProvider for RdsAuthenticationFlowProvider {
 
         match result {
             Ok(rows) => Ok(rows.into_iter().map(|row| self.read_record(row)).collect()),
-            Err(err) => Err(err.to_string()),
+            Err(err) => {
+                log::error!("Failed to load authentication flow: {}", err.to_string());
+                Err(err.to_string())
+            }
         }
     }
 
@@ -541,7 +560,7 @@ impl IAuthenticationFlowProvider for RdsAuthenticationFlowProvider {
         if let Err(err) = client {
             return Err(err);
         }
-        let remove_flow_config_sql = DeleteQueryBuilder::new()
+        let remove_flow_sql = DeleteQueryBuilder::new()
             .table_name(auth_table::AUTHENTICATION_FLOW_TABLE.table_name.clone())
             .where_clauses(vec![
                 SqlCriteriaBuilder::is_equals("realm_id".to_string()),
@@ -551,16 +570,16 @@ impl IAuthenticationFlowProvider for RdsAuthenticationFlowProvider {
             .unwrap();
 
         let client = client.unwrap();
-        let remove_config_stmt = client
-            .prepare_cached(&remove_flow_config_sql)
-            .await
-            .unwrap();
+        let remove_flow_stmt = client.prepare_cached(&remove_flow_sql).await.unwrap();
         let result = client
-            .execute(&remove_config_stmt, &[&realm_id, &flow_id])
+            .execute(&remove_flow_stmt, &[&realm_id, &flow_id])
             .await;
         match result {
             Ok(result) => Ok(result > 0),
-            Err(error) => Err(error.to_string()),
+            Err(err) => {
+                log::error!("Failed to remove authentication flow: {}", err.to_string());
+                Err(err.to_string())
+            }
         }
     }
 
@@ -584,8 +603,11 @@ impl IAuthenticationFlowProvider for RdsAuthenticationFlowProvider {
             .query_one(&load_flow_alias_stmt, &[&realm_id, &alias])
             .await;
         match result {
-            Ok(row) => Ok(row.get::<usize, u32>(0) as u32 > 0),
-            Err(error) => Err(error.to_string()),
+            Ok(row) => Ok(row.get::<usize, i64>(0) > 0),
+            Err(err) => {
+                log::error!("Failed to load authentication flow: {}", err.to_string());
+                Err(err.to_string())
+            }
         }
     }
 }
@@ -609,8 +631,7 @@ impl RdsAuthenticationExecutionProvider {
             priority: row.get("priority"),
             authenticator: row.get("authenticator"),
             authenticator_flow: row.get("authenticator_flow"),
-            authenticator_config: row.get("authenticator_config"),
-            built_in: row.get("built_in"),
+            authenticator_config: row.get("authenticator_config_id"),
             requirement: row.get("requirement"),
             metadata: Some(AuditableModel {
                 tenant: row.get("tenant"),
@@ -662,10 +683,10 @@ impl IAuthenticationExecutionProvider for RdsAuthenticationExecutionProvider {
                     &execution.alias,
                     &execution.flow_id,
                     &execution.parent_flow_id,
+                    &execution.priority,
                     &execution.authenticator,
                     &execution.authenticator_flow,
                     &execution.authenticator_config,
-                    &execution.built_in,
                     &execution.requirement,
                     &metadata.created_by,
                     &metadata.created_at,
@@ -675,8 +696,15 @@ impl IAuthenticationExecutionProvider for RdsAuthenticationExecutionProvider {
             .await;
 
         match response {
-            Err(err) => Err(err.to_string()),
-            Ok(_) => Ok(()),
+            Err(err) => {
+                log::error!(
+                    "Failed to create authentication executition: {}. Error: {}",
+                    execution.execution_id,
+                    err.to_string()
+                );
+                Err(err.to_string())
+            }
+            _ => Ok(()),
         }
     }
 
@@ -722,7 +750,6 @@ impl IAuthenticationExecutionProvider for RdsAuthenticationExecutionProvider {
                     &execution.authenticator,
                     &execution.authenticator_flow,
                     &execution.authenticator_config,
-                    &execution.built_in,
                     &execution.requirement,
                     &metadata.updated_by,
                     &metadata.updated_at,
@@ -732,9 +759,16 @@ impl IAuthenticationExecutionProvider for RdsAuthenticationExecutionProvider {
                 ],
             )
             .await;
+
         match response {
-            Err(err) => Err(err.to_string()),
-            Ok(_) => Ok(()),
+            Err(err) => {
+                log::error!(
+                    "Failed to update authentication executition: {}",
+                    execution.execution_id
+                );
+                Err(err.to_string())
+            }
+            _ => Ok(()),
         }
     }
 
@@ -868,7 +902,7 @@ impl IAuthenticationExecutionProvider for RdsAuthenticationExecutionProvider {
             .query_one(&load_execution_alias_stmt, &[&realm_id, &alias])
             .await;
         match result {
-            Ok(row) => Ok(row.get::<usize, u32>(0) as u32 > 0),
+            Ok(row) => Ok(row.get::<usize, i64>(0) > 0),
             Err(error) => Err(error.to_string()),
         }
     }
@@ -884,11 +918,16 @@ pub struct RdsAuthenticatorConfigProvider {
 
 impl RdsAuthenticatorConfigProvider {
     fn read_record(&self, row: Row) -> AuthenticatorConfigModel {
+        let configs = serde_json::from_value::<HashMap<String, Option<String>>>(
+            row.get::<&str, serde_json::Value>("configs"),
+        )
+        .map_or_else(|_| None, |p| Some(p));
+
         AuthenticatorConfigModel {
-            config_id: row.get("flow_id"),
+            config_id: row.get("config_id"),
             realm_id: row.get("realm_id"),
             alias: row.get("alias"),
-            configs: row.get("flow_id"),
+            configs: configs,
             metadata: Some(AuditableModel {
                 tenant: row.get("tenant"),
                 created_by: row.get("created_by"),
@@ -912,9 +951,9 @@ impl IAuthenticatorConfigProvider for RdsAuthenticatorConfigProvider {
             return Err(err);
         }
         let create_config_sql = InsertRequestBuilder::new()
-            .table_name(auth_table::AUTHENTICATOR_CONFIG_TABLE.table_name.clone())
+            .table_name(auth_table::AUTHENTICATION_CONFIG_TABLE.table_name.clone())
             .columns(
-                auth_table::AUTHENTICATOR_CONFIG_TABLE
+                auth_table::AUTHENTICATION_CONFIG_TABLE
                     .insert_columns
                     .clone(),
             )
@@ -933,7 +972,7 @@ impl IAuthenticatorConfigProvider for RdsAuthenticatorConfigProvider {
                     &config.config_id,
                     &config.realm_id,
                     &config.alias,
-                    &config.configs,
+                    &json!(config.configs),
                     &metadata.created_by,
                     &metadata.created_at,
                     &metadata.version,
@@ -942,7 +981,11 @@ impl IAuthenticatorConfigProvider for RdsAuthenticatorConfigProvider {
             .await;
 
         match response {
-            Err(err) => Err(err.to_string()),
+            Err(err) => {
+                log::error!("Failed to create uthentication config. Error: {}", err);
+                Err(err.to_string())
+            }
+
             Ok(_) => Ok(()),
         }
     }
@@ -956,9 +999,9 @@ impl IAuthenticatorConfigProvider for RdsAuthenticatorConfigProvider {
             return Err(err);
         }
         let update_config_sql = UpdateRequestBuilder::new()
-            .table_name(auth_table::AUTHENTICATOR_CONFIG_TABLE.table_name.clone())
+            .table_name(auth_table::AUTHENTICATION_CONFIG_TABLE.table_name.clone())
             .columns(
-                auth_table::AUTHENTICATOR_CONFIG_TABLE
+                auth_table::AUTHENTICATION_CONFIG_TABLE
                     .update_columns
                     .clone(),
             )
@@ -979,7 +1022,7 @@ impl IAuthenticatorConfigProvider for RdsAuthenticatorConfigProvider {
                 &update_config_stmt,
                 &[
                     &config.alias,
-                    &config.configs,
+                    &json!(config.configs),
                     &metadata.updated_by,
                     &metadata.updated_at,
                     &metadata.tenant,
@@ -1004,10 +1047,10 @@ impl IAuthenticatorConfigProvider for RdsAuthenticatorConfigProvider {
             return Err(err);
         }
         let load_config_sql = SelectRequestBuilder::new()
-            .table_name(auth_table::AUTHENTICATOR_CONFIG_TABLE.table_name.clone())
+            .table_name(auth_table::AUTHENTICATION_CONFIG_TABLE.table_name.clone())
             .where_clauses(vec![
                 SqlCriteriaBuilder::is_equals("realm_id".to_string()),
-                SqlCriteriaBuilder::is_equals("action_id".to_string()),
+                SqlCriteriaBuilder::is_equals("config_id".to_string()),
             ])
             .sql_query()
             .unwrap();
@@ -1038,7 +1081,7 @@ impl IAuthenticatorConfigProvider for RdsAuthenticatorConfigProvider {
             return Err(err);
         }
         let load_configs_sql = SelectRequestBuilder::new()
-            .table_name(auth_table::AUTHENTICATOR_CONFIG_TABLE.table_name.clone())
+            .table_name(auth_table::AUTHENTICATION_CONFIG_TABLE.table_name.clone())
             .where_clauses(vec![SqlCriteriaBuilder::is_equals("realm_id".to_string())])
             .sql_query()
             .unwrap();
@@ -1062,7 +1105,7 @@ impl IAuthenticatorConfigProvider for RdsAuthenticatorConfigProvider {
             return Err(err);
         }
         let remove_auth_config_sql = DeleteQueryBuilder::new()
-            .table_name(auth_table::AUTHENTICATOR_CONFIG_TABLE.table_name.clone())
+            .table_name(auth_table::AUTHENTICATION_CONFIG_TABLE.table_name.clone())
             .where_clauses(vec![
                 SqlCriteriaBuilder::is_equals("realm_id".to_string()),
                 SqlCriteriaBuilder::is_equals("config_id".to_string()),
@@ -1090,7 +1133,7 @@ impl IAuthenticatorConfigProvider for RdsAuthenticatorConfigProvider {
             return Err(err);
         }
         let load_config_alias_sql = SelectCountRequestBuilder::new()
-            .table_name(auth_table::AUTHENTICATOR_CONFIG_TABLE.table_name.clone())
+            .table_name(auth_table::AUTHENTICATION_CONFIG_TABLE.table_name.clone())
             .where_clauses(vec![
                 SqlCriteriaBuilder::is_equals("realm_id".to_string()),
                 SqlCriteriaBuilder::is_equals("alias".to_string()),
@@ -1104,7 +1147,7 @@ impl IAuthenticatorConfigProvider for RdsAuthenticatorConfigProvider {
             .query_one(&load_config_alias_stmt, &[&realm_id, &alias])
             .await;
         match result {
-            Ok(row) => Ok(row.get::<usize, u32>(0) as u32 > 0),
+            Ok(row) => Ok(row.get::<usize, i64>(0) > 0),
             Err(error) => Err(error.to_string()),
         }
     }
