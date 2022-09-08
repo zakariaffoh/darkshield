@@ -261,6 +261,7 @@ impl IAuthenticationFlowService for AuthenticationFlowService {
             }
         }
         let mut flow = flow;
+        flow.flow_id = uuid::Uuid::new_v4().to_string();
         flow.metadata = AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
         let created_flow = self
             .authentication_flow_provider
@@ -330,7 +331,11 @@ impl IAuthenticationFlowService for AuthenticationFlowService {
                     flows.len(),
                     &realm_id
                 );
-                ApiResult::from_data(flows)
+                if flows.is_empty() {
+                    ApiResult::no_content()
+                } else {
+                    ApiResult::from_data(flows)
+                }
             }
             Err(err) => {
                 log::error!("Failed to authentication flow from realm: {}", &realm_id);
@@ -361,12 +366,12 @@ impl IAuthenticationFlowService for AuthenticationFlowService {
         match result {
             Ok(res) => {
                 if res {
-                    ApiResult::Data(())
+                    ApiResult::no_content()
                 } else {
                     ApiResult::from_error(500, "500", "failed to delete authentication flow")
                 }
             }
-            Err(_) => ApiResult::from_error(500, "500", "server internal error"),
+            _ => ApiResult::from_error(500, "500", "server internal error"),
         }
     }
 }
@@ -438,9 +443,7 @@ impl IAuthenticationExecutionService for AuthenticationExecutionService {
             .await;
         match created_execution {
             Ok(_) => ApiResult::Data(execution),
-            Err(_) => {
-                ApiResult::from_error(500, "500", "failed to create authentication execution")
-            }
+            _ => ApiResult::from_error(500, "500", "failed to create authentication execution"),
         }
     }
 
@@ -472,10 +475,8 @@ impl IAuthenticationExecutionService for AuthenticationExecutionService {
             .update_authentication_execution(&execution)
             .await;
         match updated_execution {
-            Ok(_) => ApiResult::Data(()),
-            Err(_) => {
-                ApiResult::from_error(500, "500", "failed to update authentication execution")
-            }
+            Ok(_) => ApiResult::no_content(),
+            _ => ApiResult::from_error(500, "500", "failed to update authentication execution"),
         }
     }
 
@@ -509,7 +510,11 @@ impl IAuthenticationExecutionService for AuthenticationExecutionService {
                     flows.len(),
                     &realm_id
                 );
-                ApiResult::from_data(flows)
+                if flows.is_empty() {
+                    return ApiResult::no_content();
+                } else {
+                    ApiResult::from_data(flows)
+                }
             }
             Err(err) => {
                 log::error!(
@@ -552,7 +557,7 @@ impl IAuthenticationExecutionService for AuthenticationExecutionService {
                     ApiResult::from_error(500, "500", "failed to delete authentication execution")
                 }
             }
-            Err(_) => ApiResult::from_error(500, "500", "server internal error"),
+            _ => ApiResult::from_error(500, "500", "server internal error"),
         }
     }
 }
@@ -639,7 +644,7 @@ impl IAuthenticatorConfigService for AuthenticatorConfigService {
             .update_authenticator_config(&config)
             .await;
         match updated_config {
-            Ok(_) => ApiResult::Data(()),
+            Ok(_) => ApiResult::no_content(),
             Err(_) => ApiResult::from_error(500, "500", "failed to update authentication config"),
         }
     }
@@ -668,13 +673,17 @@ impl IAuthenticatorConfigService for AuthenticatorConfigService {
             .load_authenticator_configs_by_realm(&realm_id)
             .await;
         match loaded_configs {
-            Ok(flows) => {
+            Ok(configs) => {
                 log::info!(
-                    "[{}] authentication config loaded for realm: {}",
-                    flows.len(),
+                    "[{}] authentication configs loaded for realm: {}",
+                    configs.len(),
                     &realm_id
                 );
-                ApiResult::from_data(flows)
+                if configs.is_empty() {
+                    return ApiResult::no_content();
+                } else {
+                    ApiResult::from_data(configs)
+                }
             }
             Err(err) => {
                 log::error!(

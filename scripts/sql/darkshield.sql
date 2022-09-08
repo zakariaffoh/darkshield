@@ -19,6 +19,11 @@ CREATE TYPE DecisionStrategyEnum  AS ENUM ('Affirmative','Unanimous','Consensus'
 CREATE TYPE ProtocolEnum  AS ENUM ('openid-connect','docker');
 
 /*********************************************************************************************
+*                                     AuthenticatorRequirement Enum
+**********************************************************************************************/
+CREATE TYPE AuthenticatorRequirementEnum  AS ENUM ('REQUIRED','CONDITIONAL','ALTERNATIVE', 'DISABLED');
+
+/*********************************************************************************************
 *                                         REALMS Table
 **********************************************************************************************/
 
@@ -648,3 +653,117 @@ DROP INDEX IF EXISTS CLIENTS_SCOPES_PROTOCOLS_MAPPERS_MAPPER_ID_IDX;
 CREATE INDEX CLIENTS_SCOPES_PROTOCOLS_MAPPERS_REALM_ID_IDX ON CLIENTS_SCOPES_PROTOCOLS_MAPPERS(REALM_ID);
 CREATE INDEX CLIENTS_SCOPES_PROTOCOLS_MAPPERS_CLIENT_SCOPE_ID_IDX ON CLIENTS_SCOPES_PROTOCOLS_MAPPERS(CLIENT_SCOPE_ID);
 CREATE INDEX CLIENTS_SCOPES_PROTOCOLS_MAPPERS_MAPPER_ID_IDX ON CLIENTS_SCOPES_PROTOCOLS_MAPPERS(MAPPER_ID);
+
+
+
+/***********************************************************************************************************
+*                                           AUTHENTICATION_FLOW Table
+************************************************************************************************************/
+
+CREATE TABLE IF NOT EXISTS AUTHENTICATION_FLOW
+(
+    ID                                   serial                  PRIMARY KEY,
+    TENANT                               varchar(50)             NOT NULL,
+    REALM_ID                             varchar(250)            NOT NULL,
+    FLOW_ID                              varchar(50)             UNIQUE NOT NULL,
+
+    ALIAS                                TEXT,
+    PROVIDER_ID                          TEXT,
+    DESCRIPTION                          TEXT,
+    TOP_LEVEL                            boolean,
+    BUILT_IN                             boolean,
+
+    CREATED_BY                           varchar(250)            NOT NULL,
+    CREATED_AT                           timestamptz             NOT NULL,
+    UPDATED_BY                           varchar(250),
+    UPDATED_AT                           timestamptz,
+    VERSION                              integer                 DEFAULT 1   CHECK(version > 0),
+
+    CONSTRAINT FK_AUTHENTICATION_FLOW_REALM_ID FOREIGN KEY(REALM_ID) REFERENCES REALMS(REALM_ID) ON DELETE CASCADE
+);
+
+DROP INDEX IF EXISTS AUTHENTICATION_FLOW_FLOW_ID_IDX;
+DROP INDEX IF EXISTS AUTHENTICATION_FLOW_REALM_ID_IDX;
+DROP INDEX IF EXISTS AUTHENTICATION_FLOW_PROVIDER_ID_IDX;
+DROP INDEX IF EXISTS AUTHENTICATION_FLOW_ALIAS_IDX;
+
+CREATE INDEX AUTHENTICATION_FLOW_FLOW_ID_IDX ON AUTHENTICATION_FLOW(FLOW_ID);
+CREATE INDEX AUTHENTICATION_FLOW_REALM_ID_IDX ON AUTHENTICATION_FLOW(REALM_ID);
+CREATE INDEX AUTHENTICATION_FLOW_PROVIDER_ID_IDX ON AUTHENTICATION_FLOW(PROVIDER_ID);
+CREATE INDEX AUTHENTICATION_FLOW_ALIAS_IDX ON AUTHENTICATION_FLOW(ALIAS);
+
+
+/***********************************************************************************
+*                           AUTHENTICATION_CONFIG Table
+************************************************************************************/
+
+CREATE TABLE IF NOT EXISTS AUTHENTICATION_CONFIG
+(
+    ID                                   serial                  PRIMARY KEY,
+    TENANT                               varchar(50)             NOT NULL,
+    REALM_ID                             varchar(250)            NOT NULL,
+    CONFIG_ID                            varchar(50)             UNIQUE NOT NULL,
+
+    ALIAS                                TEXT,
+    CONFIGS                              json,
+
+    CREATED_BY                           varchar(250)            NOT NULL,
+    CREATED_AT                           timestamptz             NOT NULL,
+    UPDATED_BY                           varchar(250),
+    UPDATED_AT                           timestamptz,
+    VERSION                              integer                 DEFAULT 1   CHECK(version > 0),
+
+    CONSTRAINT FK_AUTHENTICATOR_CONFIG_REALM_ID FOREIGN KEY(REALM_ID) REFERENCES REALMS(REALM_ID) ON DELETE CASCADE
+
+);
+
+DROP INDEX IF EXISTS AUTHENTICATOR_CONFIG_CONFIG_ID_IDX;
+DROP INDEX IF EXISTS AUTHENTICATOR_CONFIG_REALM_ID_IDX;
+DROP INDEX IF EXISTS AUTHENTICATOR_CONFIG_ALIAS_IDX;
+
+CREATE INDEX AUTHENTICATOR_CONFIG_CONFIG_ID_IDX ON AUTHENTICATOR_CONFIG(CONFIG_ID);
+CREATE INDEX AUTHENTICATOR_CONFIG_REALM_ID_IDX ON AUTHENTICATOR_CONFIG(REALM_ID);
+CREATE INDEX AUTHENTICATOR_CONFIG_ALIAS_IDX ON AUTHENTICATOR_CONFIG(ALIAS);
+
+
+/*********************************************************************************************************************
+*                           AUTHENTICATION_EXECUTION Table
+**********************************************************************************************************************/
+
+CREATE TABLE IF NOT EXISTS AUTHENTICATION_EXECUTION
+(
+    ID                                   serial                  PRIMARY KEY,
+    TENANT                               varchar(50)             NOT NULL,
+
+    EXECUTION_ID                         varchar(50)             UNIQUE NOT NULL,
+    ALIAS                                varchar(50)             NOT NULL,
+    REALM_ID                             varchar(250)            NOT NULL,
+    FLOW_ID                              varchar(250)            NOT NULL,
+    PARENT_FLOW_ID                       varchar(250)            NOT NULL,
+    AUTHENTICATOR                        TEXT                    NOT NULL,
+
+    REQUIREMENT                          AuthenticatorRequirementEnum,
+    AUTHENTICATOR_CONFIG_ID              varchar(50),
+    PRIORITY                             integer,
+    AUTHENTICATOR_FLOW                   boolean,
+
+    CREATED_BY                           varchar(250)            NOT NULL,
+    CREATED_AT                           timestamptz             NOT NULL,
+    UPDATED_BY                           varchar(250),
+    UPDATED_AT                           timestamptz,
+    VERSION                              integer                 DEFAULT 1   CHECK(version > 0),
+
+    CONSTRAINT FK_AUTHENTICATION_EXECUTION_REALM_ID FOREIGN KEY(REALM_ID) REFERENCES REALMS(REALM_ID) ON DELETE CASCADE
+);
+
+DROP INDEX IF EXISTS AUTHENTICATION_EXECUTION_EXEC_ID_IDX;
+DROP INDEX IF EXISTS AUTHENTICATION_EXECUTION_REALM_ID_IDX;
+DROP INDEX IF EXISTS AUTHENTICATION_EXECUTION_FLOW_ID_IDX;
+DROP INDEX IF EXISTS AUTHENTICATION_EXECUTION_PARENT_FLOW_ID_IDX;
+DROP INDEX IF EXISTS AUTHENTICATION_EXECUTION_AUTHENTICATOR_FLOW_IDX;
+
+CREATE INDEX AUTHENTICATION_EXECUTION_EXEC_ID_IDX ON AUTHENTICATION_EXECUTION(EXECUTION_ID);
+CREATE INDEX AUTHENTICATION_EXECUTION_REALM_ID_IDX ON AUTHENTICATION_EXECUTION(REALM_ID);
+CREATE INDEX AUTHENTICATION_EXECUTION_FLOW_ID_IDX ON AUTHENTICATION_EXECUTION(FLOW_ID);
+CREATE INDEX AUTHENTICATION_EXECUTION_PARENT_FLOW_ID_IDX ON AUTHENTICATION_EXECUTION(PARENT_FLOW_ID);
+CREATE INDEX AUTHENTICATION_EXECUTION_AUTHENTICATOR_FLOW_IDX ON AUTHENTICATION_EXECUTION(AUTHENTICATOR_FLOW);
