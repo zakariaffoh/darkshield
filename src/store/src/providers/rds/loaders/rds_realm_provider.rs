@@ -27,7 +27,7 @@ pub struct RdsRealmProvider {
 }
 
 impl RdsRealmProvider {
-    fn read_realm_record(&self, row: Row) -> RealmModel {
+    fn read_record(&self, row: Row) -> RealmModel {
         let password_policy = serde_json::from_value::<PasswordPolicy>(
             row.get::<&str, serde_json::Value>("password_policy"),
         )
@@ -191,7 +191,7 @@ impl IRealmProvider for RdsRealmProvider {
         let delete_realm_stmt = client.prepare_cached(&delete_realm_sql).await.unwrap();
         let result = client.execute(&delete_realm_stmt, &[&realm_id]).await;
         match result {
-            Ok(_) => Ok(()),
+            _ => Ok(()),
             Err(error) => Err(error.to_string()),
         }
     }
@@ -212,7 +212,7 @@ impl IRealmProvider for RdsRealmProvider {
         match result {
             Ok(row) => {
                 if let Some(r) = row {
-                    Ok(Some(self.read_realm_record(r)))
+                    Ok(Some(self.read_record(r)))
                 } else {
                     Ok(None)
                 }
@@ -235,10 +235,7 @@ impl IRealmProvider for RdsRealmProvider {
         let load_realm_stmt = client.prepare_cached(&load_realm_sql).await.unwrap();
         let result = client.query(&load_realm_stmt, &[]).await;
         match result {
-            Ok(rows) => Ok(rows
-                .into_iter()
-                .map(|row| self.read_realm_record(row))
-                .collect()),
+            Ok(rows) => Ok(rows.into_iter().map(|row| self.read_record(row)).collect()),
             Err(err) => Err(err.to_string()),
         }
     }
@@ -260,7 +257,7 @@ impl IRealmProvider for RdsRealmProvider {
         match result {
             Ok(row) => {
                 if let Some(r) = row {
-                    Ok(Some(self.read_realm_record(r)))
+                    Ok(Some(self.read_record(r)))
                 } else {
                     Ok(None)
                 }
@@ -291,7 +288,7 @@ impl IRealmProvider for RdsRealmProvider {
         match result {
             Ok(row) => {
                 if let Some(r) = row {
-                    Ok(Some(self.read_realm_record(r)))
+                    Ok(Some(self.read_record(r)))
                 } else {
                     Ok(None)
                 }

@@ -21,7 +21,7 @@ pub struct RdsRoleProvider {
 }
 
 impl RdsRoleProvider {
-    pub fn read_role_record(&self, row: &Row) -> RoleModel {
+    pub fn read_record(&self, row: &Row) -> RoleModel {
         RoleModel {
             role_id: row.get("role_id"),
             realm_id: row.get("realm_id"),
@@ -162,7 +162,7 @@ impl IRoleProvider for RdsRoleProvider {
             .query(&load_roles_stmt, &[&realm_id, &roles_ids])
             .await;
         match result {
-            Ok(rows) => Ok(rows.iter().map(|row| self.read_role_record(&row)).collect()),
+            Ok(rows) => Ok(rows.iter().map(|row| self.read_record(&row)).collect()),
             Err(err) => Err(err.to_string()),
         }
     }
@@ -182,7 +182,7 @@ impl IRoleProvider for RdsRoleProvider {
         let load_roles_stmt = client.prepare_cached(&load_roles_sql).await.unwrap();
         let result = client.query(&load_roles_stmt, &[&realm_id]).await;
         match result {
-            Ok(rows) => Ok(rows.iter().map(|row| self.read_role_record(&row)).collect()),
+            Ok(rows) => Ok(rows.iter().map(|row| self.read_record(&row)).collect()),
             Err(err) => Err(err.to_string()),
         }
     }
@@ -212,7 +212,7 @@ impl IRoleProvider for RdsRoleProvider {
         match &result {
             Ok(row) => {
                 if let Some(r) = row {
-                    Ok(Some(self.read_role_record(r)))
+                    Ok(Some(self.read_record(r)))
                 } else {
                     Ok(None)
                 }
@@ -279,7 +279,7 @@ impl IRoleProvider for RdsRoleProvider {
         match &result {
             Ok(row) => {
                 if let Some(r) = row {
-                    Ok(Some(self.read_role_record(r)))
+                    Ok(Some(self.read_record(r)))
                 } else {
                     Ok(None)
                 }
@@ -313,7 +313,7 @@ impl IRoleProvider for RdsRoleProvider {
         match &result {
             Ok(row) => {
                 if let Some(r) = row {
-                    Ok(Some(self.read_role_record(r)))
+                    Ok(Some(self.read_record(r)))
                 } else {
                     Ok(None)
                 }
@@ -439,7 +439,7 @@ pub struct RdsGroupProvider {
 }
 
 impl RdsGroupProvider {
-    fn read_group_record(&self, row: Row, roles: Vec<RoleModel>) -> GroupModel {
+    fn read_record(&self, row: Row, roles: Vec<RoleModel>) -> GroupModel {
         GroupModel {
             group_id: row.get("group_id"),
             realm_id: row.get("realm_id"),
@@ -481,7 +481,7 @@ impl RdsGroupProvider {
                 let roles: Vec<RoleModel> = roles_rows
                     .unwrap()
                     .iter()
-                    .map(|r| role_mapper.read_role_record(&r))
+                    .map(|r| role_mapper.read_record(&r))
                     .collect();
                 Ok(roles)
             }
@@ -637,7 +637,7 @@ impl IGroupProvider for RdsGroupProvider {
                     let group_id = r.get::<&str, String>("group_id");
                     let roles_records = self.read_group_roles(&client, realm_id, &group_id).await;
                     match roles_records {
-                        Ok(roles) => Ok(Some(self.read_group_record(r, roles))),
+                        Ok(roles) => Ok(Some(self.read_record(r, roles))),
                         Err(err) => Err(err),
                     }
                 } else {
@@ -676,7 +676,7 @@ impl IGroupProvider for RdsGroupProvider {
                     let group_id = r.get::<&str, String>("group_id");
                     let roles_records = self.read_group_roles(&client, realm_id, &group_id).await;
                     match roles_records {
-                        Ok(roles) => Ok(Some(self.read_group_record(r, roles))),
+                        Ok(roles) => Ok(Some(self.read_record(r, roles))),
                         Err(err) => Err(err),
                     }
                 } else {
@@ -729,7 +729,7 @@ impl IGroupProvider for RdsGroupProvider {
                         .read_group_roles(&client, realm_id, &r.get::<&str, &str>("group_id"))
                         .await;
                     if roles_records.is_ok() {
-                        groups.push(self.read_group_record(r, roles_records.unwrap()));
+                        groups.push(self.read_record(r, roles_records.unwrap()));
                     } else {
                         return Err(roles_records.err().unwrap());
                     }
@@ -847,7 +847,7 @@ pub struct RdsIdentityProvider {
 }
 
 impl RdsIdentityProvider {
-    fn read_idp_record(&self, row: Row) -> IdentityProviderModel {
+    fn read_record(&self, row: Row) -> IdentityProviderModel {
         let configs = serde_json::from_value::<HashMap<String, Option<String>>>(
             row.get::<&str, serde_json::Value>("configs"),
         )
@@ -1007,7 +1007,7 @@ impl IIdentityProvider for RdsIdentityProvider {
         match result {
             Ok(row) => {
                 if let Some(r) = row {
-                    Ok(Some(self.read_idp_record(r)))
+                    Ok(Some(self.read_record(r)))
                 } else {
                     Ok(None)
                 }
@@ -1034,10 +1034,7 @@ impl IIdentityProvider for RdsIdentityProvider {
         let load_idp_stmt = client.prepare_cached(&load_idp_sql).await.unwrap();
         let result = client.query(&load_idp_stmt, &[&realm_id]).await;
         match result {
-            Ok(rows) => Ok(rows
-                .into_iter()
-                .map(|row| self.read_idp_record(row))
-                .collect()),
+            Ok(rows) => Ok(rows.into_iter().map(|row| self.read_record(row)).collect()),
             Err(err) => Err(err.to_string()),
         }
     }
@@ -1112,7 +1109,7 @@ pub struct RdsResourceServerProvider {
 }
 
 impl RdsResourceServerProvider {
-    fn read_resource_server_record(&self, row: &Row) -> ResourceServerModel {
+    fn read_record(&self, row: &Row) -> ResourceServerModel {
         let configs = serde_json::from_value::<HashMap<String, Option<String>>>(
             row.get::<&str, serde_json::Value>("configs"),
         )
@@ -1274,7 +1271,7 @@ impl IResourceServerProvider for RdsResourceServerProvider {
         match &result {
             Ok(row) => {
                 if let Some(r) = row {
-                    Ok(Some(self.read_resource_server_record(r)))
+                    Ok(Some(self.read_record(r)))
                 } else {
                     Ok(None)
                 }
@@ -1307,10 +1304,7 @@ impl IResourceServerProvider for RdsResourceServerProvider {
             .await;
 
         match result {
-            Ok(rows) => Ok(rows
-                .iter()
-                .map(|row| self.read_resource_server_record(&row))
-                .collect()),
+            Ok(rows) => Ok(rows.iter().map(|row| self.read_record(&row)).collect()),
             Err(err) => Err(err.to_string()),
         }
     }
@@ -1423,7 +1417,7 @@ pub struct RdsResourceProvider {
 }
 
 impl RdsResourceProvider {
-    fn read_resource_record(&self, row: &Row) -> ResourceModel {
+    fn read_record(&self, row: &Row) -> ResourceModel {
         let configs = serde_json::from_value::<HashMap<String, Option<String>>>(
             row.get::<&str, serde_json::Value>("configs"),
         )
@@ -1582,7 +1576,7 @@ impl IResourceProvider for RdsResourceProvider {
         match &result {
             Ok(row) => {
                 if let Some(r) = row {
-                    Ok(Some(self.read_resource_record(r)))
+                    Ok(Some(self.read_record(r)))
                 } else {
                     Ok(None)
                 }
@@ -1668,10 +1662,7 @@ impl IResourceProvider for RdsResourceProvider {
         let load_resources_stmt = client.prepare_cached(&load_resources_sql).await.unwrap();
         let result = client.query(&load_resources_stmt, &[&realm_id]).await;
         match result {
-            Ok(rows) => Ok(rows
-                .iter()
-                .map(|row| self.read_resource_record(&row))
-                .collect()),
+            Ok(rows) => Ok(rows.iter().map(|row| self.read_record(&row)).collect()),
             Err(err) => Err(err.to_string()),
         }
     }
@@ -1700,10 +1691,7 @@ impl IResourceProvider for RdsResourceProvider {
             .query(&load_resources_stmt, &[&realm_id, &server_id])
             .await;
         match result {
-            Ok(rows) => Ok(rows
-                .iter()
-                .map(|row| self.read_resource_record(&row))
-                .collect()),
+            Ok(rows) => Ok(rows.iter().map(|row| self.read_record(&row)).collect()),
             Err(err) => Err(err.to_string()),
         }
     }
@@ -1847,7 +1835,7 @@ pub struct RdsScopeProvider {
 }
 
 impl RdsScopeProvider {
-    fn read_scope_record(&self, row: &Row) -> ScopeModel {
+    fn read_record(&self, row: &Row) -> ScopeModel {
         ScopeModel {
             scope_id: row.get("scope_id"),
             server_id: row.get("server_id"),
@@ -1986,7 +1974,7 @@ impl IScopeProvider for RdsScopeProvider {
         match &result {
             Ok(row) => {
                 if let Some(r) = row {
-                    Ok(Some(self.read_scope_record(r)))
+                    Ok(Some(self.read_record(r)))
                 } else {
                     Ok(None)
                 }
@@ -2011,10 +1999,7 @@ impl IScopeProvider for RdsScopeProvider {
         let result = client.query(&load_scopes_stmt, &[&realm_id]).await;
 
         match result {
-            Ok(rows) => Ok(rows
-                .iter()
-                .map(|row| self.read_scope_record(&row))
-                .collect()),
+            Ok(rows) => Ok(rows.iter().map(|row| self.read_record(&row)).collect()),
             Err(err) => Err(err.to_string()),
         }
     }
@@ -2044,10 +2029,7 @@ impl IScopeProvider for RdsScopeProvider {
             .await;
 
         match result {
-            Ok(rows) => Ok(rows
-                .iter()
-                .map(|row| self.read_scope_record(&row))
-                .collect()),
+            Ok(rows) => Ok(rows.iter().map(|row| self.read_record(&row)).collect()),
             Err(err) => Err(err.to_string()),
         }
     }

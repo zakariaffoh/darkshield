@@ -22,13 +22,9 @@ pub trait IClientService: Interface {
     async fn create_client(&self, client: ClientModel) -> ApiResult<ClientModel>;
     async fn update_client(&self, realm: ClientModel) -> ApiResult<()>;
     async fn delete_client(&self, realm_id: &str, client_id: &str) -> ApiResult<()>;
-    async fn load_client_by_id(
-        &self,
-        realm_id: &str,
-        client_id: &str,
-    ) -> ApiResult<Option<ClientModel>>;
+    async fn load_client_by_id(&self, realm_id: &str, client_id: &str) -> ApiResult<ClientModel>;
     async fn load_clients_by_realm(&self, realm_id: &str) -> ApiResult<Vec<ClientModel>>;
-    async fn count_clients_by_realm(&self, realm_id: &str) -> ApiResult<u64>;
+    async fn count_clients_by_realm(&self, realm_id: &str) -> ApiResult<i64>;
     async fn load_client_roles_mapping(
         &self,
         realm_id: &str,
@@ -157,10 +153,11 @@ impl IClientService for ClientService {
         client.metadata = AuditableModel::from_updator("tenant".to_owned(), "zaffoh".to_owned());
         let updated_client = self.client_provider.update_client(&client).await;
         match updated_client {
-            Ok(_) => ApiResult::Data(()),
+            Ok(_) => ApiResult::no_content(),
             Err(_) => ApiResult::from_error(500, "500", "failed to update client"),
         }
     }
+
     async fn delete_client(&self, realm_id: &str, client_id: &str) -> ApiResult<()> {
         let existing_client = self
             .client_provider
@@ -177,41 +174,55 @@ impl IClientService for ClientService {
             .delete_clients_by_client_id(&realm_id, &client_id)
             .await;
         match response {
-            Ok(_) => ApiResult::Data(()),
+            Ok(_) => ApiResult::no_content(),
             Err(_) => ApiResult::from_error(500, "500", "failed to delete client"),
         }
     }
-    async fn load_client_by_id(
-        &self,
-        realm_id: &str,
-        client_id: &str,
-    ) -> ApiResult<Option<ClientModel>> {
+
+    async fn load_client_by_id(&self, realm_id: &str, client_id: &str) -> ApiResult<ClientModel> {
         let loaded_client = self
             .client_provider
             .load_client_by_client_id(&realm_id, &client_id)
             .await;
         match loaded_client {
-            Ok(mapper) => ApiResult::from_data(mapper),
+            Ok(client_record) => ApiResult::<ClientModel>::from_option(client_record),
             Err(err) => ApiResult::from_error(500, "500", &err),
         }
     }
+
     async fn load_clients_by_realm(&self, realm_id: &str) -> ApiResult<Vec<ClientModel>> {
         let loaded_clients = self
             .client_provider
             .load_clients_by_realm_id(&realm_id)
             .await;
         match loaded_clients {
-            Ok(mappers) => ApiResult::from_data(mappers),
-            Err(err) => ApiResult::from_error(500, "500", &err),
+            Ok(clients) => {
+                log::info!(
+                    "[{}] clients loaded for realm: {}",
+                    clients.len(),
+                    &realm_id
+                );
+                if clients.is_empty() {
+                    ApiResult::no_content()
+                } else {
+                    ApiResult::from_data(clients)
+                }
+            }
+            Err(err) => {
+                log::error!("Failed to load clients from realm: {}", &realm_id);
+                ApiResult::from_error(500, "500", &err)
+            }
         }
     }
-    async fn count_clients_by_realm(&self, realm_id: &str) -> ApiResult<u64> {
+
+    async fn count_clients_by_realm(&self, realm_id: &str) -> ApiResult<i64> {
         let count_clients = self.client_provider.count_clients(&realm_id).await;
         match count_clients {
             Ok(res) => ApiResult::from_data(res),
             Err(err) => ApiResult::from_error(500, "500", &err),
         }
     }
+
     async fn load_client_roles_mapping(
         &self,
         realm_id: &str,
@@ -222,10 +233,25 @@ impl IClientService for ClientService {
             .load_client_roles(&realm_id, &client_id)
             .await;
         match loaded_client_roles {
-            Ok(mappers) => ApiResult::from_data(mappers),
-            Err(err) => ApiResult::from_error(500, "500", &err),
+            Ok(roles) => {
+                log::info!(
+                    "[{}] client roles loaded for realm: {}",
+                    roles.len(),
+                    &realm_id
+                );
+                if roles.is_empty() {
+                    ApiResult::no_content()
+                } else {
+                    ApiResult::from_data(roles)
+                }
+            }
+            Err(err) => {
+                log::error!("Failed to load clients from realm: {}", &realm_id);
+                ApiResult::from_error(500, "500", &err)
+            }
         }
     }
+
     async fn add_client_role_mapping(
         &self,
         realm_id: &str,
@@ -260,7 +286,7 @@ impl IClientService for ClientService {
             .await;
 
         match response {
-            Ok(_) => ApiResult::Data(()),
+            Ok(_) => ApiResult::no_content(),
             Err(_) => ApiResult::from_error(500, "500", "failed to add client role mapping"),
         }
     }
@@ -299,7 +325,7 @@ impl IClientService for ClientService {
             .await;
 
         match response {
-            Ok(_) => ApiResult::Data(()),
+            Ok(_) => ApiResult::no_content(),
             Err(_) => ApiResult::from_error(500, "500", "failed to remove client role mapping"),
         }
     }
@@ -342,7 +368,7 @@ impl IClientService for ClientService {
             .await;
 
         match response {
-            Ok(_) => ApiResult::Data(()),
+            Ok(_) => ApiResult::no_content(),
             Err(_) => ApiResult::from_error(500, "500", "failed to add client scope mapping"),
         }
     }
@@ -385,7 +411,7 @@ impl IClientService for ClientService {
             .await;
 
         match response {
-            Ok(_) => ApiResult::Data(()),
+            Ok(_) => ApiResult::no_content(),
             Err(_) => ApiResult::from_error(500, "500", "failed to remove client scope mapping"),
         }
     }
@@ -400,8 +426,27 @@ impl IClientService for ClientService {
             .load_client_scopes_by_client_id(&realm_id, &client_id)
             .await;
         match loaded_client_scopes {
-            Ok(mapper) => ApiResult::from_data(mapper),
-            Err(err) => ApiResult::from_error(500, "500", &err),
+            Ok(scopes) => {
+                log::info!(
+                    "[{}] client scopes loaded for client: {} realm: {}",
+                    scopes.len(),
+                    &client_id,
+                    &realm_id
+                );
+                if scopes.is_empty() {
+                    ApiResult::no_content()
+                } else {
+                    ApiResult::from_data(scopes)
+                }
+            }
+            Err(err) => {
+                log::error!(
+                    "Failed to load clients scopes for client: {} realm: {}",
+                    &client_id,
+                    &realm_id
+                );
+                ApiResult::from_error(500, "500", &err)
+            }
         }
     }
 
@@ -443,7 +488,7 @@ impl IClientService for ClientService {
             .await;
 
         match response {
-            Ok(_) => ApiResult::Data(()),
+            Ok(_) => ApiResult::no_content(),
             Err(_) => ApiResult::from_error(500, "500", "failed to add protocol mapper to client"),
         }
     }
@@ -486,7 +531,7 @@ impl IClientService for ClientService {
             .await;
 
         match response {
-            Ok(_) => ApiResult::Data(()),
+            Ok(_) => ApiResult::no_content(),
             Err(_) => {
                 ApiResult::from_error(500, "500", "failed to remove protocol mapper to client")
             }
@@ -503,8 +548,22 @@ impl IClientService for ClientService {
             .load_protocol_mappers_by_client_id(&realm_id, &client_id)
             .await;
         match loaded_protocols_mappers {
-            Ok(mapper) => ApiResult::from_data(mapper),
-            Err(err) => ApiResult::from_error(500, "500", &err),
+            Ok(mappers) => {
+                log::info!(
+                    "[{}] protocols mappers loaded for realm: {}",
+                    mappers.len(),
+                    &realm_id
+                );
+                if mappers.is_empty() {
+                    ApiResult::no_content()
+                } else {
+                    ApiResult::from_data(mappers)
+                }
+            }
+            Err(err) => {
+                log::error!("Failed to load clients from realm: {}", &realm_id);
+                ApiResult::from_error(500, "500", &err)
+            }
         }
     }
 
@@ -523,13 +582,17 @@ pub trait IProtocolMapperService: Interface {
         &self,
         mapper: ProtocolMapperModel,
     ) -> ApiResult<ProtocolMapperModel>;
+
     async fn update_protocol_mapper(&self, mapper: ProtocolMapperModel) -> ApiResult<()>;
+
     async fn delete_protocol_mapper(&self, realm_id: &str, mapper_id: &str) -> ApiResult<()>;
+
     async fn load_protocol_mapper_by_mapper_id(
         &self,
         realm_id: &str,
         mapper_id: &str,
     ) -> ApiResult<ProtocolMapperModel>;
+
     async fn load_protocol_mappers_by_realm(
         &self,
         realm_id: &str,
@@ -579,11 +642,11 @@ impl IProtocolMapperService for ProtocolMapperService {
         let mut mapper = mapper;
         mapper.mapper_id = uuid::Uuid::new_v4().to_string();
         mapper.metadata = AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
-        let created_role = self
+        let created_mapper = self
             .protocol_mapper_provider
             .create_protocol_mapper(&mapper)
             .await;
-        match created_role {
+        match created_mapper {
             Ok(_) => ApiResult::Data(mapper),
             Err(_) => ApiResult::from_error(500, "500", "failed to create protocol mapper"),
         }
@@ -635,6 +698,7 @@ impl IProtocolMapperService for ProtocolMapperService {
             .protocol_mapper_provider
             .delete_protocol_mapper(&realm_id, &mapper_id)
             .await;
+
         match response {
             Ok(_) => ApiResult::no_content(),
             Err(err) => {
@@ -683,18 +747,38 @@ impl IProtocolMapperService for ProtocolMapperService {
         realm_id: &str,
         protocol: &str,
     ) -> ApiResult<Vec<ProtocolMapperModel>> {
-        let protocol = ProtocolEnum::from_str(protocol);
-        if let Err(err) = protocol {
+        let protocol_enum = ProtocolEnum::from_str(protocol);
+        if let Err(err) = protocol_enum {
             return ApiResult::<Vec<ProtocolMapperModel>>::from_error(400, "400", &err);
         }
 
         let loaded_protocol_mappers = self
             .protocol_mapper_provider
-            .load_protocol_mappers_by_protocol(&realm_id, protocol.unwrap())
+            .load_protocol_mappers_by_protocol(&realm_id, protocol_enum.unwrap())
             .await;
+
         match loaded_protocol_mappers {
-            Ok(mappers) => ApiResult::from_data(mappers),
-            Err(err) => ApiResult::from_error(500, "500", &err),
+            Ok(mappers) => {
+                log::info!(
+                    "[{}] protocol mappers loaded for protocol: {} realm: {}",
+                    mappers.len(),
+                    &protocol,
+                    &realm_id
+                );
+                if mappers.is_empty() {
+                    ApiResult::no_content()
+                } else {
+                    ApiResult::from_data(mappers)
+                }
+            }
+            Err(err) => {
+                log::error!(
+                    "Failed to load clients scopes for client_id: {} realm: {}",
+                    &protocol,
+                    &realm_id
+                );
+                ApiResult::from_error(500, "500", &err)
+            }
         }
     }
 
@@ -708,8 +792,27 @@ impl IProtocolMapperService for ProtocolMapperService {
             .load_protocol_mappers_by_client_id(&realm_id, client_id)
             .await;
         match loaded_protocol_mappers {
-            Ok(mappers) => ApiResult::from_data(mappers),
-            Err(err) => ApiResult::from_error(500, "500", &err),
+            Ok(mappers) => {
+                log::info!(
+                    "[{}] protocol mappers loaded for client_id: {} realm: {}",
+                    mappers.len(),
+                    &client_id,
+                    &realm_id
+                );
+                if mappers.is_empty() {
+                    ApiResult::no_content()
+                } else {
+                    ApiResult::from_data(mappers)
+                }
+            }
+            Err(err) => {
+                log::error!(
+                    "Failed to load clients scopes for client: {} realm: {}",
+                    &client_id,
+                    &realm_id
+                );
+                ApiResult::from_error(500, "500", &err)
+            }
         }
     }
 }

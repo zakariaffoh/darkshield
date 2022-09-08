@@ -26,6 +26,14 @@ impl FromStr for ProtocolEnum {
         }
     }
 }
+impl ToString for ProtocolEnum {
+    fn to_string(&self) -> String {
+        match &self {
+            ProtocolEnum::OpendId => "openid-connect".to_owned(),
+            _ => String::new(),
+        }
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ClientModel {
@@ -48,6 +56,7 @@ pub struct ClientModel {
     pub full_scope_allowed: Option<bool>,
     pub authorization_code_flow_enabled: Option<bool>,
     pub implicit_flow_enabled: Option<bool>,
+    pub direct_access_grants_enabled: Option<bool>,
     pub direct_grants_enabled: Option<bool>,
     pub standard_flow_enabled: Option<bool>,
     pub bearer_only: Option<bool>,
@@ -62,8 +71,6 @@ pub struct ClientModel {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ClientCreateModel {
-    pub client_id: String,
-    pub realm_id: String,
     pub name: String,
     pub display_name: String,
     pub description: String,
@@ -73,8 +80,8 @@ pub struct ClientCreateModel {
 impl Into<ClientModel> for ClientCreateModel {
     fn into(self) -> ClientModel {
         ClientModel {
-            client_id: self.client_id,
-            realm_id: self.realm_id,
+            client_id: String::new(),
+            realm_id: String::new(),
             name: self.name,
             display_name: self.display_name,
             description: self.description,
@@ -91,6 +98,7 @@ impl Into<ClientModel> for ClientCreateModel {
             full_scope_allowed: None,
             authorization_code_flow_enabled: None,
             implicit_flow_enabled: None,
+            direct_access_grants_enabled: None,
             direct_grants_enabled: None,
             standard_flow_enabled: None,
             bearer_only: None,
@@ -159,6 +167,7 @@ impl Into<ClientModel> for ClientUpdateModel {
             full_scope_allowed: self.full_scope_allowed,
             authorization_code_flow_enabled: self.authorization_code_flow_enabled,
             implicit_flow_enabled: self.implicit_flow_enabled,
+            direct_access_grants_enabled: self.implicit_flow_enabled,
             direct_grants_enabled: self.direct_grants_enabled,
             standard_flow_enabled: self.standard_flow_enabled,
             bearer_only: self.bearer_only,
