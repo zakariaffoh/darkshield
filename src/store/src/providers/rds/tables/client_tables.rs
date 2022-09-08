@@ -113,7 +113,7 @@ lazy_static! {
             "not_before".to_owned(),
             "bearer_only".to_owned(),
             "front_channel_logout".to_owned(),
-            "attributes".to_owned(),
+            "configs".to_owned(),
             "client_authenticator_type".to_owned(),
             "service_account_enabled".to_owned(),
             "auth_flow_binding_overrides".to_owned(),

@@ -66,7 +66,7 @@ pub async fn load_client_by_id(
         realm_id.as_str()
     );
     client_service
-        .load_client_by_id(realm_id.as_str(), realm_id.as_str())
+        .load_client_by_id(realm_id.as_str(), client_id.as_str())
         .await
 }
 
@@ -83,7 +83,7 @@ pub async fn delete_client_by_id(
         realm_id.as_str()
     );
     client_service
-        .delete_client(realm_id.as_str(), realm_id.as_str())
+        .delete_client(realm_id.as_str(), client_id.as_str())
         .await
 }
 
@@ -101,7 +101,7 @@ pub async fn client_add_client_roles_mapping(
         realm_id.as_str(),
     );
     client_service
-        .add_client_role_mapping(realm_id.as_str(), realm_id.as_str(), role_id.as_str())
+        .add_client_role_mapping(realm_id.as_str(), client_id.as_str(), role_id.as_str())
         .await
 }
 
@@ -119,7 +119,7 @@ pub async fn client_remove_client_roles_mapping(
         realm_id.as_str(),
     );
     client_service
-        .remove_client_role_mapping(realm_id.as_str(), realm_id.as_str(), role_id.as_str())
+        .remove_client_role_mapping(realm_id.as_str(), client_id.as_str(), role_id.as_str())
         .await
 }
 
@@ -136,7 +136,7 @@ pub async fn client_load_client_roles_mapping(
         realm_id.as_str(),
     );
     client_service
-        .load_client_roles_mapping(realm_id.as_str(), realm_id.as_str())
+        .load_client_roles_mapping(realm_id.as_str(), client_id.as_str())
         .await
 }
 
@@ -250,7 +250,7 @@ pub async fn client_load_client_protocol_mappers(
         realm_id.as_str(),
     );
     client_service
-        .load_protocols_mappers_by_client_id(realm_id.as_str(), realm_id.as_str())
+        .load_protocols_mappers_by_client_id(realm_id.as_str(), client_id.as_str())
         .await
 }
 
@@ -268,7 +268,7 @@ pub async fn client_load_associated_service_account(
         realm_id.as_str(),
     );
     client_service
-        .load_associated_service_acount_by_client_id(realm_id.as_str(), realm_id.as_str())
+        .load_associated_service_acount_by_client_id(realm_id.as_str(), client_id.as_str())
         .await
 }
 
