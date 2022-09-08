@@ -419,6 +419,97 @@ CREATE INDEX PROTOCOLS_MAPPERS_REALM_ID_IDX ON PROTOCOLS_MAPPERS(REALM_ID);
 CREATE INDEX PROTOCOLS_MAPPERS_PROTOCOL_ID_IDX ON PROTOCOLS_MAPPERS(PROTOCOL);
 CREATE INDEX PROTOCOLS_MAPPERS_MAPPER_TYPE_IDX ON PROTOCOLS_MAPPERS(MAPPER_TYPE);
 
+/*********************************************************************************************************
+*                                       CLIENTS Table
+**********************************************************************************************************/
+
+CREATE TABLE IF NOT EXISTS CLIENTS
+(
+    ID                                    serial                  PRIMARY KEY,
+    TENANT                                varchar(50)             NOT NULL,
+    CLIENT_ID                             varchar(250)            UNIQUE NOT NULL,
+    REALM_ID                              varchar(250)            NOT NULL,
+    NAME                                  TEXT                    NOT NULL,
+    DISPLAY_NAME                          TEXT                    NOT NULL,
+
+    DESCRIPTION                           TEXT,
+    ENABLED                               boolean,
+    SECRET                                TEXT,
+    REGISTRATION_TOKEN                    TEXT,
+    PUBLIC_CLIENT                         boolean,
+    FULL_SCOPE_ALLOWED                    boolean,
+
+    PROTOCOL                              TEXT,
+    ROOT_URL                              TEXT,
+    WEB_ORIGINS                           TEXT[],
+    REDIRECT_URIS                         TEXT[],
+
+    CONSENT_REQUIRED                      boolean,
+    AUTHORIZATION_CODE_FLOW_ENABLED       boolean,
+    IMPLICIT_FLOW_ENABLED                 boolean,
+    DIRECT_ACCESS_GRANTS_ENABLED          boolean,
+    STANDARD_FLOW_ENABLED                 boolean,
+    IS_SURROGATE_AUTH_REQUIRED            boolean,
+
+    NOT_BEFORE                            integer,
+    BEARER_ONLY                           boolean,
+    FRONT_CHANNEL_LOGOUT                  boolean,
+
+    ATTRIBUTES                            json,
+    CLIENT_AUTHENTICATOR_TYPE             text,
+    SERVICE_ACCOUNT_ENABLED               boolean,
+    AUTH_FLOW_BINDING_OVERRIDES           json,
+
+    CREATED_BY                            varchar(250)            NOT NULL,
+    CREATED_AT                            timestamptz             NOT NULL,
+    UPDATED_BY                            varchar(250),
+    UPDATED_AT                            timestamptz,
+    VERSION                               integer                 DEFAULT 1   CHECK(version > 0),
+
+    CONSTRAINT FK_CLIENT_REALMS_ID FOREIGN KEY(REALM_ID) REFERENCES REALMS(REALM_ID) ON DELETE CASCADE,
+    CONSTRAINT UNIQUE_CLIENTS_REALM_ID_NAME UNIQUE (REALM_ID, NAME),
+    CONSTRAINT UNIQUE_CLIENTS_REALM_ID_DISPLAY_NAME UNIQUE (REALM_ID, DISPLAY_NAME)
+);
+
+DROP INDEX IF EXISTS CLIENTS_CLIENT_ID_IDX;
+DROP INDEX IF EXISTS CLIENTS_REALM_ID_IDX;
+DROP INDEX IF EXISTS CLIENTS_NAME_IDX;
+DROP INDEX IF EXISTS CLIENTS_DISPLAY_NAME_IDX;
+DROP INDEX IF EXISTS CLIENTS_SVC_ENABLED_IDX;
+
+CREATE INDEX CLIENTS_CLIENT_ID_IDX ON CLIENTS(CLIENT_ID);
+CREATE INDEX CLIENTS_REALM_ID_IDX ON CLIENTS(REALM_ID);
+CREATE INDEX CLIENTS_NAME_IDX ON CLIENTS(NAME);
+CREATE INDEX CLIENTS_DISPLAY_NAME_IDX ON CLIENTS(DISPLAY_NAME);
+CREATE INDEX CLIENTS_SVC_ENABLED_IDX ON CLIENTS(SERVICE_ACCOUNT_ENABLED);
+
+/*********************************************************************************************************
+*                                             CLIENTS_ROLES Table
+**********************************************************************************************************/
+
+CREATE TABLE IF NOT EXISTS CLIENTS_ROLES
+(
+    REALM_ID                                   varchar(250)             NOT NULL,
+    CLIENT_ID                                  varchar(250)             NOT NULL,
+    ROLE_ID                                    varchar(250)             NOT NULL,
+
+    CONSTRAINT FK_REALMS_ID FOREIGN KEY(REALM_ID) REFERENCES REALMS(REALM_ID) ON DELETE CASCADE,
+    CONSTRAINT FK_CLIENT_ID FOREIGN KEY(CLIENT_ID) REFERENCES CLIENTS(CLIENT_ID) ON DELETE CASCADE,
+    CONSTRAINT FK_ROLE_ID FOREIGN KEY(ROLE_ID) REFERENCES ROLES(ROLE_ID) ON DELETE CASCADE,
+
+
+    CONSTRAINT UNIQUE_CLIENTS_ROLES_REALM_ID_CLIENT_ID_ROLE_ID UNIQUE (REALM_ID, CLIENT_ID, ROLE_ID)
+);
+
+DROP INDEX IF EXISTS CLIENTS_ROLES_REALM_ID_IDX;
+DROP INDEX IF EXISTS CLIENTS_ROLES_CLIENT_ID_IDX;
+DROP INDEX IF EXISTS CLIENTS_ROLES_ROLE_ID_IDX;
+
+CREATE INDEX CLIENTS_ROLES_REALM_ID_IDX ON CLIENTS_ROLES(REALM_ID);
+CREATE INDEX CLIENTS_ROLES_CLIENT_ID_IDX ON CLIENTS_ROLES(CLIENT_ID);
+CREATE INDEX CLIENTS_ROLES_ROLE_ID_IDX ON CLIENTS_ROLES(ROLE_ID);
+
+
 
 /*****************************************************************************************************
 *                                            CLIENTS_SCOPES Table
@@ -452,6 +543,58 @@ DROP INDEX IF EXISTS CLIENTS_SCOPES_CLIENT_PROTOCOL_IDX;
 CREATE INDEX CLIENTS_SCOPES_CLIENT_SCOPE_ID_IDX ON CLIENTS_SCOPES(CLIENT_SCOPE_ID);
 CREATE INDEX CLIENTS_SCOPES_CLIENT_REALM_ID_IDX ON CLIENTS_SCOPES(REALM_ID);
 CREATE INDEX CLIENTS_SCOPES_CLIENT_PROTOCOL_IDX ON CLIENTS_SCOPES(PROTOCOL);
+
+/*********************************************************************************************************
+*                                             CLIENTS_CLIENTS_SCOPES Table
+**********************************************************************************************************/
+
+CREATE TABLE IF NOT EXISTS CLIENTS_CLIENTS_SCOPES
+(
+    REALM_ID                                   varchar(250)             NOT NULL,
+    CLIENT_ID                                  varchar(250)             NOT NULL,
+    CLIENT_SCOPE_ID                            varchar(250)             NOT NULL,
+
+    CONSTRAINT FK_REALMS_ID FOREIGN KEY(REALM_ID) REFERENCES REALMS(REALM_ID) ON DELETE CASCADE,
+    CONSTRAINT FK_CLIENT_ID FOREIGN KEY(CLIENT_ID) REFERENCES CLIENTS(CLIENT_ID) ON DELETE CASCADE,
+    CONSTRAINT FK_CLIENT_SCOPE_ID FOREIGN KEY(CLIENT_SCOPE_ID) REFERENCES CLIENTS_SCOPES(CLIENT_SCOPE_ID) ON DELETE CASCADE,
+
+
+    CONSTRAINT UNIQUE_CLIENTS_CLIENTS_SCOPES_REALM_ID_CLIENT_ID_CLIENT_SCOPE_ID UNIQUE (REALM_ID, CLIENT_ID, CLIENT_SCOPE_ID)
+);
+
+DROP INDEX IF EXISTS CLIENTS_CLIENTS_SCOPES_REALM_ID_IDX;
+DROP INDEX IF EXISTS CLIENTS_CLIENTS_SCOPES_CLIENT_SCOPE_ID_IDX;
+DROP INDEX IF EXISTS CLIENTS_CLIENTS_SCOPES_ROLE_ID_IDX;
+
+CREATE INDEX CLIENTS_CLIENTS_SCOPES_REALM_ID_IDX ON CLIENTS_CLIENTS_SCOPES(REALM_ID);
+CREATE INDEX CLIENTS_CLIENTS_SCOPES_CLIENT_ID_IDX ON CLIENTS_CLIENTS_SCOPES(CLIENT_ID);
+CREATE INDEX CLIENTS_CLIENTS_SCOPES_CLIENT_SCOPE_ID_IDX ON CLIENTS_CLIENTS_SCOPES(CLIENT_SCOPE_ID);
+
+/*********************************************************************************************************
+*                                             CLIENTS_PROTOCOLS_MAPPERS Table
+**********************************************************************************************************/
+
+CREATE TABLE IF NOT EXISTS CLIENTS_PROTOCOLS_MAPPERS
+(
+    REALM_ID                                   varchar(250)             NOT NULL,
+    CLIENT_ID                                  varchar(250)             NOT NULL,
+    MAPPER_ID                                  varchar(250)             NOT NULL,
+
+    CONSTRAINT FK_REALMS_ID FOREIGN KEY(REALM_ID) REFERENCES REALMS(REALM_ID) ON DELETE CASCADE,
+    CONSTRAINT FK_CLIENT_ID FOREIGN KEY(CLIENT_ID) REFERENCES CLIENTS(CLIENT_ID) ON DELETE CASCADE,
+    CONSTRAINT FK_MAPPER_ID FOREIGN KEY(MAPPER_ID) REFERENCES PROTOCOLS_MAPPERS(MAPPER_ID) ON DELETE CASCADE,
+
+
+    CONSTRAINT UNIQUE_CLIENTS_PROTOCOLS_MAPPERS_REALM_ID_CLIENT_ID_MAPPER_ID UNIQUE (REALM_ID, CLIENT_ID, MAPPER_ID)
+);
+
+DROP INDEX IF EXISTS CLIENTS_PROTOCOLS_MAPPERS_REALM_ID_IDX;
+DROP INDEX IF EXISTS CLIENTS_PROTOCOLS_MAPPERS_CLIENT_SCOPE_ID_IDX;
+DROP INDEX IF EXISTS CLIENTS_PROTOCOLS_MAPPERS_MAPPER_ID_IDX;
+
+CREATE INDEX CLIENTS_PROTOCOLS_MAPPERS_REALM_ID_IDX ON CLIENTS_PROTOCOLS_MAPPERS(REALM_ID);
+CREATE INDEX CLIENTS_PROTOCOLS_MAPPERS_CLIENT_ID_IDX ON CLIENTS_PROTOCOLS_MAPPERS(CLIENT_ID);
+CREATE INDEX CLIENTS_PROTOCOLS_MAPPERS_MAPPER_ID_IDX ON CLIENTS_PROTOCOLS_MAPPERS(MAPPER_ID);
 
 
 /*********************************************************************************************************

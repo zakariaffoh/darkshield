@@ -1,16 +1,15 @@
-use std::sync::Arc;
-use std::collections::HashMap;
 use async_trait::async_trait;
 use models::auditable::AuditableModel;
 use models::entities::auth::*;
-use tokio_postgres::Row;
 use shaku::Component;
+use std::collections::HashMap;
+use std::sync::Arc;
+use tokio_postgres::Row;
 
 use crate::providers::core::builder::*;
 use crate::providers::interfaces::auth_providers::*;
 use crate::providers::rds::client::postgres_client::IDataBaseManager;
 use crate::providers::rds::tables::auth_table;
-
 
 #[allow(dead_code)]
 #[derive(Component)]
@@ -21,7 +20,7 @@ pub struct RdsRequiredActionProvider {
 }
 
 impl RdsRequiredActionProvider {
-    fn read_required_action_record(&self, row: Row) -> RequiredActionModel {
+    fn read_record(&self, row: Row) -> RequiredActionModel {
         RequiredActionModel {
             action_id: row.get("action_id"),
             realm_id: row.get("realm_id"),
@@ -213,7 +212,7 @@ impl IRequiredActionProvider for RdsRequiredActionProvider {
         match result {
             Ok(row) => {
                 if let Some(r) = row {
-                    Ok(Some(self.read_required_action_record(r)))
+                    Ok(Some(self.read_record(r)))
                 } else {
                     Ok(None)
                 }
@@ -245,10 +244,7 @@ impl IRequiredActionProvider for RdsRequiredActionProvider {
             .query(&load_required_actions_stmt, &[&realm_id])
             .await;
         match result {
-            Ok(rows) => Ok(rows
-                .into_iter()
-                .map(|row| self.read_required_action_record(row))
-                .collect()),
+            Ok(rows) => Ok(rows.into_iter().map(|row| self.read_record(row)).collect()),
             Err(err) => Err(err.to_string()),
         }
     }
@@ -280,10 +276,7 @@ impl IRequiredActionProvider for RdsRequiredActionProvider {
             .query(&load_required_actions_stmt, &[&realm_id, &actions])
             .await;
         match result {
-            Ok(rows) => Ok(rows
-                .into_iter()
-                .map(|row| self.read_required_action_record(row))
-                .collect()),
+            Ok(rows) => Ok(rows.into_iter().map(|row| self.read_record(row)).collect()),
             Err(err) => Err(err.to_string()),
         }
     }
@@ -317,7 +310,7 @@ impl IRequiredActionProvider for RdsRequiredActionProvider {
         match result {
             Ok(row) => {
                 if let Some(r) = row {
-                    Ok(Some(self.read_required_action_record(r)))
+                    Ok(Some(self.read_record(r)))
                 } else {
                     Ok(None)
                 }
@@ -359,7 +352,6 @@ impl IRequiredActionProvider for RdsRequiredActionProvider {
     }
 }
 
-
 #[allow(dead_code)]
 #[derive(Component)]
 #[shaku(interface = IAuthenticationFlowProvider)]
@@ -369,7 +361,7 @@ pub struct RdsAuthenticationFlowProvider {
 }
 
 impl RdsAuthenticationFlowProvider {
-    fn read_authentication_flow_record(&self, row: Row) -> AuthenticationFlowModel {
+    fn read_record(&self, row: Row) -> AuthenticationFlowModel {
         AuthenticationFlowModel {
             flow_id: row.get("flow_id"),
             alias: row.get("alias"),
@@ -390,11 +382,12 @@ impl RdsAuthenticationFlowProvider {
     }
 }
 
-
 #[async_trait]
 impl IAuthenticationFlowProvider for RdsAuthenticationFlowProvider {
-    async fn create_authentication_flow(&self, flow: &AuthenticationFlowModel) -> Result<(), String>
-    {
+    async fn create_authentication_flow(
+        &self,
+        flow: &AuthenticationFlowModel,
+    ) -> Result<(), String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
@@ -407,10 +400,7 @@ impl IAuthenticationFlowProvider for RdsAuthenticationFlowProvider {
             .unwrap();
 
         let client = client.unwrap();
-        let create_flow_stmt = client
-            .prepare_cached(&create_flow_sql)
-            .await
-            .unwrap();
+        let create_flow_stmt = client.prepare_cached(&create_flow_sql).await.unwrap();
         let metadata = flow.metadata.as_ref().unwrap();
         let response = client
             .execute(
@@ -435,9 +425,11 @@ impl IAuthenticationFlowProvider for RdsAuthenticationFlowProvider {
             Ok(_) => Ok(()),
         }
     }
-    
-    async fn update_authentication_flow(&self, flow: &AuthenticationFlowModel) -> Result<(), String>
-    {
+
+    async fn update_authentication_flow(
+        &self,
+        flow: &AuthenticationFlowModel,
+    ) -> Result<(), String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
@@ -455,10 +447,7 @@ impl IAuthenticationFlowProvider for RdsAuthenticationFlowProvider {
             .unwrap();
 
         let client = client.unwrap();
-        let update_flow_stmt = client
-            .prepare_cached(&update_flow_sql)
-            .await
-            .unwrap();
+        let update_flow_stmt = client.prepare_cached(&update_flow_sql).await.unwrap();
         let metadata = flow.metadata.as_ref().unwrap();
 
         let response = client
@@ -483,13 +472,12 @@ impl IAuthenticationFlowProvider for RdsAuthenticationFlowProvider {
             Ok(_) => Ok(()),
         }
     }
-    
+
     async fn load_authentication_flow_by_flow_id(
         &self,
         realm_id: &str,
         flow_id: &str,
-    ) -> Result<Option<AuthenticationFlowModel>, String>
-    {
+    ) -> Result<Option<AuthenticationFlowModel>, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
@@ -504,17 +492,14 @@ impl IAuthenticationFlowProvider for RdsAuthenticationFlowProvider {
             .unwrap();
 
         let client = client.unwrap();
-        let load_flow_stmt = client
-            .prepare_cached(&load_flow_sql)
-            .await
-            .unwrap();
+        let load_flow_stmt = client.prepare_cached(&load_flow_sql).await.unwrap();
         let result = client
             .query_opt(&load_flow_stmt, &[&realm_id, &flow_id])
             .await;
         match result {
             Ok(row) => {
                 if let Some(r) = row {
-                    Ok(Some(self.read_authentication_flow_record(r)))
+                    Ok(Some(self.read_record(r)))
                 } else {
                     Ok(None)
                 }
@@ -526,8 +511,7 @@ impl IAuthenticationFlowProvider for RdsAuthenticationFlowProvider {
     async fn load_authentication_flow_by_realm(
         &self,
         realm_id: &str,
-    ) -> Result<Vec<AuthenticationFlowModel>, String>
-    {
+    ) -> Result<Vec<AuthenticationFlowModel>, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
@@ -539,25 +523,20 @@ impl IAuthenticationFlowProvider for RdsAuthenticationFlowProvider {
             .unwrap();
 
         let client = client.unwrap();
-        let load_flow_stmt = client
-            .prepare_cached(&load_flow_sql)
-            .await
-            .unwrap();
-        let result = client
-            .query(&load_flow_stmt, &[&realm_id])
-            .await;
+        let load_flow_stmt = client.prepare_cached(&load_flow_sql).await.unwrap();
+        let result = client.query(&load_flow_stmt, &[&realm_id]).await;
 
         match result {
-            Ok(rows) => Ok(rows
-                .into_iter()
-                .map(|row| self.read_authentication_flow_record(row))
-                .collect()),
+            Ok(rows) => Ok(rows.into_iter().map(|row| self.read_record(row)).collect()),
             Err(err) => Err(err.to_string()),
         }
     }
 
-    async fn remove_authentication_flow(&self, realm_id: &str, flow_id: &str) -> Result<bool, String>
-    {
+    async fn remove_authentication_flow(
+        &self,
+        realm_id: &str,
+        flow_id: &str,
+    ) -> Result<bool, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
@@ -583,14 +562,9 @@ impl IAuthenticationFlowProvider for RdsAuthenticationFlowProvider {
             Ok(result) => Ok(result > 0),
             Err(error) => Err(error.to_string()),
         }
-    
     }
 
-    async fn exists_flow_by_alias(
-        &self,
-        realm_id: &str,
-        alias: &str,
-    ) -> Result<bool, String> {
+    async fn exists_flow_by_alias(&self, realm_id: &str, alias: &str) -> Result<bool, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
@@ -625,7 +599,7 @@ pub struct RdsAuthenticationExecutionProvider {
 }
 
 impl RdsAuthenticationExecutionProvider {
-    fn read_authentication_execution_record(&self, row: Row) -> AuthenticationExecutionModel {
+    fn read_record(&self, row: Row) -> AuthenticationExecutionModel {
         AuthenticationExecutionModel {
             execution_id: row.get("flow_id"),
             realm_id: row.get("realm_id"),
@@ -651,24 +625,32 @@ impl RdsAuthenticationExecutionProvider {
 }
 
 #[async_trait]
-impl IAuthenticationExecutionProvider for RdsAuthenticationExecutionProvider{
-    async fn create_authentication_execution(&self, execution: &AuthenticationExecutionModel) -> Result<(), String>{
+impl IAuthenticationExecutionProvider for RdsAuthenticationExecutionProvider {
+    async fn create_authentication_execution(
+        &self,
+        execution: &AuthenticationExecutionModel,
+    ) -> Result<(), String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
         }
         let create_execution_sql = InsertRequestBuilder::new()
-            .table_name(auth_table::AUTHENTICATION_EXECUTION_TABLE.table_name.clone())
-            .columns(auth_table::AUTHENTICATION_EXECUTION_TABLE.insert_columns.clone())
+            .table_name(
+                auth_table::AUTHENTICATION_EXECUTION_TABLE
+                    .table_name
+                    .clone(),
+            )
+            .columns(
+                auth_table::AUTHENTICATION_EXECUTION_TABLE
+                    .insert_columns
+                    .clone(),
+            )
             .resolve_conflict(false)
             .sql_query()
             .unwrap();
 
         let client = client.unwrap();
-        let create_execution_stmt = client
-            .prepare_cached(&create_execution_sql)
-            .await
-            .unwrap();
+        let create_execution_stmt = client.prepare_cached(&create_execution_sql).await.unwrap();
         let metadata = execution.metadata.as_ref().unwrap();
         let response = client
             .execute(
@@ -697,15 +679,26 @@ impl IAuthenticationExecutionProvider for RdsAuthenticationExecutionProvider{
             Ok(_) => Ok(()),
         }
     }
-    
-    async fn update_authentication_execution(&self, execution: &AuthenticationExecutionModel) -> Result<(), String>{
+
+    async fn update_authentication_execution(
+        &self,
+        execution: &AuthenticationExecutionModel,
+    ) -> Result<(), String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
         }
         let update_execution_sql = UpdateRequestBuilder::new()
-            .table_name(auth_table::AUTHENTICATION_EXECUTION_TABLE.table_name.clone())
-            .columns(auth_table::AUTHENTICATION_EXECUTION_TABLE.update_columns.clone())
+            .table_name(
+                auth_table::AUTHENTICATION_EXECUTION_TABLE
+                    .table_name
+                    .clone(),
+            )
+            .columns(
+                auth_table::AUTHENTICATION_EXECUTION_TABLE
+                    .update_columns
+                    .clone(),
+            )
             .where_clauses(vec![
                 SqlCriteriaBuilder::is_equals("tenant".to_string()),
                 SqlCriteriaBuilder::is_equals("realm_id".to_string()),
@@ -716,10 +709,7 @@ impl IAuthenticationExecutionProvider for RdsAuthenticationExecutionProvider{
             .unwrap();
 
         let client = client.unwrap();
-        let update_execution_stmt = client
-            .prepare_cached(&update_execution_sql)
-            .await
-            .unwrap();
+        let update_execution_stmt = client.prepare_cached(&update_execution_sql).await.unwrap();
         let metadata = execution.metadata.as_ref().unwrap();
         let response = client
             .execute(
@@ -747,18 +737,22 @@ impl IAuthenticationExecutionProvider for RdsAuthenticationExecutionProvider{
             Ok(_) => Ok(()),
         }
     }
-  
+
     async fn load_authentication_execution_by_execution_id(
         &self,
         realm_id: &str,
         execution_id: &str,
-    ) -> Result<Option<AuthenticationExecutionModel>, String>{
+    ) -> Result<Option<AuthenticationExecutionModel>, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
         }
         let load_execution_sql = SelectRequestBuilder::new()
-            .table_name(auth_table::AUTHENTICATION_EXECUTION_TABLE.table_name.clone())
+            .table_name(
+                auth_table::AUTHENTICATION_EXECUTION_TABLE
+                    .table_name
+                    .clone(),
+            )
             .where_clauses(vec![
                 SqlCriteriaBuilder::is_equals("realm_id".to_string()),
                 SqlCriteriaBuilder::is_equals("execution_id".to_string()),
@@ -767,17 +761,14 @@ impl IAuthenticationExecutionProvider for RdsAuthenticationExecutionProvider{
             .unwrap();
 
         let client = client.unwrap();
-        let load_execution_stmt = client
-            .prepare_cached(&load_execution_sql)
-            .await
-            .unwrap();
+        let load_execution_stmt = client.prepare_cached(&load_execution_sql).await.unwrap();
         let result = client
             .query_opt(&load_execution_stmt, &[&realm_id, &execution_id])
             .await;
         match result {
             Ok(row) => {
                 if let Some(r) = row {
-                    Ok(Some(self.read_authentication_execution_record(r)))
+                    Ok(Some(self.read_record(r)))
                 } else {
                     Ok(None)
                 }
@@ -785,46 +776,50 @@ impl IAuthenticationExecutionProvider for RdsAuthenticationExecutionProvider{
             Err(err) => Err(err.to_string()),
         }
     }
-    
+
     async fn load_authentication_execution_by_realm(
         &self,
         realm_id: &str,
-    ) -> Result<Vec<AuthenticationExecutionModel>, String>{
+    ) -> Result<Vec<AuthenticationExecutionModel>, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
         }
         let load_execution_sql = SelectRequestBuilder::new()
-            .table_name(auth_table::AUTHENTICATION_EXECUTION_TABLE.table_name.clone())
+            .table_name(
+                auth_table::AUTHENTICATION_EXECUTION_TABLE
+                    .table_name
+                    .clone(),
+            )
             .where_clauses(vec![SqlCriteriaBuilder::is_equals("realm_id".to_string())])
             .sql_query()
             .unwrap();
 
         let client = client.unwrap();
-        let load_execution_stmt = client
-            .prepare_cached(&load_execution_sql)
-            .await
-            .unwrap();
-        let result = client
-            .query(&load_execution_stmt, &[&realm_id])
-            .await;
+        let load_execution_stmt = client.prepare_cached(&load_execution_sql).await.unwrap();
+        let result = client.query(&load_execution_stmt, &[&realm_id]).await;
 
         match result {
-            Ok(rows) => Ok(rows
-                .into_iter()
-                .map(|row| self.read_authentication_execution_record(row))
-                .collect()),
+            Ok(rows) => Ok(rows.into_iter().map(|row| self.read_record(row)).collect()),
             Err(err) => Err(err.to_string()),
         }
     }
-    
-    async fn remove_authentication_execution(&self, realm_id: &str, execution_id: &str) -> Result<bool, String>{
+
+    async fn remove_authentication_execution(
+        &self,
+        realm_id: &str,
+        execution_id: &str,
+    ) -> Result<bool, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
         }
         let remove_execution_config_sql = DeleteQueryBuilder::new()
-            .table_name(auth_table::AUTHENTICATION_EXECUTION_TABLE.table_name.clone())
+            .table_name(
+                auth_table::AUTHENTICATION_EXECUTION_TABLE
+                    .table_name
+                    .clone(),
+            )
             .where_clauses(vec![
                 SqlCriteriaBuilder::is_equals("realm_id".to_string()),
                 SqlCriteriaBuilder::is_equals("execution_id".to_string()),
@@ -846,17 +841,17 @@ impl IAuthenticationExecutionProvider for RdsAuthenticationExecutionProvider{
         }
     }
 
-    async fn exists_execution_by_alias(
-        &self,
-        realm_id: &str,
-        alias: &str,
-    ) -> Result<bool, String>{
+    async fn exists_execution_by_alias(&self, realm_id: &str, alias: &str) -> Result<bool, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
         }
         let load_execution_alias_sql = SelectCountRequestBuilder::new()
-            .table_name(auth_table::AUTHENTICATION_EXECUTION_TABLE.table_name.clone())
+            .table_name(
+                auth_table::AUTHENTICATION_EXECUTION_TABLE
+                    .table_name
+                    .clone(),
+            )
             .where_clauses(vec![
                 SqlCriteriaBuilder::is_equals("realm_id".to_string()),
                 SqlCriteriaBuilder::is_equals("alias".to_string()),
@@ -865,7 +860,10 @@ impl IAuthenticationExecutionProvider for RdsAuthenticationExecutionProvider{
             .unwrap();
 
         let client = client.unwrap();
-        let load_execution_alias_stmt = client.prepare_cached(&load_execution_alias_sql).await.unwrap();
+        let load_execution_alias_stmt = client
+            .prepare_cached(&load_execution_alias_sql)
+            .await
+            .unwrap();
         let result = client
             .query_one(&load_execution_alias_stmt, &[&realm_id, &alias])
             .await;
@@ -885,7 +883,7 @@ pub struct RdsAuthenticatorConfigProvider {
 }
 
 impl RdsAuthenticatorConfigProvider {
-    fn read_authenticator_config_record(&self, row: Row) -> AuthenticatorConfigModel {
+    fn read_record(&self, row: Row) -> AuthenticatorConfigModel {
         AuthenticatorConfigModel {
             config_id: row.get("flow_id"),
             realm_id: row.get("realm_id"),
@@ -904,24 +902,28 @@ impl RdsAuthenticatorConfigProvider {
 }
 
 #[async_trait]
-impl IAuthenticatorConfigProvider for RdsAuthenticatorConfigProvider{
-    async fn create_authenticator_config(&self, config: &AuthenticatorConfigModel) -> Result<(), String>{
+impl IAuthenticatorConfigProvider for RdsAuthenticatorConfigProvider {
+    async fn create_authenticator_config(
+        &self,
+        config: &AuthenticatorConfigModel,
+    ) -> Result<(), String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
         }
         let create_config_sql = InsertRequestBuilder::new()
             .table_name(auth_table::AUTHENTICATOR_CONFIG_TABLE.table_name.clone())
-            .columns(auth_table::AUTHENTICATOR_CONFIG_TABLE.insert_columns.clone())
+            .columns(
+                auth_table::AUTHENTICATOR_CONFIG_TABLE
+                    .insert_columns
+                    .clone(),
+            )
             .resolve_conflict(false)
             .sql_query()
             .unwrap();
 
         let client = client.unwrap();
-        let create_config_stmt = client
-            .prepare_cached(&create_config_sql)
-            .await
-            .unwrap();
+        let create_config_stmt = client.prepare_cached(&create_config_sql).await.unwrap();
         let metadata = config.metadata.as_ref().unwrap();
         let response = client
             .execute(
@@ -944,15 +946,22 @@ impl IAuthenticatorConfigProvider for RdsAuthenticatorConfigProvider{
             Ok(_) => Ok(()),
         }
     }
-    
-    async fn update_authenticator_config(&self, config: &AuthenticatorConfigModel) -> Result<(), String>{
+
+    async fn update_authenticator_config(
+        &self,
+        config: &AuthenticatorConfigModel,
+    ) -> Result<(), String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
         }
         let update_config_sql = UpdateRequestBuilder::new()
             .table_name(auth_table::AUTHENTICATOR_CONFIG_TABLE.table_name.clone())
-            .columns(auth_table::AUTHENTICATOR_CONFIG_TABLE.update_columns.clone())
+            .columns(
+                auth_table::AUTHENTICATOR_CONFIG_TABLE
+                    .update_columns
+                    .clone(),
+            )
             .where_clauses(vec![
                 SqlCriteriaBuilder::is_equals("tenant".to_string()),
                 SqlCriteriaBuilder::is_equals("realm_id".to_string()),
@@ -963,10 +972,7 @@ impl IAuthenticatorConfigProvider for RdsAuthenticatorConfigProvider{
             .unwrap();
 
         let client = client.unwrap();
-        let update_config_stmt = client
-            .prepare_cached(&update_config_sql)
-            .await
-            .unwrap();
+        let update_config_stmt = client.prepare_cached(&update_config_sql).await.unwrap();
         let metadata = config.metadata.as_ref().unwrap();
         let response = client
             .execute(
@@ -987,12 +993,12 @@ impl IAuthenticatorConfigProvider for RdsAuthenticatorConfigProvider{
             Ok(_) => Ok(()),
         }
     }
-    
+
     async fn load_authenticator_config_by_config_id(
         &self,
         realm_id: &str,
         config_id: &str,
-    ) -> Result<Option<AuthenticatorConfigModel>, String>{
+    ) -> Result<Option<AuthenticatorConfigModel>, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
@@ -1007,17 +1013,14 @@ impl IAuthenticatorConfigProvider for RdsAuthenticatorConfigProvider{
             .unwrap();
 
         let client = client.unwrap();
-        let load_config_stmt = client
-            .prepare_cached(&load_config_sql)
-            .await
-            .unwrap();
+        let load_config_stmt = client.prepare_cached(&load_config_sql).await.unwrap();
         let result = client
             .query_opt(&load_config_stmt, &[&realm_id, &config_id])
             .await;
         match result {
             Ok(row) => {
                 if let Some(r) = row {
-                    Ok(Some(self.read_authenticator_config_record(r)))
+                    Ok(Some(self.read_record(r)))
                 } else {
                     Ok(None)
                 }
@@ -1025,11 +1028,11 @@ impl IAuthenticatorConfigProvider for RdsAuthenticatorConfigProvider{
             Err(err) => Err(err.to_string()),
         }
     }
-    
+
     async fn load_authenticator_configs_by_realm(
         &self,
         realm_id: &str,
-    ) -> Result<Vec<AuthenticatorConfigModel>, String>{
+    ) -> Result<Vec<AuthenticatorConfigModel>, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
@@ -1041,23 +1044,19 @@ impl IAuthenticatorConfigProvider for RdsAuthenticatorConfigProvider{
             .unwrap();
 
         let client = client.unwrap();
-        let load_configs_stmt = client
-            .prepare_cached(&load_configs_sql)
-            .await
-            .unwrap();
-        let result = client
-            .query(&load_configs_stmt, &[&realm_id])
-            .await;
+        let load_configs_stmt = client.prepare_cached(&load_configs_sql).await.unwrap();
+        let result = client.query(&load_configs_stmt, &[&realm_id]).await;
         match result {
-            Ok(rows) => Ok(rows
-                .into_iter()
-                .map(|row| self.read_authenticator_config_record(row))
-                .collect()),
+            Ok(rows) => Ok(rows.into_iter().map(|row| self.read_record(row)).collect()),
             Err(err) => Err(err.to_string()),
         }
     }
-    
-    async fn remove_authenticator_config(&self, realm_id: &str, config_id: &str) -> Result<bool, String>{
+
+    async fn remove_authenticator_config(
+        &self,
+        realm_id: &str,
+        config_id: &str,
+    ) -> Result<bool, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
@@ -1085,11 +1084,7 @@ impl IAuthenticatorConfigProvider for RdsAuthenticatorConfigProvider{
         }
     }
 
-    async fn exists_config_by_alias(
-        &self,
-        realm_id: &str,
-        alias: &str,
-    ) -> Result<bool, String>{
+    async fn exists_config_by_alias(&self, realm_id: &str, alias: &str) -> Result<bool, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);

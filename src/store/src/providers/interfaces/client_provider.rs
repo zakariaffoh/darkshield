@@ -97,9 +97,13 @@ pub trait IClientProvider: Interface {
         client_id: &str,
     ) -> Result<Vec<RoleModel>, String>;
 
-    async fn count_clients(&self, realm_id: &str) -> Result<u64, String>;
+    async fn count_clients(&self, realm_id: &str) -> Result<i64, String>;
 
-    async fn load_client_by_role_id(&self, realm_id: &str, role_id: &str) -> Result<u64, String>;
+    async fn load_client_by_role_id(
+        &self,
+        realm_id: &str,
+        role_id: &str,
+    ) -> Result<Option<ClientModel>, String>;
 }
 
 #[async_trait]
