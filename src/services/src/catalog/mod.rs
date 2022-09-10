@@ -8,6 +8,7 @@ use crate::services::{
         ScopeService,
     },
     client_services::{ClientScopeService, ClientService, ProtocolMapperService},
+    health_check::HealthCheckService,
     realm_service::RealmService,
     user_service::UserService,
 };
@@ -25,6 +26,7 @@ use store::providers::rds::{
         rds_client_provider::{
             RdsClientProvider, RdsClientScopeProvider, RdsProtocolMapperProvider,
         },
+        rds_health_check::RdsHealthCheckProvider,
         rds_realm_provider::RdsRealmProvider,
         rds_user_provider::RdsUserProvider,
     },
@@ -34,6 +36,7 @@ module! {
      pub DarkshieldServices {
         components = [
             DataBaseManager,
+            RdsHealthCheckProvider,
             RdsRealmProvider,
             RdsGroupProvider,
             RdsRoleProvider,
@@ -49,6 +52,7 @@ module! {
             RdsResourceServerProvider,
             RdsResourceProvider,
             RdsUserProvider,
+            HealthCheckService,
             RealmService,
             RoleService,
             GroupService,
