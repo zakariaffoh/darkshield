@@ -18,7 +18,7 @@ pub async fn create_user(
 ) -> impl Responder {
     let user_service: &dyn IUserService = context.services().resolve_ref();
     let (realm_id, user_id) = params.into_inner();
-    let user_model: UserModel = user.0.into();
+    let mut user_model: UserModel = user.0.into();
     log::info!(
         "Creating user {}, realm: {}",
         user_id.as_str(),
@@ -37,7 +37,7 @@ pub async fn update_user(
 ) -> impl Responder {
     let user_service: &dyn IUserService = context.services().resolve_ref();
     let (realm_id, user_id) = params.into_inner();
-    let user_model: UserModel = user.0.into();
+    let mut user_model: UserModel = user.0.into();
     log::info!(
         "Updating user {}, realm: {}",
         user_id.as_str(),
@@ -55,34 +55,31 @@ pub async fn delete_user(
 ) -> impl Responder {
     let user_service: &dyn IUserService = context.services().resolve_ref();
     let (realm_id, user_id) = params.into_inner();
-    let user_model: UserModel = user.0.into();
     log::info!(
         "Deleting user {}, realm: {}",
         user_id.as_str(),
         realm_id.as_str(),
     );
-    user_model.user_id = user_id;
-    user_model.realm_id = realm_id;
-    user_service.delete_user(&realm_id, &user_id).await
+    user_service
+        .delete_user(realm_id.as_str(), user_id.as_str())
+        .await
 }
 
 #[get("/realm/{realm_id}/user/{user_id}/load")]
 pub async fn load_user(
     params: web::Path<(String, String)>,
-    user: web::Json<UserCreateModel>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let user_service: &dyn IUserService = context.services().resolve_ref();
     let (realm_id, user_id) = params.into_inner();
-    let user_model: UserModel = user.0.into();
     log::info!(
         "Loading user {}, realm: {}",
         user_id.as_str(),
         realm_id.as_str(),
     );
-    user_model.user_id = user_id;
-    user_model.realm_id = realm_id;
-    user_service.load_user(user_model).await
+    user_service
+        .load_user(realm_id.as_str(), user_id.as_str())
+        .await
 }
 
 #[get("/realm/{realm_id}/user/{user_id}/count")]
@@ -228,8 +225,8 @@ pub async fn load_user_groups_paging(
         .load_user_groups_paging(
             realm_id.as_str(),
             user_id.as_str(),
-            page_index.to_owned(),
-            page_size.to_owned(),
+            page_index.0,
+            page_size.0,
         )
         .await
 }
@@ -246,8 +243,6 @@ pub async fn user_count_groups(
         "Counting user: {} groups for realm: {}",
         user_id.as_str(),
         realm_id.as_str(),
-        page_index.to_owned(),
-        page_size.to_owned(),
     );
     user_service
         .user_count_groups(realm_id.as_str(), user_id.as_str())

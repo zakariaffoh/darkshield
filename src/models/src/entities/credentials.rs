@@ -282,11 +282,11 @@ impl OTPCredentialModel {
         } else {
             let otp_policy = OTPPolicy::from_realm(&realm);
             let credential_data = OTPCredentialData::new(
-                otp_policy.otp_type.as_str(),
-                otp_policy.digits,
-                otp_policy.initial_counter,
-                otp_policy.period,
-                otp_policy.algorithm.as_str(),
+                otp_policy.otp_type(),
+                otp_policy.digits(),
+                otp_policy.initial_counter(),
+                otp_policy.period(),
+                otp_policy.algorithm(),
             );
             let secret_data = OTPSecretData(Some(secret_value.to_owned()));
             let mut otp_credential = Self {

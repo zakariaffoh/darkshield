@@ -18,8 +18,8 @@ use store::providers::interfaces::authz_provider::IRoleProvider;
 pub trait IUserService: Interface {
     async fn create_user(&self, realm: UserModel) -> ApiResult<RealmModel>;
     async fn udpate_user(&self, realm: UserModel) -> ApiResult<()>;
-    async fn delete_user(&self, realm_id: &str) -> ApiResult<()>;
-    async fn load_user(&self, realm_id: &str) -> ApiResult<UserModel>;
+    async fn delete_user(&self, realm_id: &str, user_id: &str) -> ApiResult<()>;
+    async fn load_user(&self, realm_id: &str, user_id: &str) -> ApiResult<UserModel>;
     async fn load_users_by_realm_id(&self, realm_id: &str) -> ApiResult<Vec<UserModel>>;
     async fn count_users(&self, realm_id: &str) -> ApiResult<i64>;
     async fn add_user_role(&self, realm_id: &str, user_id: &str, role_id: &str) -> ApiResult<()>;
@@ -38,6 +38,7 @@ pub trait IUserService: Interface {
     async fn load_user_groups(&self, realm_id: &str, user_id: &str) -> ApiResult<Vec<GroupModel>>;
     async fn user_count_groups(&self, realm_id: &str, user_id: &str) -> ApiResult<i64>;
     async fn load_user_groups_paging(
+        &self,
         realm_id: &str,
         user_id: &str,
         page_index: i64,
@@ -52,6 +53,15 @@ pub trait IUserService: Interface {
     ) -> ApiResult<()>;
 
     async fn load_user_credentials(&self, realm_id: &str, user_id: &str) -> ApiResult<()>;
+
+    async fn load_user_consents(&self, realm_id: &str, user_id: &str) -> ApiResult<()>;
+
+    async fn revoke_user_consent_for_client(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        client_id: &str,
+    ) -> ApiResult<()>;
 }
 
 #[allow(dead_code)]
@@ -77,7 +87,7 @@ pub struct UserService {
 #[async_trait]
 impl IUserService for UserService {
     async fn create_user(&self, user: UserModel) -> ApiResult<RealmModel> {
-        let realm_model = self.realm_provider.load_realm(&user.realm_id).await;
+        /*let realm_model = self.realm_provider.load_realm(&user.realm_id).await;
         match realm_model {
             Ok(realm) => {
                 if realm.is_none() {
@@ -159,16 +169,17 @@ impl IUserService for UserService {
         }
         let password_policy = realm.password_policy.unwrap_or_default();
 
-        credential_input = UserCredentialModel::new();
+        credential_input = UserCredentialModel::new();*/
+        todo!()
     }
 
     async fn udpate_user(&self, user: UserModel) -> ApiResult<()> {
         todo!()
     }
-    async fn delete_user(&self, _realm_id: &str) -> ApiResult<()> {
+    async fn delete_user(&self, _realm_id: &str, user_id: &str) -> ApiResult<()> {
         todo!()
     }
-    async fn load_user(&self, _realm_id: &str) -> ApiResult<UserModel> {
+    async fn load_user(&self, _realm_id: &str, user_id: &str) -> ApiResult<UserModel> {
         todo!()
     }
     async fn load_users_by_realm_id(&self, _realm_id: &str) -> ApiResult<Vec<UserModel>> {
@@ -213,7 +224,12 @@ impl IUserService for UserService {
         todo!()
     }
 
+    async fn count_users(&self, realm_id: &str) -> ApiResult<i64> {
+        todo!()
+    }
+
     async fn load_user_groups_paging(
+        &self,
         realm_id: &str,
         user_id: &str,
         page_index: i64,
@@ -232,6 +248,19 @@ impl IUserService for UserService {
     }
 
     async fn load_user_credentials(&self, realm_id: &str, user_id: &str) -> ApiResult<()> {
+        todo!()
+    }
+
+    async fn load_user_consents(&self, realm_id: &str, user_id: &str) -> ApiResult<()> {
+        todo!()
+    }
+
+    async fn revoke_user_consent_for_client(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        client_id: &str,
+    ) -> ApiResult<()> {
         todo!()
     }
 }
