@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use crypto::random::generate_random_bytes;
+use serde::{Deserialize, Serialize};
 
 use crate::{auditable::AuditableModel, credentials::otp::OTPPolicy};
 
@@ -117,6 +119,7 @@ impl Default for CredentialModel {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize)]
 pub enum CredentialTypeEnum {
     PASSWORD,
     PasswordHistory,
@@ -137,7 +140,7 @@ impl ToString for CredentialTypeEnum {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum CredentialFieldEnum {
     Str(String),
     Int(i64),
@@ -776,4 +779,32 @@ impl UserCredentialModel {
     pub fn notes(&self) -> &Option<HashMap<String, String>> {
         &self.notes
     }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct CredentialRepresentation {
+    credential_type: CredentialTypeEnum,
+    is_temporary: Option<bool>,
+    secret: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct CredentialViewRepresentation {
+    pub credential_id: Option<String>,
+    pub credential_type: Option<String>,
+    pub user_id: Option<String>,
+    pub user_label: Option<String>,
+    pub credential_data: HashMap<String, CredentialFieldEnum>,
+    pub priority: Option<i64>,
+    pub created_by: Option<String>,
+    pub created_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct UserCredentialCreateRepresentation {
+    user_label: Option<String>,
+    credential_type: CredentialTypeEnum,
+    secret: Option<String>,
+    is_temporary: Option<bool>,
+    created_by: Option<String>,
 }

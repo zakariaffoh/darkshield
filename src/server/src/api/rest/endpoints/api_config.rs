@@ -3,7 +3,7 @@ use actix_web::web;
 use super::{
     admin::auth,
     admin::authz,
-    admin::{client, realm},
+    admin::{client, realm, user},
     metrics_api::metrics_handler,
 };
 
@@ -122,7 +122,31 @@ pub fn register_apis(api_config: &mut web::ServiceConfig) {
                     .service(client::protocol_mapper_load_by_id)
                     .service(client::protocol_mappers_delete_by_id)
                     .service(client::protocol_mappers_load_by_client_id)
-                    .service(client::protocol_mappers_load_by_protocol),
+                    .service(client::protocol_mappers_load_by_protocol)
+                    /* User APi */
+                    .service(user::create_user)
+                    .service(user::update_user)
+                    .service(user::load_user)
+                    .service(user::delete_user)
+                    .service(user::count_users)
+                    .service(user::user_add_role)
+                    .service(user::user_remove_role)
+                    .service(user::load_user_roles)
+                    .service(user::user_add_group)
+                    .service(user::user_remove_group)
+                    .service(user::load_user_groups)
+                    .service(user::load_user_groups_paging)
+                    .service(user::load_user_consents)
+                    .service(user::revoke_user_consent_for_client)
+                    .service(user::load_user_credentials)
+                    .service(user::user_disable_credential_type)
+                    .service(user::impersonate_user)
+                    .service(user::user_reset_password)
+                    .service(user::remove_credential)
+                    .service(user::move_credential_to_first)
+                    .service(user::move_credential_to_position)
+                    .service(user::send_verify_email)
+                    .service(user::reset_password_email),
             ),
         )
         .service(metrics_handler);
