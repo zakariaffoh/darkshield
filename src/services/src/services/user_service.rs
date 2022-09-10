@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use commons::ApiResult;
 use models::entities::authz::GroupModel;
 use models::entities::authz::RoleModel;
+use models::entities::credentials::CredentialRepresentation;
 use models::entities::user::UserModel;
 use shaku::Component;
 use shaku::Interface;
@@ -61,6 +62,43 @@ pub trait IUserService: Interface {
         realm_id: &str,
         user_id: &str,
         client_id: &str,
+    ) -> ApiResult<()>;
+
+    async fn impersonate_user(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        client_id: &str,
+        scope: &str,
+    ) -> ApiResult<()>;
+
+    async fn move_credential_to_position(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        credential_id: &str,
+        previous_credential_id: &str,
+    ) -> ApiResult<()>;
+
+    async fn move_credential_to_first(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        credential_id: &str,
+    ) -> ApiResult<()>;
+
+    async fn reset_user_password(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        password: &CredentialRepresentation,
+    ) -> ApiResult<()>;
+
+    async fn disable_credential_type(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        credential_type: &str,
     ) -> ApiResult<()>;
 }
 
@@ -176,12 +214,15 @@ impl IUserService for UserService {
     async fn udpate_user(&self, user: UserModel) -> ApiResult<()> {
         todo!()
     }
+
     async fn delete_user(&self, _realm_id: &str, user_id: &str) -> ApiResult<()> {
         todo!()
     }
+
     async fn load_user(&self, _realm_id: &str, user_id: &str) -> ApiResult<UserModel> {
         todo!()
     }
+
     async fn load_users_by_realm_id(&self, _realm_id: &str) -> ApiResult<Vec<UserModel>> {
         todo!()
     }
@@ -247,6 +288,16 @@ impl IUserService for UserService {
         todo!()
     }
 
+    async fn move_credential_to_position(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        credential_id: &str,
+        previous_credential_id: &str,
+    ) -> ApiResult<()> {
+        todo!()
+    }
+
     async fn load_user_credentials(&self, realm_id: &str, user_id: &str) -> ApiResult<()> {
         todo!()
     }
@@ -260,6 +311,43 @@ impl IUserService for UserService {
         realm_id: &str,
         user_id: &str,
         client_id: &str,
+    ) -> ApiResult<()> {
+        todo!()
+    }
+
+    async fn impersonate_user(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        client_id: &str,
+        scope: &str,
+    ) -> ApiResult<()> {
+        todo!()
+    }
+
+    async fn move_credential_to_first(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        credential_id: &str,
+    ) -> ApiResult<()> {
+        todo!()
+    }
+
+    async fn reset_user_password(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        password: &CredentialRepresentation,
+    ) -> ApiResult<()> {
+        todo!()
+    }
+
+    async fn disable_credential_type(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        credential_type: &str,
     ) -> ApiResult<()> {
         todo!()
     }
