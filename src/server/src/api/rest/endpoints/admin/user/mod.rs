@@ -2,7 +2,7 @@ use crate::context::DarkShieldContext;
 use log;
 use models::entities::{
     credentials::CredentialRepresentation,
-    user::{UserCreateModel, UserModel, UserUpdateModel},
+    user::{UserCreateModel, UserModel},
 };
 use services::services::user_service::IUserService;
 use shaku::HasComponent;

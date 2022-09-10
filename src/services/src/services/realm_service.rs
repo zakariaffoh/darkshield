@@ -1,11 +1,12 @@
 use async_trait::async_trait;
 use commons::ApiResult;
+use crypto::keys::{KeyTypeEnum, KeyUseEnum};
 use models::auditable::AuditableModel;
+use models::entities::credentials::CredentialViewRepresentation;
+use models::entities::realm::RealmModel;
 use shaku::Component;
 use shaku::Interface;
 use std::sync::Arc;
-
-use models::entities::realm::RealmModel;
 use store::providers::interfaces::realm_provider::IRealmProvider;
 
 #[async_trait]
@@ -17,6 +18,17 @@ pub trait IRealmService: Interface {
     async fn load_realms(&self) -> ApiResult<Vec<RealmModel>>;
     async fn export_realm(&self, realm_id: &str) -> ApiResult<Option<RealmModel>>;
     async fn import_realm(&self, realm_id: &str) -> ApiResult<Option<RealmModel>>;
+    async fn generate_realm_key(
+        &self,
+        realm_id: &str,
+        key_type: &KeyTypeEnum,
+        key_use: &KeyUseEnum,
+        priority: &Option<i64>,
+        algorithm: &str,
+    ) -> ApiResult<CredentialViewRepresentation>;
+
+    async fn load_realm_keys(&self, realm_id: &str)
+        -> ApiResult<Vec<CredentialViewRepresentation>>;
 }
 
 #[allow(dead_code)]
@@ -106,6 +118,23 @@ impl IRealmService for RealmService {
         todo!()
     }
     async fn import_realm(&self, _realm_id: &str) -> ApiResult<Option<RealmModel>> {
+        todo!()
+    }
+    async fn generate_realm_key(
+        &self,
+        realm_id: &str,
+        key_type: &KeyTypeEnum,
+        key_use: &KeyUseEnum,
+        priority: &Option<i64>,
+        algorithm: &str,
+    ) -> ApiResult<CredentialViewRepresentation> {
+        todo!()
+    }
+
+    async fn load_realm_keys(
+        &self,
+        realm_id: &str,
+    ) -> ApiResult<Vec<CredentialViewRepresentation>> {
         todo!()
     }
 }
