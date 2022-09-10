@@ -19,6 +19,8 @@ pub fn register_apis(api_config: &mut web::ServiceConfig) {
                     .service(realm::delete_realm)
                     .service(realm::export_realm)
                     .service(realm::import_realm)
+                    .service(realm::generate_realm_key)
+                    .service(realm::load_realm_keys)
                     /* Role Api */
                     .service(authz::create_role)
                     .service(authz::update_role)

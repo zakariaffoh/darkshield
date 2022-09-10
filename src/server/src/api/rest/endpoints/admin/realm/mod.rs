@@ -1,4 +1,5 @@
 use crate::context::DarkShieldContext;
+use crypto::keys::{KeyTypeEnum, KeyUseEnum};
 use log;
 use models::entities::realm::{RealmCreateModel, RealmModel, RealmUpdateModel};
 use services::services::realm_service::IRealmService;
@@ -79,4 +80,41 @@ pub async fn import_realm(
     let realm_service: &dyn IRealmService = context.services().resolve_ref();
     log::info!("Importing realm: {}", realm_id.as_str());
     realm_service.export_realm(realm_id.as_str()).await
+}
+
+#[post("/realm/{realm_id}/keys/generate-key")]
+pub async fn generate_realm_key(
+    realm_id: web::Path<String>,
+    key_type: web::Query<KeyTypeEnum>,
+    key_use: web::Query<KeyUseEnum>,
+    priority: web::Query<Option<i64>>,
+    algorithm: web::Query<String>,
+    context: web::Data<DarkShieldContext>,
+) -> impl Responder {
+    let realm_service: &dyn IRealmService = context.services().resolve_ref();
+    log::info!(
+        "Generate realm {} keys with for key_type: {}, key_use: {},",
+        realm_id.as_str(),
+        key_type.to_string(),
+        key_use.to_string()
+    );
+    realm_service
+        .generate_realm_key(
+            realm_id.as_str(),
+            &key_type.0,
+            &key_use.0,
+            &priority.0,
+            &algorithm.0,
+        )
+        .await
+}
+
+#[get("/realm/{realm_id}/realm-keys")]
+pub async fn load_realm_keys(
+    realm_id: web::Path<String>,
+    context: web::Data<DarkShieldContext>,
+) -> impl Responder {
+    let realm_service: &dyn IRealmService = context.services().resolve_ref();
+    log::info!("Loading realm {} keys", realm_id.as_str());
+    realm_service.load_realm_keys(realm_id.as_str()).await
 }
