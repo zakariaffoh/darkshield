@@ -10,7 +10,6 @@ use models::entities::user::UserModel;
 use shaku::Component;
 use shaku::Interface;
 use std::str::FromStr;
-//use std::str::FromStr;
 use std::sync::Arc;
 use store::providers::interfaces::authz_provider::IRoleProvider;
 use store::providers::interfaces::client_provider::IClientProvider;
