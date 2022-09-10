@@ -11,6 +11,19 @@ pub struct AuditableModel {
     pub version: i32,
 }
 
+impl Clone for AuditableModel {
+    fn clone(&self) -> Self {
+        Self {
+            tenant: self.tenant.clone(),
+            created_by: self.created_by.clone(),
+            created_at: self.created_at.clone(),
+            updated_by: self.updated_by.clone(),
+            updated_at: self.updated_at.clone(),
+            version: self.version.clone(),
+        }
+    }
+}
+
 impl AuditableModel {
     pub fn from_creator(tenant: String, created_by: String) -> Option<Self> {
         Some(Self {

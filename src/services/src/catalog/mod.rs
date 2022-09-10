@@ -9,6 +9,7 @@ use crate::services::{
     },
     client_services::{ClientScopeService, ClientService, ProtocolMapperService},
     realm_service::RealmService,
+    user_service::UserService,
 };
 
 use shaku::{module, Component, HasComponent, Interface};
@@ -25,6 +26,7 @@ use store::providers::rds::{
             RdsClientProvider, RdsClientScopeProvider, RdsProtocolMapperProvider,
         },
         rds_realm_provider::RdsRealmProvider,
+        rds_user_provider::RdsUserProvider,
     },
 };
 
@@ -46,6 +48,7 @@ module! {
             RdsScopeProvider,
             RdsResourceServerProvider,
             RdsResourceProvider,
+            RdsUserProvider,
             RealmService,
             RoleService,
             GroupService,
@@ -60,6 +63,7 @@ module! {
             ResourceServerService,
             ScopeService,
             ResourceService,
+            UserService,
         ],
         providers = [],
     }
