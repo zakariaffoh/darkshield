@@ -100,6 +100,22 @@ pub trait IUserService: Interface {
         user_id: &str,
         credential_type: &str,
     ) -> ApiResult<()>;
+
+    async fn send_reset_password_email(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        client_id: &str,
+        redirect_uri: &str,
+    ) -> ApiResult<()>;
+
+    async fn send_verify_email(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        client_id: &str,
+        redirect_uri: &str,
+    ) -> ApiResult<()>;
 }
 
 #[allow(dead_code)]
@@ -348,6 +364,26 @@ impl IUserService for UserService {
         realm_id: &str,
         user_id: &str,
         credential_type: &str,
+    ) -> ApiResult<()> {
+        todo!()
+    }
+
+    async fn send_reset_password_email(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        client_id: &str,
+        redirect_uri: &str,
+    ) -> ApiResult<()> {
+        todo!()
+    }
+
+    async fn send_verify_email(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        client_id: &str,
+        redirect_uri: &str,
     ) -> ApiResult<()> {
         todo!()
     }

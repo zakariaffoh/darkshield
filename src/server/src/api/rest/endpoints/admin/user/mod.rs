@@ -443,3 +443,53 @@ pub async fn move_credential_to_position(
         )
         .await
 }
+
+#[post("/realm/{realm_id}/user/{user_id}/credential/reset-password-email")]
+pub async fn reset_password_email(
+    params: web::Path<(String, String)>,
+    client_id: web::Query<String>,
+    redirect_uri: web::Query<String>,
+    context: web::Data<DarkShieldContext>,
+) -> impl Responder {
+    let user_service: &dyn IUserService = context.services().resolve_ref();
+    let (realm_id, user_id) = params.into_inner();
+    log::info!(
+        "Sending reset password email to user: {}, client_id: {} and realm_id: {}",
+        user_id.as_str(),
+        client_id.as_str(),
+        realm_id.as_str(),
+    );
+    user_service
+        .send_reset_password_email(
+            realm_id.as_str(),
+            user_id.as_str(),
+            client_id.as_str(),
+            redirect_uri.as_str(),
+        )
+        .await
+}
+
+#[post("/realm/{realm_id}/user/{user_id}/credential/send-verify-email")]
+pub async fn send_verify_email(
+    params: web::Path<(String, String)>,
+    client_id: web::Query<String>,
+    redirect_uri: web::Query<String>,
+    context: web::Data<DarkShieldContext>,
+) -> impl Responder {
+    let user_service: &dyn IUserService = context.services().resolve_ref();
+    let (realm_id, user_id) = params.into_inner();
+    log::info!(
+        "Sending verify email to user: {}, client_id: {} and realm_id: {}",
+        user_id.as_str(),
+        client_id.as_str(),
+        realm_id.as_str(),
+    );
+    user_service
+        .send_verify_email(
+            realm_id.as_str(),
+            user_id.as_str(),
+            client_id.as_str(),
+            redirect_uri.as_str(),
+        )
+        .await
+}
