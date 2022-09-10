@@ -5,6 +5,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::auditable::AuditableModel;
 
+const HASH_ALGORITHM_DEFAULT: &str = "pbkdf2-sha256";
+const HASH_ITERATIONS_DEFAULT: u32 = 27500;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PasswordPolicy {
     pub password_policy: String,
@@ -25,6 +28,28 @@ pub struct PasswordPolicy {
     pub hash_iteration: u32,
 }
 
+impl Default for PasswordPolicy {
+    fn default() -> Self {
+        Self {
+            password_policy: Default::default(),
+            not_email: Default::default(),
+            not_username: Default::default(),
+            not_birthdate: Default::default(),
+            black_list_passwords: Default::default(),
+            password_digits: Default::default(),
+            password_min_length: Default::default(),
+            password_expired_after_days: Default::default(),
+            password_max_length: Default::default(),
+            min_upper_case: Default::default(),
+            min_lower_case: Default::default(),
+            regex_pattern: Default::default(),
+            special_chars: Default::default(),
+            history_look_back: Default::default(),
+            hash_algorithm: Some(HASH_ALGORITHM_DEFAULT.to_owned()),
+            hash_iteration: HASH_ITERATIONS_DEFAULT,
+        }
+    }
+}
 #[derive(Debug, Serialize, Deserialize, ToSql, FromSql, PartialEq, Eq, Hash)]
 #[postgres(name = "sslenforcementenum")]
 pub enum SslEnforcementEnum {

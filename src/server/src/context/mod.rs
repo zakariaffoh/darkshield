@@ -1,5 +1,4 @@
 use deadpool_postgres::PoolConfig;
-use dotenv::dotenv;
 use serde::Deserialize;
 use std::{env, time::Duration};
 
