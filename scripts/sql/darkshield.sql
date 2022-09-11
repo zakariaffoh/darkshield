@@ -767,3 +767,82 @@ CREATE INDEX AUTHENTICATION_EXECUTION_REALM_ID_IDX ON AUTHENTICATION_EXECUTION(R
 CREATE INDEX AUTHENTICATION_EXECUTION_FLOW_ID_IDX ON AUTHENTICATION_EXECUTION(FLOW_ID);
 CREATE INDEX AUTHENTICATION_EXECUTION_PARENT_FLOW_ID_IDX ON AUTHENTICATION_EXECUTION(PARENT_FLOW_ID);
 CREATE INDEX AUTHENTICATION_EXECUTION_AUTHENTICATOR_FLOW_IDX ON AUTHENTICATION_EXECUTION(AUTHENTICATOR_FLOW);
+
+
+/***********************************************************************************
+*                            REVOKED_TOKENS Table
+************************************************************************************/
+
+CREATE TABLE IF NOT EXISTS REVOKED_TOKENS
+(
+    ID                                   serial                  PRIMARY KEY,
+    TENANT                               varchar(250)            NOT NULL,
+    REALM_ID                             varchar(250)            NOT NULL,
+    TOKEN_ID                             text,
+    REVOKATION_TIME                      numeric,
+    LIFE_SPAN_IN_SECS                    numeric,
+
+    CONSTRAINT FK_REVOKED_TOKENS_REALM_ID FOREIGN KEY(REALM_ID) REFERENCES REALMS(REALM_ID) ON DELETE CASCADE
+);
+
+DROP INDEX IF EXISTS REVOKED_TOKENS_TOKEN_ID_IDX;
+DROP INDEX IF EXISTS REVOKED_TOKENS_REALM_ID_IDX;
+DROP INDEX IF EXISTS REVOKED_TOKENS_TENANT_IDX;
+
+CREATE INDEX REVOKED_TOKENS_TOKEN_ID_IDX ON REVOKED_TOKENS(REALM_ID);
+CREATE INDEX REVOKED_TOKENS_REALM_ID_IDX ON REVOKED_TOKENS(TOKEN_ID);
+CREATE INDEX REVOKED_TOKENS_TENANT_IDX ON REVOKED_TOKENS(TENANT);
+
+
+/***********************************************************************************
+*                            REVOKED_TOKENS Table
+************************************************************************************/
+
+CREATE TABLE IF NOT EXISTS SINGLE_USE_TOKENS
+(
+    ID                                   serial                  PRIMARY KEY,
+    TENANT                               varchar(250)            NOT NULL,
+    REALM_ID                             varchar(250)            NOT NULL,
+    TOKEN_ID                             text,
+    LIFE_SPAN_IN_SECS                    numeric,
+
+    CONSTRAINT FK_SINGLE_USE_TOKENS_REALM_ID FOREIGN KEY(REALM_ID) REFERENCES REALMS(REALM_ID) ON DELETE CASCADE
+);
+
+DROP INDEX IF EXISTS SINGLE_USE_TOKENS_REALM_ID_IDX;
+DROP INDEX IF EXISTS SINGLE_USE_TOKENS_TOKEN_ID_IDX;
+DROP INDEX IF EXISTS SINGLE_USE_TOKENS_TENANT_IDX;
+
+CREATE INDEX SINGLE_USE_TOKENS_REALM_ID_IDX ON SINGLE_USE_TOKENS(REALM_ID);
+CREATE INDEX SINGLE_USE_TOKENS_TOKEN_ID_IDX ON SINGLE_USE_TOKENS(TOKEN_ID);
+CREATE INDEX SINGLE_USE_TOKENS_TENANT_IDX ON SINGLE_USE_TOKENS(TENANT);
+
+/***********************************************************************************
+*                            USER_LOGIN_FAILURES Table
+************************************************************************************/
+
+CREATE TABLE IF NOT EXISTS USER_LOGIN_FAILURES
+(
+    ID                                   serial                  PRIMARY KEY,
+    TENANT                               varchar(250)            NOT NULL,
+    FAILURE_ID                           varchar(50)             NOT NULL,
+    USER_ID                              varchar(250)            NOT NULL,
+    REALM_ID                             varchar(250)            NOT NULL,
+    FAILED_LOGIN_NOT_BEFORE              numeric,
+    NUM_FAILURE                          integer,
+    LAST_FAILURE                         numeric,
+    LAST_IP_FAILURE                      varchar(20),
+
+    CONSTRAINT FK_USER_LOGIN_FAILURES_REALM_ID FOREIGN KEY(REALM_ID) REFERENCES REALMS(REALM_ID) ON DELETE CASCADE,
+    CONSTRAINT UNIQUE_USER_LOGIN_FAILURES_REALM_ID_USER_ID UNIQUE (REALM_ID, USER_ID)
+);
+
+DROP INDEX IF EXISTS USER_LOGIN_FAILURES_FAILURE_ID_IDX;
+DROP INDEX IF EXISTS USER_LOGIN_FAILURES_USER_ID_IDX;
+DROP INDEX IF EXISTS USER_LOGIN_FAILURES_REALM_ID_IDX;
+DROP INDEX IF EXISTS USER_LOGIN_FAILURES_TENANT_IDX;
+
+CREATE INDEX USER_LOGIN_FAILURES_FAILURE_ID_IDX ON USER_LOGIN_FAILURES(FAILURE_ID);
+CREATE INDEX USER_LOGIN_FAILURES_USER_ID_IDX ON USER_LOGIN_FAILURES(USER_ID);
+CREATE INDEX USER_LOGIN_FAILURES_REALM_ID_IDX ON USER_LOGIN_FAILURES(REALM_ID);
+CREATE INDEX USER_LOGIN_FAILURES_TENANT_IDX ON USER_LOGIN_FAILURES(TENANT);

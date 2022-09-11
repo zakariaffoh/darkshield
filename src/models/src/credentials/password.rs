@@ -89,7 +89,7 @@ impl PasswordHashProvider for Pbkdf2PasswordHashProvider {
 pub struct PasswordHashFactory;
 
 impl PasswordHashFactory {
-    fn hash_algorithm(algorithm: &str) -> Result<Box<dyn PasswordHashProvider>, String> {
+    pub fn hash_algorithm(algorithm: &str) -> Result<Box<dyn PasswordHashProvider>, String> {
         match algorithm {
             "pbkdf2-sha224" => Ok(Box::new(Pbkdf2PasswordHashProvider::pbkd2_from_algorithm(
                 PBKDF2AlgorithmEnum::Pbkdf2HmacSha224.to_string().as_str(),
