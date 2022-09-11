@@ -1,12 +1,14 @@
 use std::collections::{HashMap, HashSet};
 
+use postgres_types::{FromSql, ToSql};
 use serde::{Deserialize, Serialize};
 
 use crate::entities::{
     auth::RequiredActionEnum, client::ClientModel, realm::RealmModel, user::UserModel,
 };
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSql, FromSql, PartialEq, Eq, Hash)]
+#[postgres(name = "usersessionstateenum")]
 pub enum UserSessionStateEnum {
     LoggedIn,
     LoggedOut,
@@ -419,10 +421,10 @@ impl ToString for AuthExecutionStatusEnum {
 }
 
 pub struct RootAuthenticationSessionModel {
-    tenant: String,
-    session_id: String,
-    realm_id: String,
-    timestamp: f32,
+    pub tenant: String,
+    pub session_id: String,
+    pub realm_id: String,
+    pub timestamp: f32,
 }
 
 type AuthenticationSessions = HashMap<String, AuthenticationSession>;
@@ -504,22 +506,22 @@ impl RootAuthenticationSession {
     }*/
 }
 pub struct AuthenticationSessionModel {
-    tenant: String,
-    tab_id: String,
-    auth_user_id: Option<String>,
-    realm_id: String,
-    root_session_id: Option<String>,
-    client_id: Option<String>,
-    redirect_uri: Option<String>,
-    client_scopes: Option<HashSet<String>>,
-    timestamp: f32,
-    action: Option<String>,
-    protocol: Option<String>,
-    execution_status: Option<HashMap<String, AuthExecutionStatusEnum>>,
-    client_notes: Option<HashMap<String, String>>,
-    auth_notes: Option<HashMap<String, String>>,
-    required_actions: Option<HashSet<RequiredActionEnum>>,
-    user_session_notes: Option<HashMap<String, String>>,
+    pub tenant: String,
+    pub tab_id: String,
+    pub auth_user_id: Option<String>,
+    pub realm_id: String,
+    pub root_session_id: Option<String>,
+    pub client_id: Option<String>,
+    pub redirect_uri: Option<String>,
+    pub client_scopes: Option<HashSet<String>>,
+    pub timestamp: f32,
+    pub action: Option<String>,
+    pub protocol: Option<String>,
+    pub execution_status: Option<HashMap<String, AuthExecutionStatusEnum>>,
+    pub client_notes: Option<HashMap<String, String>>,
+    pub auth_notes: Option<HashMap<String, String>>,
+    pub required_actions: Option<HashSet<RequiredActionEnum>>,
+    pub user_session_notes: Option<HashMap<String, String>>,
 }
 
 pub struct AuthenticationSession {

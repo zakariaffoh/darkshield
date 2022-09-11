@@ -223,7 +223,7 @@ impl IRevokedTokenStoreProvider for RdsRevokedTokenStoreProvider {
                 log::error!("Failed to create single use token. Error: {}", err);
                 Err(err.to_string())
             }
-            Ok(_) => Ok(()),
+            _ => Ok(()),
         }
     }
 

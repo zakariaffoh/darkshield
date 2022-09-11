@@ -10,7 +10,7 @@ lazy_static! {
             "session_id".to_owned(),
             "timestamp".to_owned()
         ],
-        update_columns: vec![]
+        update_columns: vec!["timestamp".to_owned()]
     };
     pub static ref AUTH_SESSIONS_TABLE: RdsTable = RdsTable {
         table_name: "AUTH_SESSIONS".to_owned(),
@@ -57,7 +57,7 @@ lazy_static! {
             "user_session_id".to_owned(),
             "client_id".to_owned(),
             "auth_method".to_owned(),
-            "redirect_url".to_owned(),
+            "redirect_uri".to_owned(),
             "action".to_owned(),
             "started_at".to_owned(),
             "expiration".to_owned(),
@@ -68,7 +68,7 @@ lazy_static! {
         ],
         update_columns: vec![
             "auth_method".to_owned(),
-            "redirect_url".to_owned(),
+            "redirect_uri".to_owned(),
             "action".to_owned(),
             "started_at".to_owned(),
             "expiration".to_owned(),
