@@ -22,6 +22,11 @@ pub trait IClientService: Interface {
     async fn update_client(&self, realm: ClientModel) -> ApiResult<()>;
     async fn delete_client(&self, realm_id: &str, client_id: &str) -> ApiResult<()>;
     async fn load_client_by_id(&self, realm_id: &str, client_id: &str) -> ApiResult<ClientModel>;
+    async fn load_client_by_ids(
+        &self,
+        realm_id: &str,
+        client_ids: &Vec<String>,
+    ) -> ApiResult<Vec<ClientModel>>;
     async fn load_clients_by_realm(&self, realm_id: &str) -> ApiResult<Vec<ClientModel>>;
     async fn count_clients_by_realm(&self, realm_id: &str) -> ApiResult<i64>;
     async fn load_client_roles_mapping(
@@ -129,8 +134,8 @@ impl IClientService for ClientService {
         client.metadata = AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
         let created_client = self.client_provider.create_client(&client).await;
         match created_client {
-            Ok(_) => ApiResult::Data(client),
             Err(_) => ApiResult::from_error(500, "500", "failed to create client"),
+            _ => ApiResult::Data(client),
         }
     }
     async fn update_client(&self, client: ClientModel) -> ApiResult<()> {
@@ -186,6 +191,34 @@ impl IClientService for ClientService {
         match loaded_client {
             Ok(client_record) => ApiResult::<ClientModel>::from_option(client_record),
             Err(err) => ApiResult::from_error(500, "500", &err),
+        }
+    }
+    async fn load_client_by_ids(
+        &self,
+        realm_id: &str,
+        client_ids: &Vec<String>,
+    ) -> ApiResult<Vec<ClientModel>> {
+        let loaded_clients = self
+            .client_provider
+            .load_client_by_client_ids(&realm_id, &client_ids)
+            .await;
+        match loaded_clients {
+            Ok(clients) => {
+                log::info!(
+                    "[{}] clients loaded for realm: {}",
+                    clients.len(),
+                    &realm_id
+                );
+                if clients.is_empty() {
+                    ApiResult::no_content()
+                } else {
+                    ApiResult::from_data(clients)
+                }
+            }
+            Err(err) => {
+                log::error!("Failed to load clients from realm: {}", &realm_id);
+                ApiResult::from_error(500, "500", &err)
+            }
         }
     }
 

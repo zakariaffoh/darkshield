@@ -1261,6 +1261,38 @@ impl IClientProvider for RdsClientProvider {
         }
     }
 
+    async fn load_client_by_client_ids(
+        &self,
+        realm_id: &str,
+        client_ids: &Vec<String>,
+    ) -> Result<Vec<ClientModel>, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let load_protocol_mapper_sql = SelectRequestBuilder::new()
+            .table_name(client_tables::CLIENTS_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_in("realm_id".to_string(), client_ids.len() as u16),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let client = client.unwrap();
+        let load_protocol_mapper_stmt = client
+            .prepare_cached(&load_protocol_mapper_sql)
+            .await
+            .unwrap();
+        let result = client
+            .query(&load_protocol_mapper_stmt, &[&realm_id, &client_ids])
+            .await;
+        match result {
+            Ok(rows) => Ok(rows.into_iter().map(|row| self.read_record(&row)).collect()),
+            Err(err) => Err(err.to_string()),
+        }
+    }
+
     async fn load_clients_by_realm_id(&self, realm_id: &str) -> Result<Vec<ClientModel>, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {

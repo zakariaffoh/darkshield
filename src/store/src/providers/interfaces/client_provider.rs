@@ -29,6 +29,12 @@ pub trait IClientProvider: Interface {
         client_id: &str,
     ) -> Result<Option<ClientModel>, String>;
 
+    async fn load_client_by_client_ids(
+        &self,
+        realm_id: &str,
+        client_id: &Vec<String>,
+    ) -> Result<Vec<ClientModel>, String>;
+
     async fn load_clients_by_realm_id(&self, realm_id: &str) -> Result<Vec<ClientModel>, String>;
 
     async fn client_exists_by_client_id(
