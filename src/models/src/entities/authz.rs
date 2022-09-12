@@ -76,6 +76,13 @@ impl Into<GroupModel> for GroupMutationModel {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct GroupPagingResult {
+    pub page_size: i64,
+    pub page_count: i64,
+    pub groups: Vec<GroupModel>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct IdentityProviderModel {
     pub internal_id: String,
     pub provider_id: String,
