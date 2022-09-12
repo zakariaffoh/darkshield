@@ -3,14 +3,20 @@ use serde::Serialize;
 
 #[derive(Serialize, Debug)]
 pub struct ErrorMessage {
-    error_code: String,
-    message: String,
+    pub error_code: String,
+    pub message: String,
 }
 
 #[derive(Serialize, Debug)]
 pub struct ApiError {
     error: ErrorMessage,
     status_code: u16,
+}
+
+impl ToString for ApiError {
+    fn to_string(&self) -> String {
+        serde_json::to_string(&self).unwrap()
+    }
 }
 
 #[allow(unused)]

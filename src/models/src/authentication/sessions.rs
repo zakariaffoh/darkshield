@@ -1,11 +1,13 @@
-use std::collections::{HashMap, HashSet};
-
-use postgres_types::{FromSql, ToSql};
-use serde::{Deserialize, Serialize};
-
 use crate::entities::{
     auth::RequiredActionEnum, client::ClientModel, realm::RealmModel, user::UserModel,
 };
+use async_trait::async_trait;
+use futures::lock::Mutex;
+use postgres_types::{FromSql, ToSql};
+use serde::{Deserialize, Serialize};
+use std::borrow::Borrow;
+use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 #[derive(Debug, Serialize, Deserialize, ToSql, FromSql, PartialEq, Eq, Hash)]
 #[postgres(name = "usersessionstateenum")]
@@ -46,12 +48,12 @@ pub struct UserSessionModel {
     pub notes: Option<HashMap<String, String>>,
 }
 
-type ClientSessions = HashMap<String, Box<AuthenticatedClientSession>>;
+type ClientSessions = HashMap<String, Arc<Mutex<AuthenticatedClientSession>>>;
 pub struct UserSession {
-    pub realm: RealmModel,
+    pub realm: Arc<RealmModel>,
     pub session_model: UserSessionModel,
     pub user_id: String,
-    pub user: Option<UserModel>,
+    pub user: Option<Arc<UserModel>>,
     pub remember_me: Option<bool>,
     pub authenticated_client_sessions: ClientSessions,
 }
@@ -81,7 +83,7 @@ impl UserSession {
         &self.session_model.user_id
     }
 
-    pub fn realm(&self) -> &RealmModel {
+    pub fn realm(&self) -> &Arc<RealmModel> {
         &self.realm
     }
 
@@ -152,7 +154,7 @@ impl UserSession {
     pub fn client_session_by_client(
         self,
         client_id: &str,
-    ) -> Option<&Box<AuthenticatedClientSession>> {
+    ) -> Option<&Arc<AuthenticatedClientSession>> {
         /*let client_session = self.authenticated_client_sessions.get(client_id);
         match client_session {
             None => None,
@@ -234,26 +236,26 @@ pub struct ClientSessionModel {
 }
 
 pub struct AuthenticatedClientSession {
-    realm: RealmModel,
-    client: ClientModel,
+    realm: Arc<RealmModel>,
+    client: Arc<ClientModel>,
     session_model: ClientSessionModel,
-    user_session: UserSession,
+    user_session: Arc<UserSession>,
     offline: bool,
 }
 
 impl AuthenticatedClientSession {
     pub fn new(
-        realm: RealmModel,
-        client: ClientModel,
+        realm: &Arc<RealmModel>,
+        client: &Arc<ClientModel>,
         session_model: ClientSessionModel,
-        user_session: UserSession,
+        user_session: &Arc<UserSession>,
         offline: bool,
     ) -> Self {
         Self {
-            realm,
-            client,
-            session_model,
-            user_session,
+            realm: Arc::clone(realm),
+            client: Arc::clone(client),
+            session_model: session_model,
+            user_session: Arc::clone(user_session),
             offline,
         }
     }
@@ -274,11 +276,11 @@ impl AuthenticatedClientSession {
         self.session_model.started_at = started_at;
     }
 
-    pub fn realm(&self) -> &RealmModel {
+    pub fn realm(&self) -> &Arc<RealmModel> {
         &self.realm
     }
 
-    pub fn client(&self) -> &ClientModel {
+    pub fn client(&self) -> &Arc<ClientModel> {
         &self.client
     }
 
@@ -337,12 +339,12 @@ impl AuthenticatedClientSession {
         &self.session_model.offline
     }
 
-    pub fn user_session(&self) -> &UserSession {
+    pub fn user_session(&self) -> &Arc<UserSession> {
         &self.user_session
     }
 
-    pub fn set_user_session(&mut self, user_session: UserSession) {
-        self.user_session = user_session
+    pub fn set_user_session(&mut self, user_session: Arc<UserSession>) {
+        self.user_session = user_session;
     }
 
     pub fn refresh_token(&mut self) -> &Option<String> {
@@ -424,15 +426,24 @@ pub struct RootAuthenticationSessionModel {
     pub tenant: String,
     pub session_id: String,
     pub realm_id: String,
-    pub timestamp: f32,
+    pub timestamp: i64,
 }
 
-type AuthenticationSessions = HashMap<String, AuthenticationSession>;
+type AuthenticationSessions = HashMap<String, Arc<Mutex<AuthenticationSession>>>;
 pub struct RootAuthenticationSession {
-    realm: RealmModel,
-    timestamp: f32,
-    session_model: RootAuthenticationSessionModel,
-    auth_sessions: AuthenticationSessions,
+    pub realm: Arc<RealmModel>,
+    pub timestamp: i64,
+    pub session_model: RootAuthenticationSessionModel,
+    pub auth_sessions: AuthenticationSessions,
+}
+
+#[async_trait]
+pub trait AuthenticationSessionByTab {
+    async fn get_authentication_session(
+        &mut self,
+        client: &Arc<ClientModel>,
+        tab_id: &str,
+    ) -> Option<Arc<Mutex<AuthenticationSession>>>;
 }
 
 impl RootAuthenticationSession {
@@ -444,15 +455,15 @@ impl RootAuthenticationSession {
         &self.session_model.session_id
     }
 
-    pub fn realm(&self) -> &RealmModel {
+    pub fn realm(&self) -> &Arc<RealmModel> {
         &self.realm
     }
 
-    pub fn timestamp(&self) -> &f32 {
-        &self.session_model.timestamp
+    pub fn timestamp(&self) -> i64 {
+        self.session_model.timestamp
     }
 
-    pub fn set_timestamp(&mut self, timestamp: f32) {
+    pub fn set_timestamp(&mut self, timestamp: i64) {
         self.session_model.timestamp = timestamp;
     }
 
@@ -474,8 +485,10 @@ impl RootAuthenticationSession {
         if self.auth_sessions.is_empty() {
             self.auth_sessions = AuthenticationSessions::new();
         }
-        self.auth_sessions
-            .insert(auth_session.tab_id().to_string(), auth_session);
+        self.auth_sessions.insert(
+            auth_session.tab_id().to_string(),
+            Arc::new(Mutex::new(auth_session)),
+        );
     }
 
     pub fn remove_authentication_session_by_tab_id(&mut self, tab_id: &str) {
@@ -483,28 +496,30 @@ impl RootAuthenticationSession {
             self.auth_sessions.remove(tab_id);
         }
     }
+}
 
-    /*pub fn authentication_session(
+#[async_trait]
+impl AuthenticationSessionByTab for RootAuthenticationSession {
+    async fn get_authentication_session(
         &mut self,
-        client: ClientModel,
+        client: &Arc<ClientModel>,
         tab_id: &str,
-    ) -> Option<AuthenticationSession> {
+    ) -> Option<Arc<Mutex<AuthenticationSession>>> {
         let auth_session = self.auth_sessions.get(tab_id);
         match auth_session {
             None => None,
-            Some(auth) => match auth.client {
-                None => None,
-                Some(ref session_client) => {
-                    if session_client.client_id.eq(&client.client_id) {
-                        Some(auth)
-                    } else {
-                        None
-                    }
+            Some(auth) => {
+                let auth_session_model = auth.lock().await;
+                if client.client_id == auth_session_model.client().as_ref().unwrap().client_id {
+                    Some(auth.clone())
+                } else {
+                    None
                 }
-            },
+            }
         }
-    }*/
+    }
 }
+
 pub struct AuthenticationSessionModel {
     pub tenant: String,
     pub tab_id: String,
@@ -525,10 +540,10 @@ pub struct AuthenticationSessionModel {
 }
 
 pub struct AuthenticationSession {
-    parent_session: RootAuthenticationSession,
+    parent_session: Option<Arc<RootAuthenticationSession>>,
     session_model: AuthenticationSessionModel,
-    client: Option<ClientModel>,
-    user: Option<UserModel>,
+    client: Option<Arc<ClientModel>>,
+    user: Option<Arc<UserModel>>,
 }
 
 impl AuthenticationSession {
@@ -540,31 +555,35 @@ impl AuthenticationSession {
         &self.session_model.tab_id
     }
 
-    pub fn client(&self) -> &Option<ClientModel> {
+    pub fn client(&self) -> &Option<Arc<ClientModel>> {
         &self.client
     }
 
-    pub fn set_client(&mut self, client: ClientModel) {
-        self.client = Some(client);
+    pub fn set_client(&mut self, client_model: &Arc<ClientModel>) {
+        self.client = Some(Arc::clone(client_model));
     }
 
-    pub fn parent_session(&self) -> &RootAuthenticationSession {
+    pub fn parent_session(&self) -> &Option<Arc<RootAuthenticationSession>> {
         &self.parent_session
     }
 
-    pub fn set_parent_session(&mut self, parent_session: RootAuthenticationSession) {
-        self.parent_session = parent_session;
+    pub fn set_parent_session(&mut self, parent_session: Arc<RootAuthenticationSession>) {
+        self.parent_session = Some(parent_session);
     }
 
-    pub fn update_authenticated_user(&mut self, authenticated_user: Option<UserModel>) {
-        self.user = authenticated_user;
-    }
-
-    pub fn set_authenticated_user(&mut self, authenticated_user: &Option<UserModel>) {
-        if let Some(auth) = authenticated_user {
-            self.session_model.auth_user_id = Some(auth.user_id.clone());
+    pub fn update_authenticated_user(&mut self, authenticated_user: &Option<Arc<UserModel>>) {
+        if let Some(auth_client) = authenticated_user {
+            self.user = Some(Arc::clone(auth_client));
+        } else {
+            self.user = None;
         }
-        self.user = None
+    }
+
+    pub fn set_authenticated_user(&mut self, authenticated_user: &Option<Arc<UserModel>>) {
+        if let Some(auth_client) = authenticated_user {
+            self.session_model.auth_user_id = Some(auth_client.user_id.clone());
+        }
+        self.user = None;
     }
 
     pub fn required_actions(&self) -> &Option<HashSet<RequiredActionEnum>> {
@@ -797,9 +816,20 @@ impl AuthenticationSessionCompoundId {
 
     pub fn from_auth_session(session: &AuthenticationSession) -> Self {
         Self::new(
-            session.parent_session.session_id(),
+            session
+                .parent_session
+                .as_ref()
+                .unwrap()
+                .session_id()
+                .clone(),
             session.tab_id(),
-            &session.client().as_ref().unwrap().client_id.to_owned(),
+            &session
+                .client()
+                .borrow()
+                .as_ref()
+                .unwrap()
+                .client_id
+                .to_owned(),
         )
     }
 

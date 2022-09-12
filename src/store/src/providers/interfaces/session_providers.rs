@@ -6,12 +6,12 @@ use shaku::Interface;
 pub trait IRootAuthenticationSessionProvider: Interface {
     async fn create_root_authentication_session(
         &self,
-        root_session: &RootAuthenticationSession,
+        root_session: &RootAuthenticationSessionModel,
     ) -> Result<(), String>;
 
     async fn update_root_authentication_session(
         &self,
-        root_session: &RootAuthenticationSession,
+        root_session: &RootAuthenticationSessionModel,
     ) -> Result<(), String>;
 
     async fn load_root_authentication_session(

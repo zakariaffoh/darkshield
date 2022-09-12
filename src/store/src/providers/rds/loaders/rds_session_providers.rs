@@ -49,7 +49,7 @@ impl RdsRootAuthenticationSessionProvider {
 impl IRootAuthenticationSessionProvider for RdsRootAuthenticationSessionProvider {
     async fn create_root_authentication_session(
         &self,
-        root_session: &RootAuthenticationSession,
+        root_session_model: &RootAuthenticationSessionModel,
     ) -> Result<(), String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
@@ -75,10 +75,10 @@ impl IRootAuthenticationSessionProvider for RdsRootAuthenticationSessionProvider
             .execute(
                 &create_root_authentication_session_stmt,
                 &[
-                    &root_session.session_model().tenant,
-                    &root_session.session_model().realm_id,
-                    &root_session.session_model().session_id,
-                    &root_session.session_model().timestamp,
+                    &root_session_model.tenant,
+                    &root_session_model.realm_id,
+                    &root_session_model.session_id,
+                    &root_session_model.timestamp,
                 ],
             )
             .await;
@@ -96,7 +96,7 @@ impl IRootAuthenticationSessionProvider for RdsRootAuthenticationSessionProvider
 
     async fn update_root_authentication_session(
         &self,
-        root_session: &RootAuthenticationSession,
+        root_session_model: &RootAuthenticationSessionModel,
     ) -> Result<(), String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
@@ -128,10 +128,10 @@ impl IRootAuthenticationSessionProvider for RdsRootAuthenticationSessionProvider
             .execute(
                 &update_root_authentication_session_stmt,
                 &[
-                    &root_session.session_model().timestamp,
-                    &root_session.session_model().tenant,
-                    &root_session.session_model().realm_id,
-                    &root_session.session_model().session_id,
+                    &root_session_model.timestamp,
+                    &root_session_model.tenant,
+                    &root_session_model.realm_id,
+                    &root_session_model.session_id,
                 ],
             )
             .await;

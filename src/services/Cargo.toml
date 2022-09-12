@@ -12,6 +12,8 @@ crypto = { path = "../crypto", version = "0.1.0" }
 shaku = "0.6.1"
 async-trait = "0.1.57"
 log = "0.4.17"
+chrono = "0.4.22"
+futures="0.3.24"
 [dependencies.uuid]
 version = "1.1.2"
 features = [
