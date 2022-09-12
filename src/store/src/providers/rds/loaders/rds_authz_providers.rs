@@ -1,7 +1,10 @@
 use crate::providers::{
     core::builder::*,
     interfaces::authz_provider::*,
-    rds::{client::postgres_client::IDataBaseManager, tables::authz_tables},
+    rds::{
+        client::postgres_client::IDataBaseManager,
+        tables::{authz_tables, user_table},
+    },
 };
 use async_trait::async_trait;
 use deadpool_postgres::Object;
@@ -444,6 +447,27 @@ impl IRoleProvider for RdsRoleProvider {
             Err(err) => Err(err.to_string()),
         }
     }
+
+    async fn load_user_roles(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+    ) -> Result<Vec<RoleModel>, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let client = client.unwrap();
+        let load_roles_stmt = client
+            .prepare_cached(&user_table::SELECT_USER_ROLES_BY_USER_ID)
+            .await
+            .unwrap();
+        let result = client.query(&load_roles_stmt, &[&realm_id, &user_id]).await;
+        match result {
+            Ok(rows) => Ok(rows.iter().map(|row| self.read_record(&row)).collect()),
+            Err(err) => Err(err.to_string()),
+        }
+    }
 }
 
 #[derive(Component)]
@@ -849,6 +873,101 @@ impl IGroupProvider for RdsGroupProvider {
                     Err("Failed to remove role from group".to_string())
                 }
             }
+        }
+    }
+
+    async fn load_user_groups(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+    ) -> Result<Vec<GroupModel>, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let client = client.unwrap();
+        let load_user_groups_stmt = client
+            .prepare_cached(&user_table::SELECT_USER_GROUPS_BY_USER_ID)
+            .await
+            .unwrap();
+        let result = client
+            .query(&load_user_groups_stmt, &[&realm_id, &user_id])
+            .await;
+        match result {
+            Ok(rows) => {
+                let mut groups = Vec::new();
+                for r in rows {
+                    let roles_records = self
+                        .read_group_roles(&client, realm_id, &r.get::<&str, &str>("group_id"))
+                        .await;
+                    if roles_records.is_ok() {
+                        groups.push(self.read_record(r, roles_records.unwrap()));
+                    } else {
+                        return Err(roles_records.err().unwrap());
+                    }
+                }
+                Ok(groups)
+            }
+            Err(err) => Err(err.to_string()),
+        }
+    }
+
+    async fn load_user_groups_paging(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        page_size: i32,
+        page_index: i32,
+    ) -> Result<GroupPagingResult, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let client = client.unwrap();
+        let load_user_count_stmt = client
+            .prepare_cached(&user_table::SELECT_USER_GROUPS_COUNT_BY_USER_ID_PAGING)
+            .await
+            .unwrap();
+        let count_result = client
+            .query_one(&load_user_count_stmt, &[&realm_id, &user_id])
+            .await;
+        if let Err(err) = count_result {
+            return Err(err.to_string());
+        }
+        let total_groups = count_result.unwrap().get::<usize, i64>(0);
+        let page_offset = page_index * page_size;
+        let load_user_groups_stmt = client
+            .prepare_cached(&user_table::SELECT_USER_GROUPS_BY_USER_ID_PAGING)
+            .await
+            .unwrap();
+        let result = client
+            .query(
+                &load_user_groups_stmt,
+                &[&realm_id, &user_id, &page_offset, &page_size],
+            )
+            .await;
+
+        match result {
+            Ok(rows) => {
+                let mut groups = Vec::new();
+                for r in rows {
+                    let roles_records = self
+                        .read_group_roles(&client, realm_id, &r.get::<&str, &str>("group_id"))
+                        .await;
+                    if roles_records.is_ok() {
+                        groups.push(self.read_record(r, roles_records.unwrap()));
+                    } else {
+                        return Err(roles_records.err().unwrap());
+                    }
+                }
+                Ok(GroupPagingResult {
+                    page_size: page_size as i64,
+                    page_index: page_index as i64,
+                    total_count: total_groups,
+                    groups: groups,
+                })
+            }
+            Err(err) => Err(err.to_string()),
         }
     }
 }

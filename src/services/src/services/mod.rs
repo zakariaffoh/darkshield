@@ -5,4 +5,4 @@ pub mod health_check;
 pub mod realm_service;
 pub mod sessions_services;
 pub mod tokens_services;
-pub mod user_service;
+pub mod user_services;

@@ -1,6 +1,7 @@
-/*use async_trait::async_trait;
+use async_trait::async_trait;
 use commons::ApiResult;
 use models::entities::authz::GroupModel;
+use models::entities::authz::GroupPagingResult;
 use models::entities::authz::RoleModel;
 use models::entities::credentials::CredentialRepresentation;
 use models::entities::user::UserModel;
@@ -12,12 +13,11 @@ use store::providers::interfaces::authz_provider::IGroupProvider;
 use store::providers::interfaces::realm_provider::IRealmProvider;
 use store::providers::interfaces::user_provider::IUserProvider;
 
-use models::entities::realm::RealmModel;
 use store::providers::interfaces::authz_provider::IRoleProvider;
 
 #[async_trait]
 pub trait IUserService: Interface {
-    async fn create_user(&self, realm: UserModel) -> ApiResult<RealmModel>;
+    async fn create_user(&self, realm: UserModel) -> ApiResult<UserModel>;
     async fn udpate_user(&self, realm: UserModel) -> ApiResult<()>;
     async fn delete_user(&self, realm_id: &str, user_id: &str) -> ApiResult<()>;
     async fn load_user(&self, realm_id: &str, user_id: &str) -> ApiResult<UserModel>;
@@ -42,80 +42,9 @@ pub trait IUserService: Interface {
         &self,
         realm_id: &str,
         user_id: &str,
-        page_index: i64,
-        page_size: i64,
-    ) -> ApiResult<Vec<GroupModel>>;
-
-    async fn user_disable_credential_type(
-        &self,
-        realm_id: &str,
-        user_id: &str,
-        credential_type: &str,
-    ) -> ApiResult<()>;
-
-    async fn load_user_credentials(&self, realm_id: &str, user_id: &str) -> ApiResult<()>;
-
-    async fn load_user_consents(&self, realm_id: &str, user_id: &str) -> ApiResult<()>;
-
-    async fn revoke_user_consent_for_client(
-        &self,
-        realm_id: &str,
-        user_id: &str,
-        client_id: &str,
-    ) -> ApiResult<()>;
-
-    async fn impersonate_user(
-        &self,
-        realm_id: &str,
-        user_id: &str,
-        client_id: &str,
-        scope: &str,
-    ) -> ApiResult<()>;
-
-    async fn move_credential_to_position(
-        &self,
-        realm_id: &str,
-        user_id: &str,
-        credential_id: &str,
-        previous_credential_id: &str,
-    ) -> ApiResult<()>;
-
-    async fn move_credential_to_first(
-        &self,
-        realm_id: &str,
-        user_id: &str,
-        credential_id: &str,
-    ) -> ApiResult<()>;
-
-    async fn reset_user_password(
-        &self,
-        realm_id: &str,
-        user_id: &str,
-        password: &CredentialRepresentation,
-    ) -> ApiResult<()>;
-
-    async fn disable_credential_type(
-        &self,
-        realm_id: &str,
-        user_id: &str,
-        credential_type: &str,
-    ) -> ApiResult<()>;
-
-    async fn send_reset_password_email(
-        &self,
-        realm_id: &str,
-        user_id: &str,
-        client_id: &str,
-        redirect_uri: &str,
-    ) -> ApiResult<()>;
-
-    async fn send_verify_email(
-        &self,
-        realm_id: &str,
-        user_id: &str,
-        client_id: &str,
-        redirect_uri: &str,
-    ) -> ApiResult<()>;
+        page_size: i32,
+        page_index: i32,
+    ) -> ApiResult<GroupPagingResult>;
 }
 
 #[allow(dead_code)]
@@ -140,7 +69,7 @@ pub struct UserService {
 
 #[async_trait]
 impl IUserService for UserService {
-    async fn create_user(&self, user: UserModel) -> ApiResult<RealmModel> {
+    async fn create_user(&self, realm: UserModel) -> ApiResult<UserModel> {
         /*let realm_model = self.realm_provider.load_realm(&user.realm_id).await;
         match realm_model {
             Ok(realm) => {
@@ -226,71 +155,15 @@ impl IUserService for UserService {
         credential_input = UserCredentialModel::new();*/
         todo!()
     }
-
-    async fn udpate_user(&self, user: UserModel) -> ApiResult<()> {
+    async fn udpate_user(&self, realm: UserModel) -> ApiResult<()> {
+        todo!()
+    }
+    async fn delete_user(&self, realm_id: &str, user_id: &str) -> ApiResult<()> {
         todo!()
     }
 
-    async fn delete_user(&self, realm_id: &str, user_id: &str) -> ApiResult<()> {
-        let loaded_user = self
-            .user_provider
-            .delete_user_by_user_id(realm_id, user_id)
-            .await;
-        match loaded_user {
-            Ok(user) => ApiResult::<UserModel>::from_option(user),
-            Err(err) => ApiResult::from_error(500, "500", &err),
-        }
-    }
-
     async fn load_user(&self, realm_id: &str, user_id: &str) -> ApiResult<UserModel> {
-        let loaded_user = self.user_provider.load_user_by_id(&realm_id).await;
-        match loaded_user {
-            Ok(user) => ApiResult::<UserModel>::from_option(mappers),
-            Err(err) => ApiResult::from_error(500, "500", &err),
-        }
-    }
-
-    async fn load_user_by_email(&self, realm_id: &str, email: &str) -> ApiResult<UserModel> {
-        let loaded_user = self.user_provider.load_user_by_email(realm_id, email).await;
-        match loaded_user {
-            Ok(user) => ApiResult::<UserModel>::from_option(user),
-            Err(err) => ApiResult::from_error(500, "500", &err),
-        }
-    }
-
-    async fn load_user_by_user_name(
-        &self,
-        realm_id: &str,
-        user_name: &str,
-    ) -> ApiResult<UserModel> {
-        let loaded_user = self
-            .user_provider
-            .load_user_by_user_name(realm_id, user_name)
-            .await;
-        match loaded_user {
-            Ok(user) => ApiResult::<UserModel>::from_option(user),
-            Err(err) => ApiResult::from_error(500, "500", &err),
-        }
-    }
-
-    async fn load_user_by_user_name_or_email(
-        &self,
-        realm_id: &str,
-        user_name: &str,
-        email: &str,
-    ) -> ApiResult<UserModel> {
-        let loaded_user = self
-            .user_provider
-            .load_user_by_user_name_or_email(realm_id, user_name, email)
-            .await;
-        match loaded_user {
-            Ok(user) => ApiResult::<UserModel>::from_option(user),
-            Err(err) => ApiResult::from_error(500, "500", &err),
-        }
-    }
-
-    async fn user_has_role(&self, realm_id: &str, role_name: &str) -> ApiResult<bool> {
-        let has_role = self.user_provider.user_has_role(realm_id, user_name).await;
+        let loaded_user = self.user_provider.load_user_by_id(&realm_id, user_id).await;
         match loaded_user {
             Ok(user) => ApiResult::<UserModel>::from_option(user),
             Err(err) => ApiResult::from_error(500, "500", &err),
@@ -385,9 +258,9 @@ impl IUserService for UserService {
         }
     }
 
-    async fn load_user_roles(&self, realm_id: &str, user_id: &str) -> ApiResult<Vec<RoleModel>> {
+    async fn load_user_roles(&self, realm_id: &str, role_id: &str) -> ApiResult<Vec<RoleModel>> {
         let loaded_roles = self
-            .user_provider
+            .role_provider
             .load_user_roles(&realm_id, &user_id)
             .await;
         match loaded_roles {
@@ -490,7 +363,7 @@ impl IUserService for UserService {
 
     async fn load_user_groups(&self, realm_id: &str, user_id: &str) -> ApiResult<Vec<GroupModel>> {
         let loaded_groups = self
-            .user_provider
+            .group_provider
             .load_user_groups(&realm_id, &user_id)
             .await;
         match loaded_groups {
@@ -521,7 +394,7 @@ impl IUserService for UserService {
     async fn user_count_groups(&self, realm_id: &str, user_id: &str) -> ApiResult<i64> {
         let response = self
             .user_provider
-            .user_count_groups(&realm_id, user_id, &user_id)
+            .user_count_groups(&realm_id, &user_id)
             .await;
         match response {
             Ok(count) => ApiResult::from_data(count),
@@ -541,18 +414,18 @@ impl IUserService for UserService {
         &self,
         realm_id: &str,
         user_id: &str,
-        page_index: i64,
-        page_size: i64,
+        page_size: i32,
+        page_index: i32,
     ) -> ApiResult<GroupPagingResult> {
         let loaded_groups = self
             .group_provider
-            .load_user_groups_paging(&realm_id, &user_id)
+            .load_user_groups_paging(&realm_id, &user_id, &page_size, &page_index)
             .await;
         match loaded_groups {
-            Ok(groups) => {
+            Ok(groups_paging) => {
                 log::info!(
                     "[{}] groups: loaded for user {} realm: {}",
-                    roles.len(),
+                    groups_paging.groups.len(),
                     &user_id,
                     &realm_id
                 );
@@ -572,15 +445,97 @@ impl IUserService for UserService {
             }
         }
     }
+}
 
+#[async_trait]
+pub trait IUserActionService: Interface {
+    async fn send_reset_password_email(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        client_id: &str,
+        redirect_uri: &str,
+    ) -> ApiResult<()>;
+
+    async fn send_verify_email(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        client_id: &str,
+        redirect_uri: &str,
+    ) -> ApiResult<()>;
+}
+
+#[allow(dead_code)]
+#[derive(Component)]
+#[shaku(interface = IUserActionService)]
+pub struct UserActionService {
+    #[shaku(inject)]
+    group_provider: Arc<dyn IGroupProvider>,
+
+    #[shaku(inject)]
+    role_provider: Arc<dyn IRoleProvider>,
+
+    #[shaku(inject)]
+    user_provider: Arc<dyn IUserProvider>,
+
+    #[shaku(inject)]
+    realm_provider: Arc<dyn IRealmProvider>,
+
+    #[shaku(inject)]
+    required_actions_provider: Arc<dyn IRequiredActionProvider>,
+}
+
+#[async_trait]
+impl IUserActionService for UserActionService {
+    async fn send_reset_password_email(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        client_id: &str,
+        redirect_uri: &str,
+    ) -> ApiResult<()> {
+        todo!()
+    }
+
+    async fn send_verify_email(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        client_id: &str,
+        redirect_uri: &str,
+    ) -> ApiResult<()> {
+        todo!()
+    }
+}
+
+#[async_trait]
+pub trait IUserConsentService: Interface {
     async fn user_disable_credential_type(
         &self,
         realm_id: &str,
         user_id: &str,
         credential_type: &str,
-    ) -> ApiResult<()> {
-        todo!()
-    }
+    ) -> ApiResult<()>;
+
+    async fn load_user_credentials(&self, realm_id: &str, user_id: &str) -> ApiResult<()>;
+
+    async fn load_user_consents(&self, realm_id: &str, user_id: &str) -> ApiResult<()>;
+
+    async fn revoke_user_consent_for_client(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        client_id: &str,
+    ) -> ApiResult<()>;
+
+    async fn impersonate_user(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        client_id: &str,
+        scope: &str,
+    ) -> ApiResult<()>;
 
     async fn move_credential_to_position(
         &self,
@@ -588,6 +543,57 @@ impl IUserService for UserService {
         user_id: &str,
         credential_id: &str,
         previous_credential_id: &str,
+    ) -> ApiResult<()>;
+
+    async fn move_credential_to_first(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        credential_id: &str,
+    ) -> ApiResult<()>;
+
+    async fn reset_user_password(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        password: &CredentialRepresentation,
+    ) -> ApiResult<()>;
+
+    async fn disable_credential_type(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        credential_type: &str,
+    ) -> ApiResult<()>;
+}
+
+#[allow(dead_code)]
+#[derive(Component)]
+#[shaku(interface = IUserConsentService)]
+pub struct UserConsentService {
+    #[shaku(inject)]
+    group_provider: Arc<dyn IGroupProvider>,
+
+    #[shaku(inject)]
+    role_provider: Arc<dyn IRoleProvider>,
+
+    #[shaku(inject)]
+    user_provider: Arc<dyn IUserProvider>,
+
+    #[shaku(inject)]
+    realm_provider: Arc<dyn IRealmProvider>,
+
+    #[shaku(inject)]
+    required_actions_provider: Arc<dyn IRequiredActionProvider>,
+}
+
+#[async_trait]
+impl IUserConsentService for UserConsentService {
+    async fn user_disable_credential_type(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        credential_type: &str,
     ) -> ApiResult<()> {
         todo!()
     }
@@ -619,6 +625,16 @@ impl IUserService for UserService {
         todo!()
     }
 
+    async fn move_credential_to_position(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        credential_id: &str,
+        previous_credential_id: &str,
+    ) -> ApiResult<()> {
+        todo!()
+    }
+
     async fn move_credential_to_first(
         &self,
         realm_id: &str,
@@ -645,24 +661,162 @@ impl IUserService for UserService {
     ) -> ApiResult<()> {
         todo!()
     }
+}
 
-    async fn send_reset_password_email(
+#[async_trait]
+pub trait IUserCredentialService: Interface {
+    async fn user_disable_credential_type(
         &self,
         realm_id: &str,
         user_id: &str,
-        client_id: &str,
-        redirect_uri: &str,
+        credential_type: &str,
+    ) -> ApiResult<()>;
+
+    async fn load_user_credentials(&self, realm_id: &str, user_id: &str) -> ApiResult<()>;
+
+    async fn move_credential_to_position(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        credential_id: &str,
+        previous_credential_id: &str,
+    ) -> ApiResult<()>;
+
+    async fn move_credential_to_first(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        credential_id: &str,
+    ) -> ApiResult<()>;
+
+    async fn reset_user_password(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        password: &CredentialRepresentation,
+    ) -> ApiResult<()>;
+
+    async fn disable_credential_type(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        credential_type: &str,
+    ) -> ApiResult<()>;
+}
+
+#[allow(dead_code)]
+#[derive(Component)]
+#[shaku(interface = IUserCredentialService)]
+pub struct UserCredentialService {
+    #[shaku(inject)]
+    group_provider: Arc<dyn IGroupProvider>,
+
+    #[shaku(inject)]
+    role_provider: Arc<dyn IRoleProvider>,
+
+    #[shaku(inject)]
+    user_provider: Arc<dyn IUserProvider>,
+
+    #[shaku(inject)]
+    realm_provider: Arc<dyn IRealmProvider>,
+
+    #[shaku(inject)]
+    required_actions_provider: Arc<dyn IRequiredActionProvider>,
+}
+
+#[async_trait]
+impl IUserCredentialService for UserCredentialService {
+    async fn user_disable_credential_type(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        credential_type: &str,
     ) -> ApiResult<()> {
         todo!()
     }
 
-    async fn send_verify_email(
+    async fn load_user_credentials(&self, realm_id: &str, user_id: &str) -> ApiResult<()> {
+        todo!()
+    }
+
+    async fn move_credential_to_position(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        credential_id: &str,
+        previous_credential_id: &str,
+    ) -> ApiResult<()> {
+        todo!()
+    }
+
+    async fn move_credential_to_first(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        credential_id: &str,
+    ) -> ApiResult<()> {
+        todo!()
+    }
+
+    async fn reset_user_password(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        password: &CredentialRepresentation,
+    ) -> ApiResult<()> {
+        todo!()
+    }
+
+    async fn disable_credential_type(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        credential_type: &str,
+    ) -> ApiResult<()> {
+        todo!()
+    }
+}
+
+#[async_trait]
+pub trait IUserImpersonationService: Interface {
+    async fn impersonate_user(
         &self,
         realm_id: &str,
         user_id: &str,
         client_id: &str,
-        redirect_uri: &str,
+        scope: &str,
+    ) -> ApiResult<()>;
+}
+
+#[allow(dead_code)]
+#[derive(Component)]
+#[shaku(interface = IUserImpersonationService)]
+pub struct UserImpersonationService {
+    #[shaku(inject)]
+    group_provider: Arc<dyn IGroupProvider>,
+
+    #[shaku(inject)]
+    role_provider: Arc<dyn IRoleProvider>,
+
+    #[shaku(inject)]
+    user_provider: Arc<dyn IUserProvider>,
+
+    #[shaku(inject)]
+    realm_provider: Arc<dyn IRealmProvider>,
+
+    #[shaku(inject)]
+    required_actions_provider: Arc<dyn IRequiredActionProvider>,
+}
+
+#[async_trait]
+impl IUserImpersonationService for UserImpersonationService {
+    async fn impersonate_user(
+        &self,
+        _realm_id: &str,
+        _user_id: &str,
+        _client_id: &str,
+        _scope: &str,
     ) -> ApiResult<()> {
         todo!()
     }
-}*/
+}
