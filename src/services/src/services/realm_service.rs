@@ -122,18 +122,18 @@ impl IRealmService for RealmService {
     }
     async fn generate_realm_key(
         &self,
-        realm_id: &str,
-        key_type: &KeyTypeEnum,
-        key_use: &KeyUseEnum,
-        priority: &Option<i64>,
-        algorithm: &str,
+        _realm_id: &str,
+        _key_type: &KeyTypeEnum,
+        _key_use: &KeyUseEnum,
+        _priority: &Option<i64>,
+        _algorithm: &str,
     ) -> ApiResult<CredentialViewRepresentation> {
         todo!()
     }
 
     async fn load_realm_keys(
         &self,
-        realm_id: &str,
+        _realm_id: &str,
     ) -> ApiResult<Vec<CredentialViewRepresentation>> {
         todo!()
     }

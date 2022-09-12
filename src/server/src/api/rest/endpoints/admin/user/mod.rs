@@ -4,7 +4,10 @@ use models::entities::{
     credentials::CredentialRepresentation,
     user::{UserCreateModel, UserModel},
 };
-use services::services::user_service::IUserService;
+use services::services::user_services::{
+    IUserActionService, IUserConsentService, IUserCredentialService, IUserImpersonationService,
+    IUserService,
+};
 use shaku::HasComponent;
 
 use actix_web::{
@@ -252,48 +255,12 @@ pub async fn user_count_groups(
         .await
 }
 
-#[get("/realm/{realm_id}/user/{user_id}/consents/load")]
-pub async fn load_user_consents(
-    params: web::Path<(String, String)>,
-    context: web::Data<DarkShieldContext>,
-) -> impl Responder {
-    let user_service: &dyn IUserService = context.services().resolve_ref();
-    let (realm_id, user_id) = params.into_inner();
-
-    log::info!(
-        "Loading user: {} consents for realm: {}",
-        user_id.as_str(),
-        realm_id.as_str(),
-    );
-    user_service
-        .load_user_consents(realm_id.as_str(), user_id.as_str())
-        .await
-}
-
-#[delete("/realm/{realm_id}/user/{user_id}/consent/client/{client_id}")]
-pub async fn revoke_user_consent_for_client(
-    params: web::Path<(String, String, String)>,
-    context: web::Data<DarkShieldContext>,
-) -> impl Responder {
-    let user_service: &dyn IUserService = context.services().resolve_ref();
-    let (realm_id, user_id, client_id) = params.into_inner();
-
-    log::info!(
-        "Loading user: {} consents for realm: {}",
-        user_id.as_str(),
-        realm_id.as_str(),
-    );
-    user_service
-        .revoke_user_consent_for_client(realm_id.as_str(), user_id.as_str(), client_id.as_str())
-        .await
-}
-
 #[get("/realm/{realm_id}/user/{user_id}/credentials/load_all")]
 pub async fn load_user_credentials(
     params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
-    let user_service: &dyn IUserService = context.services().resolve_ref();
+    let user_service: &dyn IUserCredentialService = context.services().resolve_ref();
     let (realm_id, user_id) = params.into_inner();
 
     log::info!(
@@ -312,7 +279,7 @@ pub async fn user_disable_credential_type(
     credential_type: web::Query<String>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
-    let user_service: &dyn IUserService = context.services().resolve_ref();
+    let user_service: &dyn IUserCredentialService = context.services().resolve_ref();
     let (realm_id, user_id) = params.into_inner();
 
     log::info!(
@@ -330,39 +297,13 @@ pub async fn user_disable_credential_type(
         .await
 }
 
-#[post("/realm/{realm_id}/user/{user_id}/impersonate")]
-pub async fn impersonate_user(
-    params: web::Path<(String, String)>,
-    client_id: web::Query<String>,
-    scope: web::Query<String>,
-    context: web::Data<DarkShieldContext>,
-) -> impl Responder {
-    let user_service: &dyn IUserService = context.services().resolve_ref();
-    let (realm_id, user_id) = params.into_inner();
-    log::info!(
-        "Impersonating user: {} for client_id: {}, scope: {} for realm: {}",
-        user_id.as_str(),
-        client_id.as_str(),
-        scope.as_str(),
-        realm_id.as_str(),
-    );
-    user_service
-        .impersonate_user(
-            realm_id.as_str(),
-            user_id.as_str(),
-            client_id.as_str(),
-            scope.as_str(),
-        )
-        .await
-}
-
 #[post("/realm/{realm_id}/user/{user_id}/reset-password")]
 pub async fn user_reset_password(
     params: web::Path<(String, String)>,
     password: web::Json<CredentialRepresentation>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
-    let user_service: &dyn IUserService = context.services().resolve_ref();
+    let user_service: &dyn IUserCredentialService = context.services().resolve_ref();
     let (realm_id, user_id) = params.into_inner();
     log::info!(
         "Reset user: {}, realm: {} password",
@@ -381,7 +322,7 @@ pub async fn remove_credential(
     previous_credential_id: web::Query<String>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
-    let user_service: &dyn IUserService = context.services().resolve_ref();
+    let user_service: &dyn IUserCredentialService = context.services().resolve_ref();
     let (realm_id, user_id, credential_id) = params.into_inner();
     log::info!(
         "Move user: {} credential: {} for client_id: {}, scope: {}, realm: {}",
@@ -406,7 +347,7 @@ pub async fn move_credential_to_first(
     params: web::Path<(String, String, String)>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
-    let user_service: &dyn IUserService = context.services().resolve_ref();
+    let user_service: &dyn IUserCredentialService = context.services().resolve_ref();
     let (realm_id, user_id, credential_id) = params.into_inner();
     log::info!(
         "Move user: {} credential: {}, realm: {} to first position",
@@ -425,7 +366,7 @@ pub async fn move_credential_to_position(
     previous_credential_id: web::Query<String>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
-    let user_service: &dyn IUserService = context.services().resolve_ref();
+    let user_service: &dyn IUserCredentialService = context.services().resolve_ref();
     let (realm_id, user_id, credential_id) = params.into_inner();
     log::info!(
         "Move user: {} credential: {} for after credential {} realm: {}",
@@ -451,7 +392,7 @@ pub async fn reset_password_email(
     redirect_uri: web::Query<String>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
-    let user_service: &dyn IUserService = context.services().resolve_ref();
+    let user_service: &dyn IUserActionService = context.services().resolve_ref();
     let (realm_id, user_id) = params.into_inner();
     log::info!(
         "Sending reset password email to user: {}, client_id: {} and realm_id: {}",
@@ -476,7 +417,7 @@ pub async fn send_verify_email(
     redirect_uri: web::Query<String>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
-    let user_service: &dyn IUserService = context.services().resolve_ref();
+    let user_service: &dyn IUserActionService = context.services().resolve_ref();
     let (realm_id, user_id) = params.into_inner();
     log::info!(
         "Sending verify email to user: {}, client_id: {} and realm_id: {}",
@@ -490,6 +431,68 @@ pub async fn send_verify_email(
             user_id.as_str(),
             client_id.as_str(),
             redirect_uri.as_str(),
+        )
+        .await
+}
+
+#[get("/realm/{realm_id}/user/{user_id}/consents/load")]
+pub async fn load_user_consents(
+    params: web::Path<(String, String)>,
+    context: web::Data<DarkShieldContext>,
+) -> impl Responder {
+    let user_service: &dyn IUserConsentService = context.services().resolve_ref();
+    let (realm_id, user_id) = params.into_inner();
+
+    log::info!(
+        "Loading user: {} consents for realm: {}",
+        user_id.as_str(),
+        realm_id.as_str(),
+    );
+    user_service
+        .load_user_consents(realm_id.as_str(), user_id.as_str())
+        .await
+}
+
+#[delete("/realm/{realm_id}/user/{user_id}/consent/client/{client_id}")]
+pub async fn revoke_user_consent_for_client(
+    params: web::Path<(String, String, String)>,
+    context: web::Data<DarkShieldContext>,
+) -> impl Responder {
+    let user_service: &dyn IUserConsentService = context.services().resolve_ref();
+    let (realm_id, user_id, client_id) = params.into_inner();
+
+    log::info!(
+        "Loading user: {} consents for realm: {}",
+        user_id.as_str(),
+        realm_id.as_str(),
+    );
+    user_service
+        .revoke_user_consent_for_client(realm_id.as_str(), user_id.as_str(), client_id.as_str())
+        .await
+}
+
+#[post("/realm/{realm_id}/user/{user_id}/impersonate")]
+pub async fn impersonate_user(
+    params: web::Path<(String, String)>,
+    client_id: web::Query<String>,
+    scope: web::Query<String>,
+    context: web::Data<DarkShieldContext>,
+) -> impl Responder {
+    let user_service: &dyn IUserImpersonationService = context.services().resolve_ref();
+    let (realm_id, user_id) = params.into_inner();
+    log::info!(
+        "Impersonating user: {} for client_id: {}, scope: {} for realm: {}",
+        user_id.as_str(),
+        client_id.as_str(),
+        scope.as_str(),
+        realm_id.as_str(),
+    );
+    user_service
+        .impersonate_user(
+            realm_id.as_str(),
+            user_id.as_str(),
+            client_id.as_str(),
+            scope.as_str(),
         )
         .await
 }

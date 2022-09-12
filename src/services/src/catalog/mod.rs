@@ -11,7 +11,10 @@ use crate::services::{
     health_check::HealthCheckService,
     realm_service::RealmService,
     tokens_services::{RevokedTokenStoreService, SingleUseTokenService},
-    user_service::UserService,
+    user_services::{
+        UserActionService, UserConsentService, UserCredentialService, UserImpersonationService,
+        UserService,
+    },
 };
 
 use shaku::{module, Component, HasComponent, Interface};
@@ -80,9 +83,13 @@ module! {
             ResourceServerService,
             ScopeService,
             ResourceService,
-            UserService,
             SingleUseTokenService,
-            RevokedTokenStoreService
+            RevokedTokenStoreService,
+            UserCredentialService,
+            UserConsentService,
+            UserActionService,
+            UserService,
+            UserImpersonationService,
         ],
         providers = [],
     }

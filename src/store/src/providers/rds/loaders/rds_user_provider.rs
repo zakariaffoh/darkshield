@@ -55,7 +55,7 @@ impl RdsUserProvider {
 
 #[async_trait]
 impl IUserProvider for RdsUserProvider {
-    async fn create_user(&self, user: UserModel) -> Result<(), String> {
+    /*async fn create_user(&self, user: UserModel) -> Result<(), String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
@@ -252,5 +252,5 @@ impl IUserProvider for RdsUserProvider {
             }
             Err(err) => Err(err.to_string()),
         }
-    }
+    }*/
 }

@@ -1,4 +1,4 @@
-use async_trait::async_trait;
+/*use async_trait::async_trait;
 use commons::ApiResult;
 use models::entities::authz::GroupModel;
 use models::entities::authz::RoleModel;
@@ -231,20 +231,119 @@ impl IUserService for UserService {
         todo!()
     }
 
-    async fn delete_user(&self, _realm_id: &str, user_id: &str) -> ApiResult<()> {
-        todo!()
+    async fn delete_user(&self, realm_id: &str, user_id: &str) -> ApiResult<()> {
+        let loaded_user = self
+            .user_provider
+            .delete_user_by_user_id(realm_id, user_id)
+            .await;
+        match loaded_user {
+            Ok(user) => ApiResult::<UserModel>::from_option(user),
+            Err(err) => ApiResult::from_error(500, "500", &err),
+        }
     }
 
-    async fn load_user(&self, _realm_id: &str, user_id: &str) -> ApiResult<UserModel> {
-        todo!()
+    async fn load_user(&self, realm_id: &str, user_id: &str) -> ApiResult<UserModel> {
+        let loaded_user = self.user_provider.load_user_by_id(&realm_id).await;
+        match loaded_user {
+            Ok(user) => ApiResult::<UserModel>::from_option(mappers),
+            Err(err) => ApiResult::from_error(500, "500", &err),
+        }
     }
 
-    async fn load_users_by_realm_id(&self, _realm_id: &str) -> ApiResult<Vec<UserModel>> {
-        todo!()
+    async fn load_user_by_email(&self, realm_id: &str, email: &str) -> ApiResult<UserModel> {
+        let loaded_user = self.user_provider.load_user_by_email(realm_id, email).await;
+        match loaded_user {
+            Ok(user) => ApiResult::<UserModel>::from_option(user),
+            Err(err) => ApiResult::from_error(500, "500", &err),
+        }
+    }
+
+    async fn load_user_by_user_name(
+        &self,
+        realm_id: &str,
+        user_name: &str,
+    ) -> ApiResult<UserModel> {
+        let loaded_user = self
+            .user_provider
+            .load_user_by_user_name(realm_id, user_name)
+            .await;
+        match loaded_user {
+            Ok(user) => ApiResult::<UserModel>::from_option(user),
+            Err(err) => ApiResult::from_error(500, "500", &err),
+        }
+    }
+
+    async fn load_user_by_user_name_or_email(
+        &self,
+        realm_id: &str,
+        user_name: &str,
+        email: &str,
+    ) -> ApiResult<UserModel> {
+        let loaded_user = self
+            .user_provider
+            .load_user_by_user_name_or_email(realm_id, user_name, email)
+            .await;
+        match loaded_user {
+            Ok(user) => ApiResult::<UserModel>::from_option(user),
+            Err(err) => ApiResult::from_error(500, "500", &err),
+        }
+    }
+
+    async fn user_has_role(&self, realm_id: &str, role_name: &str) -> ApiResult<bool> {
+        let has_role = self.user_provider.user_has_role(realm_id, user_name).await;
+        match loaded_user {
+            Ok(user) => ApiResult::<UserModel>::from_option(user),
+            Err(err) => ApiResult::from_error(500, "500", &err),
+        }
+    }
+
+    async fn load_users_by_realm_id(&self, realm_id: &str) -> ApiResult<Vec<UserModel>> {
+        let loaded_users = self.user_provider.load_users_by_realm_id(&realm_id).await;
+        match loaded_users {
+            Ok(users) => {
+                log::info!("[{}] users loaded for realm: {}", users.len(), realm_id);
+                if users.is_empty() {
+                    ApiResult::no_content()
+                } else {
+                    ApiResult::from_data(users)
+                }
+            }
+            Err(err) => ApiResult::from_error(500, "500", &err),
+        }
     }
 
     async fn add_user_role(&self, realm_id: &str, user_id: &str, role_id: &str) -> ApiResult<()> {
-        todo!()
+        let user_exists = self
+            .user_provider
+            .user_exists_by_id(&realm_id, &user_id)
+            .await;
+        if let Ok(response) = user_exists {
+            if !response {
+                log::error!("user: {} not found in realm: {}", &user_id, &realm_id);
+                return ApiResult::from_error(409, "404", "user not found");
+            }
+        }
+
+        let existing_role = self
+            .role_provider
+            .role_exists_by_id(&realm_id, &role_id)
+            .await;
+        if let Ok(res) = existing_role {
+            if !res {
+                log::error!("role: {} not found in realm: {}", &role_id, &realm_id,);
+                return ApiResult::from_error(409, "404", "client role not found");
+            }
+        }
+
+        let response = self
+            .user_provider
+            .add_user_role(&realm_id, &user_id, &role_id)
+            .await;
+
+        match response {
+            Ok(_) => ApiResult::no_content(),
+            Err(_) => ApiResult::from_error(500, "500", "failed to add client role mapping"),
+        }
     }
 
     async fn remove_user_role(
@@ -253,15 +352,101 @@ impl IUserService for UserService {
         user_id: &str,
         role_id: &str,
     ) -> ApiResult<()> {
-        todo!()
+        let user_exists = self
+            .user_provider
+            .user_exists_by_id(&realm_id, &user_id)
+            .await;
+        if let Ok(response) = user_exists {
+            if !response {
+                log::error!("user: {} not found in realm: {}", &user_id, &realm_id);
+                return ApiResult::from_error(409, "404", "user not found");
+            }
+        }
+
+        let existing_role = self
+            .role_provider
+            .role_exists_by_id(&realm_id, &role_id)
+            .await;
+        if let Ok(res) = existing_role {
+            if !res {
+                log::error!("role: {} not found in realm: {}", &role_id, &realm_id,);
+                return ApiResult::from_error(409, "404", "client role not found");
+            }
+        }
+
+        let response = self
+            .user_provider
+            .remove_user_role(&realm_id, &user_id, &role_id)
+            .await;
+
+        match response {
+            Ok(_) => ApiResult::no_content(),
+            Err(_) => ApiResult::from_error(500, "500", "failed to add client role mapping"),
+        }
     }
 
-    async fn load_user_roles(&self, realm_id: &str, role_id: &str) -> ApiResult<Vec<RoleModel>> {
-        todo!()
+    async fn load_user_roles(&self, realm_id: &str, user_id: &str) -> ApiResult<Vec<RoleModel>> {
+        let loaded_roles = self
+            .user_provider
+            .load_user_roles(&realm_id, &user_id)
+            .await;
+        match loaded_roles {
+            Ok(roles) => {
+                log::info!(
+                    "[{}] loaded for roles: {} realm: {}",
+                    roles.len(),
+                    &user_id,
+                    &realm_id
+                );
+                if scopes.is_empty() {
+                    ApiResult::no_content()
+                } else {
+                    ApiResult::from_data(roles)
+                }
+            }
+            Err(err) => {
+                log::error!(
+                    "Failed to load roles for user: {} realm: {}",
+                    &user_id,
+                    &realm_id
+                );
+                ApiResult::from_error(500, "500", &err)
+            }
+        }
     }
 
     async fn add_user_group(&self, realm_id: &str, user_id: &str, group_id: &str) -> ApiResult<()> {
-        todo!()
+        let user_exists = self
+            .user_provider
+            .user_exists_by_id(&realm_id, &user_id)
+            .await;
+        if let Ok(response) = user_exists {
+            if !response {
+                log::error!("user: {} not found in realm: {}", &user_id, &realm_id);
+                return ApiResult::from_error(409, "404", "user not found");
+            }
+        }
+
+        let existing_group = self
+            .group_provider
+            .exists_groups_by_id(&realm_id, &group_id)
+            .await;
+        if let Ok(res) = existing_group {
+            if !res {
+                log::error!("group: {} not found in realm: {}", &group_id, &realm_id,);
+                return ApiResult::from_error(409, "404", "client role not found");
+            }
+        }
+
+        let response = self
+            .user_provider
+            .add_user_group(&realm_id, &user_id, &group_id)
+            .await;
+
+        match response {
+            Ok(_) => ApiResult::no_content(),
+            Err(_) => ApiResult::from_error(500, "500", "failed to add user group mapping"),
+        }
     }
 
     async fn remove_user_group(
@@ -270,19 +455,86 @@ impl IUserService for UserService {
         user_id: &str,
         group_id: &str,
     ) -> ApiResult<()> {
-        todo!()
+        let user_exists = self
+            .user_provider
+            .user_exists_by_id(&realm_id, &user_id)
+            .await;
+        if let Ok(response) = user_exists {
+            if !response {
+                log::error!("user: {} not found in realm: {}", &user_id, &realm_id);
+                return ApiResult::from_error(409, "404", "user not found");
+            }
+        }
+
+        let existing_group = self
+            .group_provider
+            .exists_groups_by_id(&realm_id, &group_id)
+            .await;
+        if let Ok(res) = existing_group {
+            if !res {
+                log::error!("group: {} not found in realm: {}", &group_id, &realm_id,);
+                return ApiResult::from_error(409, "404", "client role not found");
+            }
+        }
+
+        let response = self
+            .user_provider
+            .remove_user_group(&realm_id, &user_id, &group_id)
+            .await;
+
+        match response {
+            Ok(_) => ApiResult::no_content(),
+            Err(_) => ApiResult::from_error(500, "500", "failed to add user group mapping"),
+        }
     }
 
     async fn load_user_groups(&self, realm_id: &str, user_id: &str) -> ApiResult<Vec<GroupModel>> {
-        todo!()
+        let loaded_groups = self
+            .user_provider
+            .load_user_groups(&realm_id, &user_id)
+            .await;
+        match loaded_groups {
+            Ok(groups) => {
+                log::info!(
+                    "[{}] groups: loaded for user {} realm: {}",
+                    roles.len(),
+                    &user_id,
+                    &realm_id
+                );
+                if scopes.is_empty() {
+                    ApiResult::no_content()
+                } else {
+                    ApiResult::from_data(groups)
+                }
+            }
+            Err(err) => {
+                log::error!(
+                    "Failed to load groups for user: {} realm: {}",
+                    &user_id,
+                    &realm_id
+                );
+                ApiResult::from_error(500, "500", &err)
+            }
+        }
     }
 
     async fn user_count_groups(&self, realm_id: &str, user_id: &str) -> ApiResult<i64> {
-        todo!()
+        let response = self
+            .user_provider
+            .user_count_groups(&realm_id, user_id, &user_id)
+            .await;
+        match response {
+            Ok(count) => ApiResult::from_data(count),
+            Err(err) => ApiResult::from_error(500, "500", &err),
+        }
     }
 
     async fn count_users(&self, realm_id: &str) -> ApiResult<i64> {
-        todo!()
+        let response = self.user_provider.count_users(&realm_id).await;
+        match response {
+            Ok(count) => ApiResult::from_data(count),
+            Err(err) => ApiResult::from_error(500, "500", &err),
+        }
     }
 
     async fn load_user_groups_paging(
@@ -291,8 +543,34 @@ impl IUserService for UserService {
         user_id: &str,
         page_index: i64,
         page_size: i64,
-    ) -> ApiResult<Vec<GroupModel>> {
-        todo!()
+    ) -> ApiResult<GroupPagingResult> {
+        let loaded_groups = self
+            .group_provider
+            .load_user_groups_paging(&realm_id, &user_id)
+            .await;
+        match loaded_groups {
+            Ok(groups) => {
+                log::info!(
+                    "[{}] groups: loaded for user {} realm: {}",
+                    roles.len(),
+                    &user_id,
+                    &realm_id
+                );
+                if scopes.is_empty() {
+                    ApiResult::no_content()
+                } else {
+                    ApiResult::from_data(groups)
+                }
+            }
+            Err(err) => {
+                log::error!(
+                    "Failed to load groups for user: {} realm: {}",
+                    &user_id,
+                    &realm_id
+                );
+                ApiResult::from_error(500, "500", &err)
+            }
+        }
     }
 
     async fn user_disable_credential_type(
@@ -387,4 +665,4 @@ impl IUserService for UserService {
     ) -> ApiResult<()> {
         todo!()
     }
-}
+}*/
