@@ -3,7 +3,7 @@ use actix_web::web;
 use super::{
     admin::auth,
     admin::authz,
-    admin::{client, realm, user},
+    admin::{client, realm},
     health,
     metrics_api::metrics_handler,
 };
@@ -93,7 +93,7 @@ pub fn register_apis(api_config: &mut web::ServiceConfig) {
                         /* Required Action API */
                         .service(auth::register_required_action)
                         .service(auth::update_required_action)
-                        .service(auth::load_requied_action_by_id)
+                        .service(auth::load_required_action_by_id)
                         .service(auth::load_requied_action_by_realm)
                         .service(auth::remove_requied_action_by_id)
                         /* Client API */
