@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use models::entities::authz::{
-    GroupModel, IdentityProviderModel, ResourceModel, ResourceServerModel, RoleModel, ScopeModel,
+    GroupModel, GroupPagingResult, IdentityProviderModel, ResourceModel, ResourceServerModel,
+    RoleModel, ScopeModel,
 };
 use shaku::Interface;
 
@@ -45,6 +46,12 @@ pub trait IRoleProvider: Interface {
         realm_id: &str,
         client_id: &str,
     ) -> Result<Vec<RoleModel>, String>;
+
+    async fn load_user_roles(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+    ) -> Result<Vec<RoleModel>, String>;
 }
 
 #[async_trait]
@@ -79,6 +86,20 @@ pub trait IGroupProvider: Interface {
         group_id: &str,
         role_id: &str,
     ) -> Result<(), String>;
+
+    async fn load_user_groups(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+    ) -> Result<Vec<GroupModel>, String>;
+
+    async fn load_user_groups_paging(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        page_size: i32,
+        page_index: i32,
+    ) -> Result<GroupPagingResult, String>;
 }
 
 #[async_trait]
@@ -196,7 +217,6 @@ pub trait IResourceProvider: Interface {
         resource_id: &str,
         scope_id: &str,
     ) -> Result<(), String>;
-    
 }
 
 #[async_trait]

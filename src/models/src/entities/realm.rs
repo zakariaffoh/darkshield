@@ -197,3 +197,9 @@ impl Into<RealmModel> for RealmUpdateModel {
         }
     }
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ExportedRealm {}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ImportedRealm {}
