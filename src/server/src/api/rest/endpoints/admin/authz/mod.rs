@@ -12,7 +12,6 @@ use models::entities::authz::{
     ResourceModel, ResourceMutationModel, ResourceServerModel, ResourceServerMutationModel,
     RoleModel, RoleMutationModel, ScopeModel, ScopeMutationModel,
 };
-use services::services::authz_services::{IResourceService, IScopeService};
 
 #[post("/realm/{realm_id}/role/create")]
 pub async fn create_role(
@@ -55,7 +54,7 @@ pub async fn load_role_by_id(
         &realm_id.as_str(),
         &realm_id
     );
-    AuthorizationModelApi::load_role_by_id(&context, &realm_id.as_str(), &role_id.as_str()).await
+    AuthorizationModelApi::load_role_by_id(&context, &realm_id, &role_id).await
 }
 
 #[delete("/realm/{realm_id}/role/{role_id}")]
@@ -69,7 +68,7 @@ pub async fn delete_role_by_id(
         &role_id.as_str(),
         &realm_id.as_str()
     );
-    AuthorizationModelApi::delete_role(&context, &realm_id.as_str(), &role_id.as_str()).await
+    AuthorizationModelApi::delete_role(&context, &realm_id, &role_id).await
 }
 
 #[get("/realm/{realm_id}/roles/load_all")]
@@ -78,7 +77,7 @@ pub async fn load_roles_by_realm(
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     log::info!("Loading roles for realm: {}", &realm_id.as_str());
-    AuthorizationModelApi::load_roles_by_realm(&context, &realm_id.as_str()).await
+    AuthorizationModelApi::load_roles_by_realm(&context, &realm_id).await
 }
 
 #[get("/realm/{realm_id}/roles/count_all")]
@@ -87,7 +86,7 @@ pub async fn count_roles_by_realm(
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     log::info!("Counting roles for realm: {}", &realm_id.as_str());
-    AuthorizationModelApi::count_roles_by_realm(&context, &realm_id.as_str()).await
+    AuthorizationModelApi::count_roles_by_realm(&context, &realm_id).await
 }
 
 #[post("/realm/{realm_id}/group/create")]
