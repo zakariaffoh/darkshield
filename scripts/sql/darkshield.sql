@@ -846,3 +846,141 @@ CREATE INDEX USER_LOGIN_FAILURES_FAILURE_ID_IDX ON USER_LOGIN_FAILURES(FAILURE_I
 CREATE INDEX USER_LOGIN_FAILURES_USER_ID_IDX ON USER_LOGIN_FAILURES(USER_ID);
 CREATE INDEX USER_LOGIN_FAILURES_REALM_ID_IDX ON USER_LOGIN_FAILURES(REALM_ID);
 CREATE INDEX USER_LOGIN_FAILURES_TENANT_IDX ON USER_LOGIN_FAILURES(TENANT);
+
+
+/***********************************************************************************
+*                           USERS Table
+************************************************************************************/
+
+CREATE TABLE IF NOT EXISTS USERS
+(
+    ID                                    serial                  PRIMARY KEY,
+    TENANT                                varchar(50)             NOT NULL,
+    REALM_ID                              varchar(250)            NOT NULL,
+    USER_ID                               varchar(250)            UNIQUE NOT NULL,
+    USER_NAME                             varchar(250)            NOT NULL,
+
+    EMAIL                                 varchar(250),
+    ENABLED                               boolean,
+    EMAIL_VERIFIED                        boolean,
+
+    IS_SERVICE_ACCOUNT                    boolean,
+    USER_STORAGE                          TEXT,
+    ATTRIBUTES                            JSON,
+    NOT_BEFORE                            integer,
+    REQUIRED_ACTIONS                      TEXT[],
+    SERVICE_ACCOUNT_CLIENT_LINK           TEXT,
+
+    CREATED_BY                            varchar(250)            NOT NULL,
+    CREATED_AT                            timestamptz             NOT NULL,
+    UPDATED_BY                            varchar(250),
+    UPDATED_AT                            timestamptz,
+    VERSION                               integer                 DEFAULT 1   CHECK(version > 0),
+
+    CONSTRAINT FK_USERS_REALM_ID FOREIGN KEY(REALM_ID) REFERENCES REALMS(REALM_ID) ON DELETE CASCADE,
+    CONSTRAINT UNIQUE_USERS_REALM_ID_USER_ID UNIQUE (REALM_ID, USER_ID)
+);
+
+DROP INDEX IF EXISTS USERS_REALM_ID_IDX;
+DROP INDEX IF EXISTS USERS_USER_ID_IDX;
+DROP INDEX IF EXISTS USERS_USER_NAME_IDX;
+DROP INDEX IF EXISTS USERS_EMAIL_IDX;
+DROP INDEX IF EXISTS USERS_IS_SERVICE_ACCOUNT_IDX;
+
+CREATE INDEX USERS_REALM_ID_IDX ON USERS(REALM_ID);
+CREATE INDEX USERS_USER_ID_IDX ON USERS(USER_ID);
+CREATE INDEX USERS_USER_NAME_IDX ON USERS(USER_NAME);
+CREATE INDEX USERS_EMAIL_IDX ON USERS(EMAIL);
+CREATE INDEX USERS_IS_SERVICE_ACCOUNT_IDX ON USERS(IS_SERVICE_ACCOUNT);
+
+
+/************************************************************************************************************
+*                                          USERS_CONSENTS Table
+************************************************************************************************************/
+
+CREATE TABLE IF NOT EXISTS USERS_CREDENTIALS
+(
+    ID                                  serial                  PRIMARY KEY,
+    REALM_ID                            varchar(250)            NOT NULL,
+    CREDENTIAL_ID                       varchar(250)            UNIQUE NOT NULL,
+    USER_ID                             varchar(250)            NOT NULL,
+    CREDENTIAL_TYPE                     varchar(20),
+
+    USER_LABEL                          varchar(100),
+    SECRET_DATA                         json,
+    CREDENTIAL_DATA                     json,
+    PRIORITY                            NUMERIC,
+
+    CREATED_BY                          varchar(250)            NOT NULL,
+    CREATED_AT                          timestamptz             NOT NULL,
+    UPDATED_BY                          varchar(250),
+    UPDATED_AT                          timestamptz,
+    VERSION                             integer                 DEFAULT 1   CHECK(version > 0),
+
+    CONSTRAINT FK_USERS_CREDENTIALS_REALM_ID FOREIGN KEY(REALM_ID) REFERENCES REALMS(REALM_ID) ON DELETE CASCADE,
+    CONSTRAINT FK_USERS_CREDENTIALS_USER_ID  FOREIGN KEY(USER_ID) REFERENCES USERS(USER_ID) ON DELETE CASCADE,
+    CONSTRAINT UNIQUE_USERS_CREDENTIALS_REALM_ID_USER_ID_CREDENTIAL_ID UNIQUE (REALM_ID, USER_ID, CREDENTIAL_ID)
+);
+
+DROP INDEX IF EXISTS USERS_CREDENTIALS_REALM_ID_IDX;
+DROP INDEX IF EXISTS USERS_CREDENTIALS_USER_ID_IDX;
+DROP INDEX IF EXISTS USERS_CREDENTIALS_CREDENTIAL_ID_IDX;
+DROP INDEX IF EXISTS USERS_CREDENTIALS_CREDENTIAL_TYPE_ID;
+DROP INDEX IF EXISTS USERS_CREDENTIALS_PRIORITY_ID;
+
+CREATE INDEX USERS_CREDENTIALS_REALM_ID_IDX ON USERS_CREDENTIALS(REALM_ID);
+CREATE INDEX USERS_CREDENTIALS_USER_ID_IDX ON USERS_CREDENTIALS(USER_ID);
+CREATE INDEX USERS_CREDENTIALS_CREDENTIAL_ID_IDX ON USERS_CREDENTIALS(CREDENTIAL_ID);
+CREATE INDEX USERS_CREDENTIALS_CREDENTIAL_TYPE_ID ON USERS_CREDENTIALS(CREDENTIAL_TYPE);
+CREATE INDEX USERS_CREDENTIALS_PRIORITY_ID ON USERS_CREDENTIALS(PRIORITY);
+
+/*******************************************************************************************************************
+*                                       USERS_GROUPS Table
+********************************************************************************************************************/
+
+CREATE TABLE IF NOT EXISTS USERS_GROUPS
+(
+    REALM_ID                                   varchar(250)             NOT NULL,
+    USER_ID                                    varchar(250)             NOT NULL,
+    GROUP_ID                                   varchar(250)             NOT NULL,
+
+    CONSTRAINT FK_USERS_GROUPS_REALMS_ID FOREIGN KEY(REALM_ID) REFERENCES REALMS(REALM_ID) ON DELETE CASCADE,
+    CONSTRAINT FK_USERS_GROUPS_USER_ID FOREIGN KEY(USER_ID) REFERENCES USERS(USER_ID) ON DELETE CASCADE,
+    CONSTRAINT FK_USERS_GROUPS_GROUP_ID FOREIGN KEY(GROUP_ID) REFERENCES GROUPS(GROUP_ID) ON DELETE CASCADE,
+
+    CONSTRAINT UNIQUE_USERS_GROUPS_REALM_ID_USER_ID_GROUP_ID UNIQUE (REALM_ID, USER_ID, GROUP_ID)
+);
+
+DROP INDEX IF EXISTS USERS_GROUPS_REALM_ID_IDX;
+DROP INDEX IF EXISTS USERS_GROUPS_USER_ID_IDX;
+DROP INDEX IF EXISTS USERS_GROUPS_GROUP_ID_IDX;
+
+CREATE INDEX USERS_GROUPS_REALM_ID_IDX ON USERS_GROUPS(REALM_ID);
+CREATE INDEX USERS_GROUPS_USER_ID_IDX ON USERS_GROUPS(USER_ID);
+CREATE INDEX USERS_GROUPS_GROUP_ID_IDX ON USERS_GROUPS(GROUP_ID);
+
+
+/*******************************************************************************************************************
+*                                       USERS_ROLES Table
+********************************************************************************************************************/
+
+CREATE TABLE IF NOT EXISTS USERS_ROLES
+(
+    REALM_ID                                   varchar(250)              NOT NULL,
+    USER_ID                                    varchar(250)              NOT NULL,
+    ROLE_ID                                    varchar(250)              NOT NULL,
+
+    CONSTRAINT FK_USERS_ROLES_REALM_ID FOREIGN KEY(REALM_ID) REFERENCES REALMS(REALM_ID) ON DELETE CASCADE,
+    CONSTRAINT FK_USERS_ROLES_USER_ID FOREIGN KEY(USER_ID) REFERENCES USERS(USER_ID) ON DELETE CASCADE,
+    CONSTRAINT FK_USERS_ROLES_ROLE_ID FOREIGN KEY(ROLE_ID) REFERENCES ROLES(ROLE_ID) ON DELETE CASCADE,
+
+    CONSTRAINT UNIQUE_USER_ID_ROLE_ID UNIQUE (REALM_ID, USER_ID, ROLE_ID)
+);
+
+DROP INDEX IF EXISTS USERS_ROLES_REALM_ID_IDX;
+DROP INDEX IF EXISTS USERS_ROLES_USER_ID_IDX;
+DROP INDEX IF EXISTS USERS_ROLES_ROLE_ID_IDX;
+
+CREATE INDEX USERS_ROLES_REALM_ID_IDX ON USERS_ROLES(REALM_ID);
+CREATE INDEX USERS_ROLES_USER_ID_IDX ON USERS_ROLES(USER_ID);
+CREATE INDEX USERS_ROLES_ROLE_ID_IDX ON USERS_ROLES(ROLE_ID);

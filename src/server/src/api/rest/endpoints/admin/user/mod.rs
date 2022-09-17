@@ -213,8 +213,8 @@ pub async fn load_user_groups(
 #[get("/realm/{realm_id}/user/{user_id}/groups/load_paging")]
 pub async fn load_user_groups_paging(
     params: web::Path<(String, String)>,
-    page_index: web::Query<i64>,
-    page_size: web::Query<i64>,
+    page_index: web::Query<i32>,
+    page_size: web::Query<i32>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let user_service: &dyn IUserService = context.services().resolve_ref();

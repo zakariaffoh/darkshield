@@ -78,7 +78,8 @@ impl Into<GroupModel> for GroupMutationModel {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GroupPagingResult {
     pub page_size: i64,
-    pub page_count: i64,
+    pub page_index: i64,
+    pub total_count: i64,
     pub groups: Vec<GroupModel>,
 }
 
