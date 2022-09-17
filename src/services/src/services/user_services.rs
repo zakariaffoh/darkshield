@@ -258,7 +258,7 @@ impl IUserService for UserService {
         }
     }
 
-    async fn load_user_roles(&self, realm_id: &str, role_id: &str) -> ApiResult<Vec<RoleModel>> {
+    async fn load_user_roles(&self, realm_id: &str, user_id: &str) -> ApiResult<Vec<RoleModel>> {
         let loaded_roles = self
             .role_provider
             .load_user_roles(&realm_id, &user_id)
@@ -271,7 +271,7 @@ impl IUserService for UserService {
                     &user_id,
                     &realm_id
                 );
-                if scopes.is_empty() {
+                if roles.is_empty() {
                     ApiResult::no_content()
                 } else {
                     ApiResult::from_data(roles)
@@ -370,11 +370,11 @@ impl IUserService for UserService {
             Ok(groups) => {
                 log::info!(
                     "[{}] groups: loaded for user {} realm: {}",
-                    roles.len(),
+                    groups.len(),
                     &user_id,
                     &realm_id
                 );
-                if scopes.is_empty() {
+                if groups.is_empty() {
                     ApiResult::no_content()
                 } else {
                     ApiResult::from_data(groups)
@@ -419,7 +419,7 @@ impl IUserService for UserService {
     ) -> ApiResult<GroupPagingResult> {
         let loaded_groups = self
             .group_provider
-            .load_user_groups_paging(&realm_id, &user_id, &page_size, &page_index)
+            .load_user_groups_paging(&realm_id, &user_id, page_index, page_size)
             .await;
         match loaded_groups {
             Ok(groups_paging) => {
@@ -429,10 +429,10 @@ impl IUserService for UserService {
                     &user_id,
                     &realm_id
                 );
-                if scopes.is_empty() {
+                if groups_paging.groups.is_empty() {
                     ApiResult::no_content()
                 } else {
-                    ApiResult::from_data(groups)
+                    ApiResult::from_data(groups_paging)
                 }
             }
             Err(err) => {
