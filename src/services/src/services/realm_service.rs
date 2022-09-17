@@ -1,8 +1,8 @@
 use async_trait::async_trait;
-use commons::ApiResult;
 use crypto::keys::{KeyTypeEnum, KeyUseEnum};
-use models::auditable::AuditableModel;
 use models::entities::credentials::CredentialViewRepresentation;
+use models::entities::realm::ExportedRealm;
+use models::entities::realm::ImportedRealm;
 use models::entities::realm::RealmModel;
 use shaku::Component;
 use shaku::Interface;
@@ -11,13 +11,13 @@ use store::providers::interfaces::realm_provider::IRealmProvider;
 
 #[async_trait]
 pub trait IRealmService: Interface {
-    async fn create_realm(&self, realm: RealmModel) -> ApiResult<RealmModel>;
-    async fn udpate_realm(&self, realm: RealmModel) -> ApiResult<()>;
-    async fn delete_realm(&self, realm_id: &str) -> ApiResult<()>;
-    async fn load_realm(&self, realm_id: &str) -> ApiResult<RealmModel>;
-    async fn load_realms(&self) -> ApiResult<Vec<RealmModel>>;
-    async fn export_realm(&self, realm_id: &str) -> ApiResult<Option<RealmModel>>;
-    async fn import_realm(&self, realm_id: &str) -> ApiResult<Option<RealmModel>>;
+    async fn create_realm(&self, realm: &RealmModel) -> Result<(), String>;
+    async fn udpate_realm(&self, realm: &RealmModel) -> Result<(), String>;
+    async fn delete_realm(&self, realm_id: &str) -> Result<(), String>;
+    async fn load_realm(&self, realm_id: &str) -> Result<Option<RealmModel>, String>;
+    async fn load_realms(&self) -> Result<Vec<RealmModel>, String>;
+    async fn export_realm(&self, realm_id: &str) -> Result<Option<ExportedRealm>, String>;
+    async fn import_realm(&self, imported_realm: &ImportedRealm) -> Result<(), String>;
     async fn generate_realm_key(
         &self,
         realm_id: &str,
@@ -25,10 +25,20 @@ pub trait IRealmService: Interface {
         key_use: &KeyUseEnum,
         priority: &Option<i64>,
         algorithm: &str,
-    ) -> ApiResult<CredentialViewRepresentation>;
+    ) -> Result<CredentialViewRepresentation, String>;
+    async fn realm_exists_by_id(&self, realm_id: &str) -> Result<bool, String>;
 
-    async fn load_realm_keys(&self, realm_id: &str)
-        -> ApiResult<Vec<CredentialViewRepresentation>>;
+    async fn realm_exists_by_criteria(
+        &self,
+        realm_id: &str,
+        name: &str,
+        display_name: &str,
+    ) -> Result<bool, String>;
+
+    async fn load_realm_keys(
+        &self,
+        realm_id: &str,
+    ) -> Result<Vec<CredentialViewRepresentation>, String>;
 }
 
 #[allow(dead_code)]
@@ -41,85 +51,48 @@ pub struct RealmService {
 
 #[async_trait]
 impl IRealmService for RealmService {
-    async fn create_realm(&self, realm: RealmModel) -> ApiResult<RealmModel> {
-        let existing_realm = self
-            .realm_provider
-            .realm_exists_by_id(&realm.realm_id)
-            .await;
-        if let Ok(response) = existing_realm {
-            if response {
-                log::error!("realm: {} already", &realm.realm_id,);
-                return ApiResult::from_error(409, "409", "realm already exists");
-            }
-        }
-        let mut realm = realm;
-        realm.metadata = AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
-        let created_realm = self.realm_provider.create_realm(&realm).await;
-        match created_realm {
-            Ok(_) => ApiResult::Data(realm),
-            Err(_) => ApiResult::from_error(500, "500", "failed to create realm"),
-        }
+    async fn create_realm(&self, realm: &RealmModel) -> Result<(), String> {
+        self.realm_provider.create_realm(&realm).await
     }
-    async fn udpate_realm(&self, realm: RealmModel) -> ApiResult<()> {
-        let existing_realm = self
-            .realm_provider
-            .realm_exists_by_criteria(&realm.realm_id, &realm.name, &realm.display_name)
-            .await;
-        if let Ok(res) = existing_realm {
-            if !res {
-                log::error!("realm: {} not found", &realm.realm_id);
-                return ApiResult::from_error(404, "404", "realm not found");
-            }
-        }
-        let mut realm = realm;
-        realm.metadata = AuditableModel::from_updator("tenant".to_owned(), "zaffoh".to_owned());
-        let updated_realm = self.realm_provider.update_realm(&realm).await;
-        match updated_realm {
-            Ok(_) => ApiResult::no_content(),
-            Err(_) => ApiResult::from_error(500, "500", "failed to update realm"),
-        }
+
+    async fn udpate_realm(&self, realm: &RealmModel) -> Result<(), String> {
+        self.realm_provider.update_realm(&realm).await
     }
-    async fn delete_realm(&self, realm_id: &str) -> ApiResult<()> {
-        let existing_realm = self.realm_provider.realm_exists_by_id(&realm_id).await;
-        if let Ok(res) = existing_realm {
-            if !res {
-                log::error!("realm: {} not found", &realm_id);
-                return ApiResult::from_error(404, "404", "realm not found");
-            }
-        }
-        let response = self.realm_provider.delete_realm(&realm_id).await;
-        match response {
-            Ok(_) => ApiResult::Data(()),
-            Err(_) => ApiResult::from_error(500, "500", "failed to delete realm"),
-        }
+
+    async fn delete_realm(&self, realm_id: &str) -> Result<(), String> {
+        self.realm_provider.delete_realm(&realm_id).await
     }
-    async fn load_realm(&self, realm_id: &str) -> ApiResult<RealmModel> {
-        let loaded_realm = self.realm_provider.load_realm(&realm_id).await;
-        match loaded_realm {
-            Ok(mappers) => ApiResult::<RealmModel>::from_option(mappers),
-            Err(err) => ApiResult::from_error(500, "500", &err),
-        }
+
+    async fn load_realm(&self, realm_id: &str) -> Result<Option<RealmModel>, String> {
+        self.realm_provider.load_realm(&realm_id).await
     }
-    async fn load_realms(&self) -> ApiResult<Vec<RealmModel>> {
-        let loaded_realms = self.realm_provider.load_realms().await;
-        match loaded_realms {
-            Ok(realms) => {
-                log::info!("[{}] realms loaded", realms.len());
-                if realms.is_empty() {
-                    ApiResult::no_content()
-                } else {
-                    ApiResult::from_data(realms)
-                }
-            }
-            Err(err) => ApiResult::from_error(500, "500", &err),
-        }
+    async fn load_realms(&self) -> Result<Vec<RealmModel>, String> {
+        self.realm_provider.load_realms().await
     }
-    async fn export_realm(&self, _realm_id: &str) -> ApiResult<Option<RealmModel>> {
+
+    async fn export_realm(&self, _realm_id: &str) -> Result<Option<ExportedRealm>, String> {
         todo!()
     }
-    async fn import_realm(&self, _realm_id: &str) -> ApiResult<Option<RealmModel>> {
+
+    async fn import_realm(&self, _imported_realm: &ImportedRealm) -> Result<(), String> {
         todo!()
     }
+
+    async fn realm_exists_by_id(&self, realm_id: &str) -> Result<bool, String> {
+        self.realm_provider.realm_exists_by_id(realm_id).await
+    }
+
+    async fn realm_exists_by_criteria(
+        &self,
+        realm_id: &str,
+        name: &str,
+        display_name: &str,
+    ) -> Result<bool, String> {
+        self.realm_provider
+            .realm_exists_by_criteria(realm_id, name, display_name)
+            .await
+    }
+
     async fn generate_realm_key(
         &self,
         _realm_id: &str,
@@ -127,14 +100,14 @@ impl IRealmService for RealmService {
         _key_use: &KeyUseEnum,
         _priority: &Option<i64>,
         _algorithm: &str,
-    ) -> ApiResult<CredentialViewRepresentation> {
+    ) -> Result<CredentialViewRepresentation, String> {
         todo!()
     }
 
     async fn load_realm_keys(
         &self,
         _realm_id: &str,
-    ) -> ApiResult<Vec<CredentialViewRepresentation>> {
+    ) -> Result<Vec<CredentialViewRepresentation>, String> {
         todo!()
     }
 }
