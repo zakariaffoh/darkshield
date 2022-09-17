@@ -17,27 +17,30 @@ use uuid;
 
 #[async_trait]
 pub trait IRequiredActionService: Interface {
-    async fn register_required_action(
-        &self,
-        action: RequiredActionModel,
-    ) -> ApiResult<RequiredActionModel>;
-    async fn update_required_action(&self, action: RequiredActionModel) -> ApiResult<()>;
+    async fn register_required_action(&self, action: &RequiredActionModel) -> Result<(), String>;
+
+    async fn update_required_action(&self, action: &RequiredActionModel) -> Result<(), String>;
+
     async fn update_required_action_priority(
         &self,
         realm_id: &str,
         action: &RequiredActionEnum,
         priority: i32,
-    ) -> ApiResult<()>;
+    ) -> Result<(), String>;
+
     async fn load_required_action(
         &self,
         realm_id: &str,
         action_id: &str,
-    ) -> ApiResult<Option<RequiredActionModel>>;
+    ) -> Result<Option<RequiredActionModel>, String>;
+
     async fn load_required_action_by_realm_id(
         &self,
         realm_id: &str,
-    ) -> ApiResult<Vec<RequiredActionModel>>;
-    async fn remove_required_action(&self, realm_id: &str, action_id: &str) -> ApiResult<()>;
+    ) -> Result<Vec<RequiredActionModel>, String>;
+
+    async fn remove_required_action(&self, realm_id: &str, action_id: &str)
+        -> Result<bool, String>;
 }
 
 #[allow(dead_code)]
@@ -50,62 +53,16 @@ pub struct RequiredActionService {
 
 #[async_trait]
 impl IRequiredActionService for RequiredActionService {
-    async fn register_required_action(
-        &self,
-        action: RequiredActionModel,
-    ) -> ApiResult<RequiredActionModel> {
-        let existing_action = self
-            .required_action_provider
-            .load_required_action_by_action(&action.realm_id, &action.action)
-            .await;
-        if let Ok(response) = existing_action {
-            if response.is_some() {
-                log::error!(
-                    "required action: {} already exists in realm: {}",
-                    &action.action,
-                    &action.realm_id
-                );
-                return ApiResult::from_error(409, "500", "required action already exists");
-            }
-        }
-        let mut action = action;
-        action.action_id = uuid::Uuid::new_v4().to_string();
-        action.metadata = AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
-        let created_action = self
-            .required_action_provider
+    async fn register_required_action(&self, action: &RequiredActionModel) -> Result<(), String> {
+        self.required_action_provider
             .register_required_action(&action)
-            .await;
-        match created_action {
-            Ok(_) => ApiResult::Data(action),
-            Err(_) => ApiResult::from_error(500, "500", "failed to required action"),
-        }
+            .await
     }
 
-    async fn update_required_action(&self, action: RequiredActionModel) -> ApiResult<()> {
-        let existing_action = self
-            .required_action_provider
-            .load_required_action_by_action_id(&action.realm_id, &action.action_id)
-            .await;
-        if let Ok(response) = existing_action {
-            if response.is_none() {
-                log::error!(
-                    "required action: {} not found in realm: {}",
-                    &action.name,
-                    &action.realm_id
-                );
-                return ApiResult::from_error(404, "404", "action not found");
-            }
-        }
-        let mut action = action;
-        action.metadata = AuditableModel::from_updator("tenant".to_owned(), "zaffoh".to_owned());
-        let updated_action = self
-            .required_action_provider
+    async fn update_required_action(&self, action: &RequiredActionModel) -> Result<(), String> {
+        self.required_action_provider
             .update_required_action(&action)
-            .await;
-        match updated_action {
-            Ok(_) => ApiResult::Data(()),
-            Err(_) => ApiResult::from_error(500, "500", "failed to update role"),
-        }
+            .await
     }
 
     async fn update_required_action_priority(
@@ -113,7 +70,7 @@ impl IRequiredActionService for RequiredActionService {
         _realm_id: &str,
         _action: &RequiredActionEnum,
         _priority: i32,
-    ) -> ApiResult<()> {
+    ) -> Result<(), String> {
         /*let realm_actions = self.load_required_action_by_realm_id(&realm_id).await;
         let mut actions = match realm_actions {
             ApiResult::Data(res) => res,
@@ -139,77 +96,36 @@ impl IRequiredActionService for RequiredActionService {
                 action_by_priority.insert(action.action, action.priority.unwrap());
             }
         }*/
-        ApiResult::Data(())
+        Ok(())
     }
 
     async fn load_required_action(
         &self,
         realm_id: &str,
         action_id: &str,
-    ) -> ApiResult<Option<RequiredActionModel>> {
-        let loaded_action = self
-            .required_action_provider
+    ) -> Result<Option<RequiredActionModel>, String> {
+        self.required_action_provider
             .load_required_action_by_action_id(&realm_id, &action_id)
-            .await;
-        match loaded_action {
-            Ok(action) => ApiResult::from_data(action),
-            Err(err) => ApiResult::from_error(500, "500", &err),
-        }
+            .await
     }
 
     async fn load_required_action_by_realm_id(
         &self,
         realm_id: &str,
-    ) -> ApiResult<Vec<RequiredActionModel>> {
-        let loaded_actions = self
-            .required_action_provider
+    ) -> Result<Vec<RequiredActionModel>, String> {
+        self.required_action_provider
             .load_required_actions_by_realm(&realm_id)
-            .await;
-        match loaded_actions {
-            Ok(actions) => {
-                log::info!(
-                    "[{}] required actions loaded for realm: {}",
-                    actions.len(),
-                    &realm_id
-                );
-                ApiResult::from_data(actions)
-            }
-            Err(err) => {
-                log::error!("Failed to load required actions from realm: {}", &realm_id);
-                ApiResult::from_error(500, "500", &err)
-            }
-        }
+            .await
     }
 
-    async fn remove_required_action(&self, realm_id: &str, action_id: &str) -> ApiResult<()> {
-        let existing_action = self
-            .required_action_provider
-            .load_required_action_by_action_id(&realm_id, &action_id)
-            .await;
-        if let Ok(response) = existing_action {
-            if response.is_none() {
-                log::error!(
-                    "required action: {} not found in realm: {}",
-                    &action_id,
-                    &realm_id
-                );
-                return ApiResult::from_error(404, "404", "required action not found");
-            }
-        }
-        let result = self
-            .required_action_provider
+    async fn remove_required_action(
+        &self,
+        realm_id: &str,
+        action_id: &str,
+    ) -> Result<bool, String> {
+        self.required_action_provider
             .remove_required_action(&realm_id, &action_id)
-            .await;
-        match result {
-            Ok(res) => {
-                if res {
-                    ApiResult::Data(())
-                } else {
-                    ApiResult::from_error(500, "500", "failed to delete required action")
-                }
-            }
-            Err(_) => ApiResult::from_error(500, "500", "server internal error"),
-        }
+            .await
     }
 }
 
@@ -217,19 +133,28 @@ impl IRequiredActionService for RequiredActionService {
 pub trait IAuthenticationFlowService: Interface {
     async fn create_authentication_flow(
         &self,
-        flow: AuthenticationFlowModel,
-    ) -> ApiResult<AuthenticationFlowModel>;
-    async fn update_authentication_flow(&self, flow: AuthenticationFlowModel) -> ApiResult<()>;
+        flow: &AuthenticationFlowModel,
+    ) -> Result<(), String>;
+    async fn update_authentication_flow(
+        &self,
+        flow: &AuthenticationFlowModel,
+    ) -> Result<(), String>;
     async fn load_authentication_flow_by_flow_id(
         &self,
         realm_id: &str,
         flow_id: &str,
-    ) -> ApiResult<Option<AuthenticationFlowModel>>;
+    ) -> Result<Option<AuthenticationFlowModel>, String>;
     async fn load_authentication_flow_by_realm_id(
         &self,
         realm_id: &str,
-    ) -> ApiResult<Vec<AuthenticationFlowModel>>;
-    async fn remove_authentication_flow(&self, realm_id: &str, flow_id: &str) -> ApiResult<()>;
+    ) -> Result<Vec<AuthenticationFlowModel>, String>;
+    async fn exists_flow_by_alias(&self, realm_id: &str, alias: &str) -> Result<bool, String>;
+
+    async fn remove_authentication_flow(
+        &self,
+        realm_id: &str,
+        flow_id: &str,
+    ) -> Result<bool, String>;
 }
 
 #[allow(dead_code)]
@@ -244,135 +169,55 @@ pub struct AuthenticationFlowService {
 impl IAuthenticationFlowService for AuthenticationFlowService {
     async fn create_authentication_flow(
         &self,
-        flow: AuthenticationFlowModel,
-    ) -> ApiResult<AuthenticationFlowModel> {
-        let existing_flow = self
-            .authentication_flow_provider
-            .exists_flow_by_alias(&flow.realm_id, &flow.alias)
-            .await;
-        if let Ok(response) = existing_flow {
-            if response {
-                log::error!(
-                    "authentication flow: {} already exists in realm: {}",
-                    &flow.alias,
-                    &flow.realm_id
-                );
-                return ApiResult::from_error(409, "500", "authentication flow already exists");
-            }
-        }
-        let mut flow = flow;
-        flow.flow_id = uuid::Uuid::new_v4().to_string();
-        flow.metadata = AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
-        let created_flow = self
-            .authentication_flow_provider
+        flow: &AuthenticationFlowModel,
+    ) -> Result<(), String> {
+        self.authentication_flow_provider
             .create_authentication_flow(&flow)
-            .await;
-        match created_flow {
-            Ok(_) => ApiResult::Data(flow),
-            Err(_) => ApiResult::from_error(500, "500", "failed to create authentication flow"),
-        }
+            .await
     }
 
-    async fn update_authentication_flow(&self, flow: AuthenticationFlowModel) -> ApiResult<()> {
-        let existing_flow = self
-            .authentication_flow_provider
-            .load_authentication_flow_by_flow_id(&flow.realm_id, &flow.flow_id)
-            .await;
-        if let Ok(response) = existing_flow {
-            if response.is_none() {
-                log::error!(
-                    "authentication flow: {} not found in realm: {}",
-                    &flow.alias,
-                    &flow.realm_id
-                );
-                return ApiResult::from_error(404, "404", "authentication flow not found");
-            }
-        }
-        let mut flow = flow;
-        flow.flow_id = uuid::Uuid::new_v4().to_string();
-        flow.metadata = AuditableModel::from_updator("tenant".to_owned(), "zaffoh".to_owned());
-        let updated_flow = self
-            .authentication_flow_provider
+    async fn update_authentication_flow(
+        &self,
+        flow: &AuthenticationFlowModel,
+    ) -> Result<(), String> {
+        self.authentication_flow_provider
             .update_authentication_flow(&flow)
-            .await;
-        match updated_flow {
-            Ok(_) => ApiResult::Data(()),
-            Err(_) => ApiResult::from_error(500, "500", "failed to update authentication flow"),
-        }
+            .await
     }
 
     async fn load_authentication_flow_by_flow_id(
         &self,
         realm_id: &str,
         flow_id: &str,
-    ) -> ApiResult<Option<AuthenticationFlowModel>> {
-        let loaded_flow = self
-            .authentication_flow_provider
+    ) -> Result<Option<AuthenticationFlowModel>, String> {
+        self.authentication_flow_provider
             .load_authentication_flow_by_flow_id(&realm_id, &flow_id)
-            .await;
-        match loaded_flow {
-            Ok(flow) => ApiResult::from_data(flow),
-            Err(err) => ApiResult::from_error(500, "500", &err),
-        }
+            .await
     }
 
     async fn load_authentication_flow_by_realm_id(
         &self,
         realm_id: &str,
-    ) -> ApiResult<Vec<AuthenticationFlowModel>> {
-        let loaded_flows = self
-            .authentication_flow_provider
+    ) -> Result<Vec<AuthenticationFlowModel>, String> {
+        self.authentication_flow_provider
             .load_authentication_flow_by_realm(&realm_id)
-            .await;
-        match loaded_flows {
-            Ok(flows) => {
-                log::info!(
-                    "[{}] authentication flows loaded for realm: {}",
-                    flows.len(),
-                    &realm_id
-                );
-                if flows.is_empty() {
-                    ApiResult::no_content()
-                } else {
-                    ApiResult::from_data(flows)
-                }
-            }
-            Err(err) => {
-                log::error!("Failed to authentication flow from realm: {}", &realm_id);
-                ApiResult::from_error(500, "500", &err)
-            }
-        }
+            .await
     }
 
-    async fn remove_authentication_flow(&self, realm_id: &str, flow_id: &str) -> ApiResult<()> {
-        let existing_flow = self
-            .authentication_flow_provider
-            .load_authentication_flow_by_flow_id(&realm_id, &flow_id)
-            .await;
-        if let Ok(response) = existing_flow {
-            if response.is_none() {
-                log::error!(
-                    "authentication flow: {} not found in realm: {}",
-                    &flow_id,
-                    &realm_id
-                );
-                return ApiResult::from_error(404, "404", "authentication flow not found");
-            }
-        }
-        let result = self
-            .authentication_flow_provider
+    async fn exists_flow_by_alias(&self, realm_id: &str, alias: &str) -> Result<bool, String> {
+        self.authentication_flow_provider
+            .exists_flow_by_alias(&realm_id, &alias)
+            .await
+    }
+
+    async fn remove_authentication_flow(
+        &self,
+        realm_id: &str,
+        flow_id: &str,
+    ) -> Result<bool, String> {
+        self.authentication_flow_provider
             .remove_authentication_flow(&realm_id, &flow_id)
-            .await;
-        match result {
-            Ok(res) => {
-                if res {
-                    ApiResult::no_content()
-                } else {
-                    ApiResult::from_error(500, "500", "failed to delete authentication flow")
-                }
-            }
-            _ => ApiResult::from_error(500, "500", "server internal error"),
-        }
+            .await
     }
 }
 
@@ -380,26 +225,28 @@ impl IAuthenticationFlowService for AuthenticationFlowService {
 pub trait IAuthenticationExecutionService: Interface {
     async fn create_authentication_execution(
         &self,
-        execution: AuthenticationExecutionModel,
-    ) -> ApiResult<AuthenticationExecutionModel>;
+        execution: &AuthenticationExecutionModel,
+    ) -> Result<(), String>;
     async fn update_authentication_execution(
         &self,
-        execution: AuthenticationExecutionModel,
-    ) -> ApiResult<()>;
+        execution: &AuthenticationExecutionModel,
+    ) -> Result<(), String>;
     async fn load_authentication_execution(
         &self,
         realm_id: &str,
         execution_id: &str,
-    ) -> ApiResult<Option<AuthenticationExecutionModel>>;
+    ) -> Result<Option<AuthenticationExecutionModel>, String>;
     async fn load_authentication_execution_by_realm_id(
         &self,
         realm_id: &str,
-    ) -> ApiResult<Vec<AuthenticationExecutionModel>>;
+    ) -> Result<Vec<AuthenticationExecutionModel>, String>;
     async fn remove_authentication_execution(
         &self,
         realm_id: &str,
         execution_id: &str,
-    ) -> ApiResult<()>;
+    ) -> Result<bool, String>;
+
+    async fn exists_execution_by_alias(&self, realm_id: &str, alias: &str) -> Result<bool, String>;
 }
 
 #[allow(dead_code)]
@@ -414,151 +261,55 @@ pub struct AuthenticationExecutionService {
 impl IAuthenticationExecutionService for AuthenticationExecutionService {
     async fn create_authentication_execution(
         &self,
-        execution: AuthenticationExecutionModel,
-    ) -> ApiResult<AuthenticationExecutionModel> {
-        let existing_execution = self
-            .authentication_execution_provider
-            .exists_execution_by_alias(&execution.realm_id, &execution.alias)
-            .await;
-        if let Ok(response) = existing_execution {
-            if response {
-                log::error!(
-                    "authentication execution: {} already exists in realm: {}",
-                    &execution.alias,
-                    &execution.realm_id
-                );
-                return ApiResult::from_error(
-                    409,
-                    "500",
-                    "authentication execution already exists",
-                );
-            }
-        }
-        let mut execution = execution;
-        execution.execution_id = uuid::Uuid::new_v4().to_string();
-        execution.metadata = AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
-        let created_execution = self
-            .authentication_execution_provider
+        execution: &AuthenticationExecutionModel,
+    ) -> Result<(), String> {
+        self.authentication_execution_provider
             .create_authentication_execution(&execution)
-            .await;
-        match created_execution {
-            Ok(_) => ApiResult::Data(execution),
-            _ => ApiResult::from_error(500, "500", "failed to create authentication execution"),
-        }
+            .await
     }
 
     async fn update_authentication_execution(
         &self,
-        execution: AuthenticationExecutionModel,
-    ) -> ApiResult<()> {
-        let existing_execution = self
-            .authentication_execution_provider
-            .load_authentication_execution_by_execution_id(
-                &execution.realm_id,
-                &execution.execution_id,
-            )
-            .await;
-        if let Ok(response) = existing_execution {
-            if response.is_none() {
-                log::error!(
-                    "authentication execution: {} not found in realm: {}",
-                    &execution.alias,
-                    &execution.realm_id
-                );
-                return ApiResult::from_error(404, "404", "authentication execution not found");
-            }
-        }
-        let mut execution = execution;
-        execution.metadata = AuditableModel::from_updator("tenant".to_owned(), "zaffoh".to_owned());
-        let updated_execution = self
-            .authentication_execution_provider
+        execution: &AuthenticationExecutionModel,
+    ) -> Result<(), String> {
+        self.authentication_execution_provider
             .update_authentication_execution(&execution)
-            .await;
-        match updated_execution {
-            Ok(_) => ApiResult::no_content(),
-            _ => ApiResult::from_error(500, "500", "failed to update authentication execution"),
-        }
+            .await
     }
 
     async fn load_authentication_execution(
         &self,
         realm_id: &str,
         execution_id: &str,
-    ) -> ApiResult<Option<AuthenticationExecutionModel>> {
-        let loaded_execution = self
-            .authentication_execution_provider
+    ) -> Result<Option<AuthenticationExecutionModel>, String> {
+        self.authentication_execution_provider
             .load_authentication_execution_by_execution_id(&realm_id, &execution_id)
-            .await;
-        match loaded_execution {
-            Ok(execution) => ApiResult::from_data(execution),
-            Err(err) => ApiResult::from_error(500, "500", &err),
-        }
+            .await
     }
 
     async fn load_authentication_execution_by_realm_id(
         &self,
         realm_id: &str,
-    ) -> ApiResult<Vec<AuthenticationExecutionModel>> {
-        let loaded_executions = self
-            .authentication_execution_provider
+    ) -> Result<Vec<AuthenticationExecutionModel>, String> {
+        self.authentication_execution_provider
             .load_authentication_execution_by_realm(&realm_id)
-            .await;
-        match loaded_executions {
-            Ok(flows) => {
-                log::info!(
-                    "[{}] authentication executions loaded for realm: {}",
-                    flows.len(),
-                    &realm_id
-                );
-                if flows.is_empty() {
-                    return ApiResult::no_content();
-                } else {
-                    ApiResult::from_data(flows)
-                }
-            }
-            Err(err) => {
-                log::error!(
-                    "Failed to authentication executions from realm: {}",
-                    &realm_id
-                );
-                ApiResult::from_error(500, "500", &err)
-            }
-        }
+            .await
     }
 
     async fn remove_authentication_execution(
         &self,
         realm_id: &str,
         execution_id: &str,
-    ) -> ApiResult<()> {
-        let existing_execution = self
-            .authentication_execution_provider
-            .load_authentication_execution_by_execution_id(&realm_id, &execution_id)
-            .await;
-        if let Ok(response) = existing_execution {
-            if response.is_none() {
-                log::error!(
-                    "authentication execution: {} not found in realm: {}",
-                    &execution_id,
-                    &realm_id
-                );
-                return ApiResult::from_error(404, "404", "authentication execution not found");
-            }
-        }
-        let result = self
-            .authentication_execution_provider
+    ) -> Result<bool, String> {
+        self.authentication_execution_provider
             .remove_authentication_execution(&realm_id, &execution_id)
-            .await;
-        match result {
-            Ok(res) => {
-                if res {
-                    ApiResult::Data(())
-                } else {
-                    ApiResult::from_error(500, "500", "failed to delete authentication execution")
-                }
-            }
-            _ => ApiResult::from_error(500, "500", "server internal error"),
-        }
+            .await
+    }
+
+    async fn exists_execution_by_alias(&self, realm_id: &str, alias: &str) -> Result<bool, String> {
+        self.authentication_execution_provider
+            .exists_execution_by_alias(&realm_id, &alias)
+            .await
     }
 }
 
@@ -566,19 +317,32 @@ impl IAuthenticationExecutionService for AuthenticationExecutionService {
 pub trait IAuthenticatorConfigService: Interface {
     async fn create_authenticator_config(
         &self,
-        config: AuthenticatorConfigModel,
-    ) -> ApiResult<AuthenticatorConfigModel>;
-    async fn update_authenticator_config(&self, config: AuthenticatorConfigModel) -> ApiResult<()>;
+        config: &AuthenticatorConfigModel,
+    ) -> Result<(), String>;
+
+    async fn update_authenticator_config(
+        &self,
+        config: &AuthenticatorConfigModel,
+    ) -> Result<(), String>;
+
     async fn load_authenticator_config(
         &self,
         realm_id: &str,
         config_id: &str,
-    ) -> ApiResult<Option<AuthenticatorConfigModel>>;
+    ) -> Result<Option<AuthenticatorConfigModel>, String>;
+
     async fn load_authenticator_config_by_realm_id(
         &self,
         realm_id: &str,
-    ) -> ApiResult<Vec<AuthenticatorConfigModel>>;
-    async fn remove_authenticator_config(&self, realm_id: &str, config_id: &str) -> ApiResult<()>;
+    ) -> Result<Vec<AuthenticatorConfigModel>, String>;
+
+    async fn exists_config_by_alias(&self, realm_id: &str, alias: &str) -> Result<bool, String>;
+
+    async fn remove_authenticator_config(
+        &self,
+        realm_id: &str,
+        config_id: &str,
+    ) -> Result<bool, String>;
 }
 
 #[allow(dead_code)]
@@ -593,136 +357,54 @@ pub struct AuthenticatorConfigService {
 impl IAuthenticatorConfigService for AuthenticatorConfigService {
     async fn create_authenticator_config(
         &self,
-        config: AuthenticatorConfigModel,
-    ) -> ApiResult<AuthenticatorConfigModel> {
-        let existing_config = self
-            .authenticator_config_provider
-            .exists_config_by_alias(&config.realm_id, &config.alias)
-            .await;
-        if let Ok(response) = existing_config {
-            if response {
-                log::error!(
-                    "authentication config: {} already exists in realm: {}",
-                    &config.alias,
-                    &config.realm_id
-                );
-                return ApiResult::from_error(409, "500", "authentication config already exists");
-            }
-        }
-        let mut config = config;
-        config.config_id = uuid::Uuid::new_v4().to_string();
-        config.metadata = AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
-        let created_config = self
-            .authenticator_config_provider
+        config: &AuthenticatorConfigModel,
+    ) -> Result<(), String> {
+        self.authenticator_config_provider
             .create_authenticator_config(&config)
-            .await;
-        match created_config {
-            Ok(_) => ApiResult::Data(config),
-            Err(_) => ApiResult::from_error(500, "500", "failed to create authentication config"),
-        }
+            .await
     }
 
-    async fn update_authenticator_config(&self, config: AuthenticatorConfigModel) -> ApiResult<()> {
-        let existing_config = self
-            .authenticator_config_provider
-            .load_authenticator_config_by_config_id(&config.realm_id, &config.config_id)
-            .await;
-        if let Ok(response) = existing_config {
-            if response.is_none() {
-                log::error!(
-                    "authentication config: {} not found in realm: {}",
-                    &config.alias,
-                    &config.realm_id
-                );
-                return ApiResult::from_error(404, "404", "authentication config not found");
-            }
-        }
-        let mut config = config;
-        config.metadata = AuditableModel::from_updator("tenant".to_owned(), "zaffoh".to_owned());
-        let updated_config = self
-            .authenticator_config_provider
+    async fn update_authenticator_config(
+        &self,
+        config: &AuthenticatorConfigModel,
+    ) -> Result<(), String> {
+        self.authenticator_config_provider
             .update_authenticator_config(&config)
-            .await;
-        match updated_config {
-            Ok(_) => ApiResult::no_content(),
-            Err(_) => ApiResult::from_error(500, "500", "failed to update authentication config"),
-        }
+            .await
     }
 
     async fn load_authenticator_config(
         &self,
         realm_id: &str,
         config_id: &str,
-    ) -> ApiResult<Option<AuthenticatorConfigModel>> {
-        let loaded_execution = self
-            .authenticator_config_provider
+    ) -> Result<Option<AuthenticatorConfigModel>, String> {
+        self.authenticator_config_provider
             .load_authenticator_config_by_config_id(&realm_id, &config_id)
-            .await;
-        match loaded_execution {
-            Ok(execution) => ApiResult::from_data(execution),
-            Err(err) => ApiResult::from_error(500, "500", &err),
-        }
+            .await
     }
 
     async fn load_authenticator_config_by_realm_id(
         &self,
         realm_id: &str,
-    ) -> ApiResult<Vec<AuthenticatorConfigModel>> {
-        let loaded_configs = self
-            .authenticator_config_provider
+    ) -> Result<Vec<AuthenticatorConfigModel>, String> {
+        self.authenticator_config_provider
             .load_authenticator_configs_by_realm(&realm_id)
-            .await;
-        match loaded_configs {
-            Ok(configs) => {
-                log::info!(
-                    "[{}] authentication configs loaded for realm: {}",
-                    configs.len(),
-                    &realm_id
-                );
-                if configs.is_empty() {
-                    return ApiResult::no_content();
-                } else {
-                    ApiResult::from_data(configs)
-                }
-            }
-            Err(err) => {
-                log::error!(
-                    "Failed to load authentication config from realm: {}",
-                    &realm_id
-                );
-                ApiResult::from_error(500, "500", &err)
-            }
-        }
+            .await
     }
 
-    async fn remove_authenticator_config(&self, realm_id: &str, config_id: &str) -> ApiResult<()> {
-        let existing_config = self
-            .authenticator_config_provider
-            .load_authenticator_config_by_config_id(&realm_id, &config_id)
-            .await;
-        if let Ok(response) = existing_config {
-            if response.is_none() {
-                log::error!(
-                    "authentication config: {} not found in realm: {}",
-                    &config_id,
-                    &realm_id
-                );
-                return ApiResult::from_error(404, "404", "authentication config not found");
-            }
-        }
-        let result = self
-            .authenticator_config_provider
+    async fn exists_config_by_alias(&self, realm_id: &str, alias: &str) -> Result<bool, String> {
+        self.authenticator_config_provider
+            .exists_config_by_alias(&realm_id, &alias)
+            .await
+    }
+
+    async fn remove_authenticator_config(
+        &self,
+        realm_id: &str,
+        config_id: &str,
+    ) -> Result<bool, String> {
+        self.authenticator_config_provider
             .remove_authenticator_config(&realm_id, &config_id)
-            .await;
-        match result {
-            Ok(res) => {
-                if res {
-                    ApiResult::Data(())
-                } else {
-                    ApiResult::from_error(500, "500", "failed to delete authentication config")
-                }
-            }
-            Err(_) => ApiResult::from_error(500, "500", "server internal error"),
-        }
+            .await
     }
 }
