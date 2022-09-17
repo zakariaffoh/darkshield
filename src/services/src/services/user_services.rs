@@ -70,7 +70,71 @@ pub struct UserService {
 #[async_trait]
 impl IUserService for UserService {
     async fn create_user(&self, realm: UserModel) -> ApiResult<UserModel> {
-        /*let realm_model = self.realm_provider.load_realm(&user.realm_id).await;
+        todo!()
+    }
+    async fn udpate_user(&self, realm: UserModel) -> ApiResult<()> {
+        todo!()
+    }
+    async fn delete_user(&self, realm_id: &str, user_id: &str) -> ApiResult<()> {
+        todo!()
+    }
+    async fn load_user(&self, realm_id: &str, user_id: &str) -> ApiResult<UserModel> {
+        todo!()
+    }
+    async fn load_users_by_realm_id(&self, realm_id: &str) -> ApiResult<Vec<UserModel>> {
+        todo!()
+    }
+    async fn count_users(&self, realm_id: &str) -> ApiResult<i64> {
+        todo!()
+    }
+    async fn add_user_role(&self, realm_id: &str, user_id: &str, role_id: &str) -> ApiResult<()> {
+        todo!()
+    }
+    async fn remove_user_role(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        role_id: &str,
+    ) -> ApiResult<()> {
+        todo!()
+    }
+    async fn load_user_roles(&self, realm_id: &str, role_id: &str) -> ApiResult<Vec<RoleModel>> {
+        todo!()
+    }
+
+    async fn add_user_group(&self, realm_id: &str, user_id: &str, group_id: &str) -> ApiResult<()> {
+        todo!()
+    }
+    async fn remove_user_group(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        group_id: &str,
+    ) -> ApiResult<()> {
+        todo!()
+    }
+
+    async fn load_user_groups(&self, realm_id: &str, user_id: &str) -> ApiResult<Vec<GroupModel>> {
+        todo!()
+    }
+    async fn user_count_groups(&self, realm_id: &str, user_id: &str) -> ApiResult<i64> {
+        todo!()
+    }
+    async fn load_user_groups_paging(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        page_size: i32,
+        page_index: i32,
+    ) -> ApiResult<GroupPagingResult> {
+        todo!()
+    }
+}
+
+/*#[async_trait]
+impl IUserService for UserService {
+    async fn create_user(&self, realm: UserModel) -> ApiResult<UserModel> {
+        let realm_model = self.realm_provider.load_realm(&user.realm_id).await;
         match realm_model {
             Ok(realm) => {
                 if realm.is_none() {
@@ -152,7 +216,7 @@ impl IUserService for UserService {
         }
         let password_policy = realm.password_policy.unwrap_or_default();
 
-        credential_input = UserCredentialModel::new();*/
+        credential_input = UserCredentialModel::new();
         todo!()
     }
     async fn udpate_user(&self, realm: UserModel) -> ApiResult<()> {
@@ -446,6 +510,7 @@ impl IUserService for UserService {
         }
     }
 }
+*/
 
 #[async_trait]
 pub trait IUserActionService: Interface {
