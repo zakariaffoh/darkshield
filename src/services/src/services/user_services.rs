@@ -1,8 +1,6 @@
 use async_trait::async_trait;
 use commons::ApiResult;
 use models::entities::authz::GroupModel;
-use models::entities::authz::GroupPagingResult;
-use models::entities::authz::RoleModel;
 use models::entities::credentials::CredentialRepresentation;
 use models::entities::user::UserModel;
 use shaku::Component;
@@ -17,34 +15,51 @@ use store::providers::interfaces::authz_provider::IRoleProvider;
 
 #[async_trait]
 pub trait IUserService: Interface {
-    async fn create_user(&self, realm: UserModel) -> ApiResult<UserModel>;
-    async fn udpate_user(&self, realm: UserModel) -> ApiResult<()>;
-    async fn delete_user(&self, realm_id: &str, user_id: &str) -> ApiResult<()>;
-    async fn load_user(&self, realm_id: &str, user_id: &str) -> ApiResult<UserModel>;
-    async fn load_users_by_realm_id(&self, realm_id: &str) -> ApiResult<Vec<UserModel>>;
-    async fn count_users(&self, realm_id: &str) -> ApiResult<i64>;
-    async fn add_user_role(&self, realm_id: &str, user_id: &str, role_id: &str) -> ApiResult<()>;
-    async fn remove_user_role(&self, realm_id: &str, user_id: &str, role_id: &str)
-        -> ApiResult<()>;
-    async fn load_user_roles(&self, realm_id: &str, role_id: &str) -> ApiResult<Vec<RoleModel>>;
+    async fn create_user(&self, realm: UserModel) -> Result<(), String>;
+    async fn udpate_user(&self, realm: UserModel) -> Result<(), String>;
+    async fn delete_user(&self, realm_id: &str, user_id: &str) -> Result<(), String>;
+    async fn load_user(&self, realm_id: &str, user_id: &str) -> Result<Option<UserModel>, String>;
+    async fn load_users_by_realm_id(&self, realm_id: &str) -> Result<Vec<UserModel>, String>;
+    async fn count_users(&self, realm_id: &str) -> Result<i64, String>;
+    async fn user_exists_by_id(&self, realm_id: &str, user_id: &str) -> Result<bool, String>;
+    async fn add_user_role(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        role_id: &str,
+    ) -> Result<(), String>;
+    async fn remove_user_role(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        role_id: &str,
+    ) -> Result<(), String>;
 
-    async fn add_user_group(&self, realm_id: &str, user_id: &str, group_id: &str) -> ApiResult<()>;
-    async fn remove_user_group(
+    async fn load_user_roles(
+        &self,
+        realm_id: &str,
+        role_id: &str,
+    ) -> Result<Vec<UserModel>, String>;
+
+    async fn add_user_group_mapping(
         &self,
         realm_id: &str,
         user_id: &str,
         group_id: &str,
-    ) -> ApiResult<()>;
-
-    async fn load_user_groups(&self, realm_id: &str, user_id: &str) -> ApiResult<Vec<GroupModel>>;
-    async fn user_count_groups(&self, realm_id: &str, user_id: &str) -> ApiResult<i64>;
-    async fn load_user_groups_paging(
+    ) -> Result<(), String>;
+    async fn remove_user_group_mapping(
         &self,
         realm_id: &str,
         user_id: &str,
-        page_size: i32,
-        page_index: i32,
-    ) -> ApiResult<GroupPagingResult>;
+        group_id: &str,
+    ) -> Result<(), String>;
+
+    async fn load_user_groups(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+    ) -> Result<Vec<GroupModel>, String>;
+    async fn user_count_groups(&self, realm_id: &str, user_id: &str) -> Result<i64, String>;
 }
 
 #[allow(dead_code)]
@@ -69,25 +84,30 @@ pub struct UserService {
 
 #[async_trait]
 impl IUserService for UserService {
-    async fn create_user(&self, realm: UserModel) -> ApiResult<UserModel> {
+    async fn create_user(&self, realm: UserModel) -> Result<(), String> {
         todo!()
     }
-    async fn udpate_user(&self, realm: UserModel) -> ApiResult<()> {
+    async fn udpate_user(&self, realm: UserModel) -> Result<(), String> {
         todo!()
     }
-    async fn delete_user(&self, realm_id: &str, user_id: &str) -> ApiResult<()> {
+    async fn delete_user(&self, realm_id: &str, user_id: &str) -> Result<(), String> {
         todo!()
     }
-    async fn load_user(&self, realm_id: &str, user_id: &str) -> ApiResult<UserModel> {
+    async fn load_user(&self, realm_id: &str, user_id: &str) -> Result<Option<UserModel>, String> {
         todo!()
     }
-    async fn load_users_by_realm_id(&self, realm_id: &str) -> ApiResult<Vec<UserModel>> {
+    async fn load_users_by_realm_id(&self, realm_id: &str) -> Result<Vec<UserModel>, String> {
         todo!()
     }
-    async fn count_users(&self, realm_id: &str) -> ApiResult<i64> {
+    async fn count_users(&self, realm_id: &str) -> Result<i64, String> {
         todo!()
     }
-    async fn add_user_role(&self, realm_id: &str, user_id: &str, role_id: &str) -> ApiResult<()> {
+    async fn add_user_role(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        role_id: &str,
+    ) -> Result<(), String> {
         todo!()
     }
     async fn remove_user_role(
@@ -95,38 +115,47 @@ impl IUserService for UserService {
         realm_id: &str,
         user_id: &str,
         role_id: &str,
-    ) -> ApiResult<()> {
-        todo!()
-    }
-    async fn load_user_roles(&self, realm_id: &str, role_id: &str) -> ApiResult<Vec<RoleModel>> {
+    ) -> Result<(), String> {
         todo!()
     }
 
-    async fn add_user_group(&self, realm_id: &str, user_id: &str, group_id: &str) -> ApiResult<()> {
+    async fn load_user_roles(
+        &self,
+        realm_id: &str,
+        role_id: &str,
+    ) -> Result<Vec<UserModel>, String> {
         todo!()
     }
-    async fn remove_user_group(
+
+    async fn add_user_group_mapping(
         &self,
         realm_id: &str,
         user_id: &str,
         group_id: &str,
-    ) -> ApiResult<()> {
+    ) -> Result<(), String> {
         todo!()
     }
-
-    async fn load_user_groups(&self, realm_id: &str, user_id: &str) -> ApiResult<Vec<GroupModel>> {
-        todo!()
-    }
-    async fn user_count_groups(&self, realm_id: &str, user_id: &str) -> ApiResult<i64> {
-        todo!()
-    }
-    async fn load_user_groups_paging(
+    async fn remove_user_group_mapping(
         &self,
         realm_id: &str,
         user_id: &str,
-        page_size: i32,
-        page_index: i32,
-    ) -> ApiResult<GroupPagingResult> {
+        group_id: &str,
+    ) -> Result<(), String> {
+        todo!()
+    }
+
+    async fn load_user_groups(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+    ) -> Result<Vec<GroupModel>, String> {
+        todo!()
+    }
+    async fn user_count_groups(&self, realm_id: &str, user_id: &str) -> Result<i64, String> {
+        todo!()
+    }
+
+    async fn user_exists_by_id(&self, realm_id: &str, user_id: &str) -> Result<bool, String> {
         todo!()
     }
 }

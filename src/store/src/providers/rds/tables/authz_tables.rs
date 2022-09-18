@@ -59,6 +59,9 @@ lazy_static! {
         ],
         update_columns: Vec::new()
     };
+    pub static ref SELECT_USER_GROUPS_COUNT_BY_USER_ID: String =
+        "SELECT COUNT(g.group_id) FROM GROUPS g INNER JOIN ug USERS_GROUPS ON (ug.group_id = g.group_id AND  ug.realm_id = g.realm_id) WHERE ug.realm_id=$1 AND ug.user_id=$2".to_owned();
+
     pub static ref GROUPS_ROLES_SELECT_BY_ROLE_ID_QUERY: &'static str = r#"SELECT r.* FROM ROLES r INNER JOIN GROUPS_ROLES gr ON (r.role_id = gr.role_id AND r.realm_id = gr.realm_id) WHERE gr.realm_id = $1 AND gr.group_id = $2"#;
     pub static ref IDENTITIES_PROVIDERS_TABLE: RdsTable = RdsTable {
         table_name: "IDENTITIES_PROVIDERS".to_owned(),

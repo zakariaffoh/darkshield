@@ -93,6 +93,8 @@ pub trait IGroupProvider: Interface {
         user_id: &str,
     ) -> Result<Vec<GroupModel>, String>;
 
+    async fn count_user_groups(&self, realm_id: &str, user_id: &str) -> Result<i64, String>;
+
     async fn load_user_groups_paging(
         &self,
         realm_id: &str,
