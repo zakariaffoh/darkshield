@@ -1,7 +1,4 @@
 use async_trait::async_trait;
-use commons::ApiResult;
-use log;
-use models::auditable::AuditableModel;
 use models::entities::authz::*;
 use shaku::Component;
 use shaku::Interface;
@@ -12,7 +9,6 @@ use store::providers::interfaces::authz_provider::IResourceProvider;
 use store::providers::interfaces::authz_provider::IResourceServerProvider;
 use store::providers::interfaces::authz_provider::IRoleProvider;
 use store::providers::interfaces::authz_provider::IScopeProvider;
-use uuid;
 
 #[async_trait]
 pub trait IRoleService: Interface {
@@ -32,6 +28,8 @@ pub trait IRoleService: Interface {
         name: &str,
     ) -> Result<Option<RoleModel>, String>;
     async fn role_exists_by_id(&self, realm_id: &str, role_id: &str) -> Result<bool, String>;
+    async fn client_role_exists_by_id(&self, realm_id: &str, role_id: &str)
+        -> Result<bool, String>;
 }
 
 #[allow(dead_code)]
@@ -85,6 +83,16 @@ impl IRoleService for RoleService {
     async fn role_exists_by_id(&self, realm_id: &str, role_id: &str) -> Result<bool, String> {
         self.role_provider
             .role_exists_by_id(&realm_id, &role_id)
+            .await
+    }
+
+    async fn client_role_exists_by_id(
+        &self,
+        realm_id: &str,
+        role_id: &str,
+    ) -> Result<bool, String> {
+        self.role_provider
+            .client_role_exists_by_id(&realm_id, &role_id)
             .await
     }
 }
