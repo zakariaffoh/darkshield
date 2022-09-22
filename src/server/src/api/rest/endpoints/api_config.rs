@@ -1,9 +1,7 @@
 use actix_web::web;
 
 use super::{
-    admin::auth,
-    admin::authz,
-    admin::{client, realm},
+    admin::{auth, authz, client, realm, user},
     health,
     metrics_api::metrics_handler,
 };
@@ -121,7 +119,7 @@ pub fn register_apis(api_config: &mut web::ServiceConfig) {
                         .service(client::protocol_mappers_delete_by_id)
                         .service(client::protocol_mappers_load_by_client_id)
                         .service(client::protocol_mappers_load_by_protocol)
-                        /* User APi
+                        /* User APi */
                         .service(user::create_user)
                         .service(user::update_user)
                         .service(user::load_user)
@@ -144,7 +142,7 @@ pub fn register_apis(api_config: &mut web::ServiceConfig) {
                         .service(user::move_credential_to_first)
                         .service(user::move_credential_to_position)
                         .service(user::send_verify_email)
-                        .service(user::reset_password_email) */,
+                        .service(user::reset_password_email),
                 )
                 .service(web::scope("/monitoring").service(health::health_check)),
         )

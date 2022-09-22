@@ -9,7 +9,10 @@ use crate::providers::{
 use async_trait::async_trait;
 use deadpool_postgres::Object;
 use log;
-use models::{auditable::AuditableModel, entities::authz::*};
+use models::{
+    auditable::AuditableModel,
+    entities::{attributes::AttributesMap, authz::*},
+};
 use serde_json::json;
 use shaku::Component;
 use std::{collections::HashMap, sync::Arc};
@@ -925,7 +928,7 @@ impl IGroupProvider for RdsGroupProvider {
         }
         let client = client.unwrap();
         let load_user_count_stmt = client
-            .prepare_cached(&user_table::SELECT_USER_GROUPS_COUNT_BY_USER_ID_PAGING)
+            .prepare_cached(&user_table::SELECT_USER_GROUPS_COUNT_BY_USER_ID)
             .await
             .unwrap();
         let count_result = client
@@ -970,6 +973,25 @@ impl IGroupProvider for RdsGroupProvider {
             Err(err) => Err(err.to_string()),
         }
     }
+
+    async fn count_user_groups(&self, realm_id: &str, user_id: &str) -> Result<i64, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let client = client.unwrap();
+        let count_user_groups_stmt = client
+            .prepare_cached(&authz_tables::SELECT_USER_GROUPS_COUNT_BY_USER_ID)
+            .await
+            .unwrap();
+        let result = client
+            .query_one(&count_user_groups_stmt, &[&realm_id, &user_id])
+            .await;
+        match result {
+            Ok(row) => Ok(row.get::<usize, i64>(0)),
+            Err(error) => Err(error.to_string()),
+        }
+    }
 }
 
 #[allow(dead_code)]
@@ -982,10 +1004,9 @@ pub struct RdsIdentityProvider {
 
 impl RdsIdentityProvider {
     fn read_record(&self, row: Row) -> IdentityProviderModel {
-        let configs = serde_json::from_value::<HashMap<String, Option<String>>>(
-            row.get::<&str, serde_json::Value>("configs"),
-        )
-        .map_or_else(|_| None, |p| Some(p));
+        let configs =
+            serde_json::from_value::<AttributesMap>(row.get::<&str, serde_json::Value>("configs"))
+                .map_or_else(|_| None, |p| Some(p));
 
         IdentityProviderModel {
             internal_id: row.get("internal_id"),
@@ -1244,10 +1265,9 @@ pub struct RdsResourceServerProvider {
 
 impl RdsResourceServerProvider {
     fn read_record(&self, row: &Row) -> ResourceServerModel {
-        let configs = serde_json::from_value::<HashMap<String, Option<String>>>(
-            row.get::<&str, serde_json::Value>("configs"),
-        )
-        .map_or_else(|_| None, |p| Some(p));
+        let configs =
+            serde_json::from_value::<AttributesMap>(row.get::<&str, serde_json::Value>("configs"))
+                .map_or_else(|_| None, |p| Some(p));
 
         ResourceServerModel {
             server_id: row.get("server_id"),
@@ -1552,10 +1572,9 @@ pub struct RdsResourceProvider {
 
 impl RdsResourceProvider {
     fn read_record(&self, row: &Row) -> ResourceModel {
-        let configs = serde_json::from_value::<HashMap<String, Option<String>>>(
-            row.get::<&str, serde_json::Value>("configs"),
-        )
-        .map_or_else(|_| None, |p| Some(p));
+        let configs =
+            serde_json::from_value::<AttributesMap>(row.get::<&str, serde_json::Value>("configs"))
+                .map_or_else(|_| None, |p| Some(p));
 
         ResourceModel {
             resource_id: row.get("resource_id"),

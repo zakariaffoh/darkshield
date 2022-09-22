@@ -5,6 +5,7 @@ use crate::providers::rds::tables::auth_table;
 use async_trait::async_trait;
 use log;
 use models::auditable::AuditableModel;
+use models::entities::attributes::AttributesMap;
 use models::entities::auth::*;
 use serde_json::json;
 use shaku::Component;
@@ -918,10 +919,9 @@ pub struct RdsAuthenticatorConfigProvider {
 
 impl RdsAuthenticatorConfigProvider {
     fn read_record(&self, row: Row) -> AuthenticatorConfigModel {
-        let configs = serde_json::from_value::<HashMap<String, Option<String>>>(
-            row.get::<&str, serde_json::Value>("configs"),
-        )
-        .map_or_else(|_| None, |p| Some(p));
+        let configs =
+            serde_json::from_value::<AttributesMap>(row.get::<&str, serde_json::Value>("configs"))
+                .map_or_else(|_| None, |p| Some(p));
 
         AuthenticatorConfigModel {
             config_id: row.get("config_id"),

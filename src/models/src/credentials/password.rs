@@ -1,26 +1,23 @@
 use crypto::pbkdf::PBKDF2AlgorithmEnum;
 
-use crate::entities::{
-    credentials::{CredentialModel, PasswordCredentialModel},
-    realm::PasswordPolicy,
-};
+use crate::entities::{credentials::PasswordCredentialModel, realm::PasswordPolicy};
 
 pub trait PasswordHashProvider {
-    fn encode(self, raw_password: &str, iterations: u32) -> String;
+    fn encode(&self, raw_password: &str, iterations: u32) -> String;
 
-    fn encode_with_salt(self, raw_password: &str, salt: Vec<u32>, iterations: u32) -> String;
+    fn encode_with_salt(&self, raw_password: &str, salt: Vec<u32>, iterations: u32) -> String;
 
-    fn verify(self, current_credential: CredentialModel, password: &str) -> bool;
+    fn verify(&self, credential: &PasswordCredentialModel, password: &str) -> bool;
 
-    fn encoded_credential(self, password: &str, iterations: u32) -> PasswordCredentialModel;
+    fn encoded_credential(&self, password: &str, iterations: u32) -> PasswordCredentialModel;
 
-    fn policy_check(self, policy: PasswordPolicy, credential: PasswordCredentialModel) -> bool;
+    fn policy_check(&self, policy: &PasswordPolicy, credential: &PasswordCredentialModel) -> bool;
 }
 
+const PBKDF2_SALT_SIZE: u32 = 32;
 const DEFAULT_PROVIDER_ID: &str = "pbkdf2-sha256";
 const DEFAULT_ALGORITHM: &str = "pbkdf2-sha256";
 const DEFAULT_DERIVED_KEY_SIZE: u32 = 64;
-const PBKDF2_SALT_SIZE: u32 = 32;
 const DEFAULT_ITERATIONS: u32 = 20000;
 
 pub struct Pbkdf2PasswordHashProvider {
@@ -65,23 +62,23 @@ impl Pbkdf2PasswordHashProvider {
 }
 
 impl PasswordHashProvider for Pbkdf2PasswordHashProvider {
-    fn encode(self, raw_password: &str, iterations: u32) -> String {
+    fn encode(&self, raw_password: &str, iterations: u32) -> String {
         todo!()
     }
 
-    fn encode_with_salt(self, raw_password: &str, salt: Vec<u32>, iterations: u32) -> String {
+    fn encode_with_salt(&self, raw_password: &str, salt: Vec<u32>, iterations: u32) -> String {
         todo!()
     }
 
-    fn verify(self, current_credential: CredentialModel, password: &str) -> bool {
+    fn verify(&self, current_credential: &PasswordCredentialModel, password: &str) -> bool {
         todo!()
     }
 
-    fn encoded_credential(self, password: &str, iterations: u32) -> PasswordCredentialModel {
+    fn encoded_credential(&self, password: &str, iterations: u32) -> PasswordCredentialModel {
         todo!()
     }
 
-    fn policy_check(self, policy: PasswordPolicy, credential: PasswordCredentialModel) -> bool {
+    fn policy_check(&self, policy: &PasswordPolicy, credential: &PasswordCredentialModel) -> bool {
         todo!()
     }
 }

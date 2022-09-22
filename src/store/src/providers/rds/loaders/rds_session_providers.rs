@@ -292,7 +292,7 @@ impl RdsAuthenticationSessionProvider {
 
         let read_map = |r: &Row, column: &str| {
             let record = serde_json::from_value::<HashMap<String, String>>(
-                row.get::<&str, serde_json::Value>(column),
+                r.get::<&str, serde_json::Value>(column),
             )
             .map_or_else(|_| None, |p| Some(p));
             record

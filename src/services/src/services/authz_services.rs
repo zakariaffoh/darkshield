@@ -30,6 +30,12 @@ pub trait IRoleService: Interface {
     async fn role_exists_by_id(&self, realm_id: &str, role_id: &str) -> Result<bool, String>;
     async fn client_role_exists_by_id(&self, realm_id: &str, role_id: &str)
         -> Result<bool, String>;
+
+    async fn load_user_roles(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+    ) -> Result<Vec<RoleModel>, String>;
 }
 
 #[allow(dead_code)]
@@ -95,6 +101,16 @@ impl IRoleService for RoleService {
             .client_role_exists_by_id(&realm_id, &role_id)
             .await
     }
+
+    async fn load_user_roles(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+    ) -> Result<Vec<RoleModel>, String> {
+        self.role_provider
+            .load_user_roles(&realm_id, &user_id)
+            .await
+    }
 }
 
 #[async_trait]
@@ -136,6 +152,22 @@ pub trait IGroupService: Interface {
         realm_id: &str,
         name: &str,
     ) -> Result<Option<GroupModel>, String>;
+
+    async fn load_user_groups(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+    ) -> Result<Vec<GroupModel>, String>;
+
+    async fn count_user_groups(&self, realm_id: &str, user_id: &str) -> Result<i64, String>;
+
+    async fn load_user_groups_paging(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        page_size: i32,
+        page_index: i32,
+    ) -> Result<GroupPagingResult, String>;
 }
 
 #[allow(dead_code)]
@@ -214,6 +246,34 @@ impl IGroupService for GroupService {
     ) -> Result<Option<GroupModel>, String> {
         self.group_provider
             .load_group_by_name(&realm_id, &name)
+            .await
+    }
+
+    async fn load_user_groups(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+    ) -> Result<Vec<GroupModel>, String> {
+        self.group_provider
+            .load_user_groups(&realm_id, &user_id)
+            .await
+    }
+
+    async fn count_user_groups(&self, realm_id: &str, user_id: &str) -> Result<i64, String> {
+        self.group_provider
+            .count_user_groups(&realm_id, &user_id)
+            .await
+    }
+
+    async fn load_user_groups_paging(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        page_size: i32,
+        page_index: i32,
+    ) -> Result<GroupPagingResult, String> {
+        self.group_provider
+            .load_user_groups_paging(&realm_id, &user_id, page_size, page_index)
             .await
     }
 }

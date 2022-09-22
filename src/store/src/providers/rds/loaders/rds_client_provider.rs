@@ -10,6 +10,7 @@ use log;
 use models::{
     auditable::AuditableModel,
     entities::{
+        attributes::AttributesMap,
         authz::RoleModel,
         client::{ClientModel, ClientScopeModel, ProtocolEnum, ProtocolMapperModel},
     },
@@ -29,10 +30,9 @@ pub struct RdsProtocolMapperProvider {
 
 impl RdsProtocolMapperProvider {
     pub fn read_record(&self, row: Row) -> ProtocolMapperModel {
-        let configs = serde_json::from_value::<HashMap<String, Option<String>>>(
-            row.get::<&str, serde_json::Value>("configs"),
-        )
-        .map_or_else(|_| None, |p| Some(p));
+        let configs =
+            serde_json::from_value::<AttributesMap>(row.get::<&str, serde_json::Value>("configs"))
+                .map_or_else(|_| None, |p| Some(p));
 
         ProtocolMapperModel {
             mapper_id: row.get("mapper_id"),
@@ -988,12 +988,11 @@ pub struct RdsClientProvider {
 
 impl RdsClientProvider {
     fn read_record(&self, row: &Row) -> ClientModel {
-        let configs = serde_json::from_value::<HashMap<String, Option<String>>>(
-            row.get::<&str, serde_json::Value>("configs"),
-        )
-        .map_or_else(|_| None, |p| Some(p));
+        let configs =
+            serde_json::from_value::<AttributesMap>(row.get::<&str, serde_json::Value>("configs"))
+                .map_or_else(|_| None, |p| Some(p));
 
-        let auth_flow_overrides = serde_json::from_value::<HashMap<String, Option<String>>>(
+        let auth_flow_overrides = serde_json::from_value::<AttributesMap>(
             row.get::<&str, serde_json::Value>("auth_flow_binding_overrides"),
         )
         .map_or_else(|_| None, |p| Some(p));

@@ -1,12 +1,12 @@
-use std::collections::HashMap;
-
 use postgres_types::{FromSql, ToSql};
 use serde::{Deserialize, Serialize};
 
 use crate::auditable::AuditableModel;
 
-const HASH_ALGORITHM_DEFAULT: &str = "pbkdf2-sha256";
-const HASH_ITERATIONS_DEFAULT: u32 = 27500;
+use super::attributes::AttributesMap;
+
+pub const HASH_ALGORITHM_DEFAULT: &str = "pbkdf2-sha256";
+pub const HASH_ITERATIONS_DEFAULT: u32 = 27500;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PasswordPolicy {
@@ -15,9 +15,9 @@ pub struct PasswordPolicy {
     pub not_username: Option<bool>,
     pub not_birthdate: Option<bool>,
     pub black_list_passwords: Option<Vec<String>>,
-    pub password_digits: Option<bool>,
-    pub password_min_length: Option<bool>,
-    pub password_expired_after_days: Option<u32>,
+    pub password_digits: Option<i64>,
+    pub password_min_length: Option<i64>,
+    pub password_expired_after_days: Option<i64>,
     pub password_max_length: Option<bool>,
     pub min_upper_case: Option<u32>,
     pub min_lower_case: Option<u32>,
@@ -87,7 +87,7 @@ pub struct RealmModel {
     pub events_enabled: Option<bool>,
     pub admin_events_enabled: Option<bool>,
     pub not_before: Option<i32>,
-    pub attributes: Option<HashMap<String, Option<String>>>,
+    pub attributes: Option<AttributesMap>,
     pub metadata: Option<AuditableModel>,
 }
 
@@ -161,7 +161,7 @@ pub struct RealmUpdateModel {
     pub events_enabled: Option<bool>,
     pub admin_events_enabled: Option<bool>,
     pub not_before: Option<i32>,
-    pub attributes: Option<HashMap<String, Option<String>>>,
+    pub attributes: Option<AttributesMap>,
 }
 
 impl Into<RealmModel> for RealmUpdateModel {

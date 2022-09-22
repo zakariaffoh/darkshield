@@ -1,3 +1,4 @@
+use super::attributes::AttributesMap;
 use super::authz::RoleModel;
 use crate::auditable::AuditableModel;
 use postgres_types::{FromSql, ToSql};
@@ -62,9 +63,9 @@ pub struct ClientModel {
     pub front_channel_logout: Option<bool>,
     pub is_surrogate_auth_required: Option<bool>,
     pub not_before: Option<i32>,
-    pub configs: Option<HashMap<String, Option<String>>>,
+    pub configs: Option<AttributesMap>,
     pub service_account_enabled: Option<bool>,
-    pub auth_flow_binding_overrides: Option<HashMap<String, Option<String>>>,
+    pub auth_flow_binding_overrides: Option<AttributesMap>,
     pub metadata: Option<AuditableModel>,
 }
 
@@ -137,9 +138,9 @@ pub struct ClientUpdateModel {
     pub front_channel_logout: Option<bool>,
     pub is_surrogate_auth_required: Option<bool>,
     pub not_before: Option<i32>,
-    pub configs: Option<HashMap<String, Option<String>>>,
+    pub configs: Option<AttributesMap>,
     pub service_account_enabled: Option<bool>,
-    pub auth_flow_binding_overrides: Option<HashMap<String, Option<String>>>,
+    pub auth_flow_binding_overrides: Option<AttributesMap>,
     pub metadata: Option<AuditableModel>,
 }
 
@@ -226,7 +227,7 @@ pub struct ProtocolMapperModel {
     pub name: String,
     pub protocol: ProtocolEnum,
     pub mapper_type: String,
-    pub configs: Option<HashMap<String, Option<String>>>,
+    pub configs: Option<AttributesMap>,
     pub metadata: Option<AuditableModel>,
 }
 
@@ -235,7 +236,7 @@ pub struct ProtocolMapperMutationModel {
     pub name: String,
     pub protocol: ProtocolEnum,
     pub mapper_type: String,
-    pub configs: Option<HashMap<String, Option<String>>>,
+    pub configs: Option<AttributesMap>,
 }
 
 impl Into<ProtocolMapperModel> for ProtocolMapperMutationModel {

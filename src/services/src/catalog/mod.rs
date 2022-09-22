@@ -8,13 +8,11 @@ use crate::services::{
         ScopeService,
     },
     client_services::{ClientScopeService, ClientService, ProtocolMapperService},
+    credentials_services::UserCredentialService,
     health_check::HealthCheckService,
     realm_service::RealmService,
     tokens_services::{RevokedTokenStoreService, SingleUseTokenService},
-    user_services::{
-        UserActionService, UserConsentService, UserCredentialService, UserImpersonationService,
-        UserService,
-    },
+    user_services::{UserActionService, UserConsentService, UserImpersonationService, UserService},
 };
 
 use shaku::{module, Component, HasComponent, Interface};
@@ -85,11 +83,11 @@ module! {
             ResourceService,
             SingleUseTokenService,
             RevokedTokenStoreService,
-            UserCredentialService,
             UserConsentService,
             UserActionService,
             UserService,
             UserImpersonationService,
+            UserCredentialService
         ],
         providers = [],
     }
