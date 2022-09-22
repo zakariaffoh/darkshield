@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 pub type AttributesMap = HashMap<String, AttributeValue>;
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub enum AttributeValue {
     Int(i64),
     Str(String),
