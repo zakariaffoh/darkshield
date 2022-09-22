@@ -82,6 +82,26 @@ pub struct UserUpdateModel {
     pub service_account_client_link: Option<String>,
 }
 
+impl Into<UserModel> for UserUpdateModel {
+    fn into(self) -> UserModel {
+        UserModel {
+            user_id: String::new(),
+            realm_id: self.realm_id,
+            user_name: String::new(),
+            enabled: self.enabled,
+            email: self.email,
+            email_verified: self.email_verified,
+            required_actions: self.required_actions,
+            not_before: self.not_before,
+            user_storage: None,
+            attributes: self.attributes,
+            is_service_account: self.is_service_account,
+            service_account_client_link: self.service_account_client_link,
+            metadata: None,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct UserConsentModel {
     pub consent_id: String,

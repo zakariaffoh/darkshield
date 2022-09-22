@@ -8,6 +8,7 @@ use crate::services::{
         ScopeService,
     },
     client_services::{ClientScopeService, ClientService, ProtocolMapperService},
+    credentials_services::UserCredentialService,
     health_check::HealthCheckService,
     realm_service::RealmService,
     tokens_services::{RevokedTokenStoreService, SingleUseTokenService},
@@ -86,6 +87,7 @@ module! {
             UserActionService,
             UserService,
             UserImpersonationService,
+            UserCredentialService
         ],
         providers = [],
     }

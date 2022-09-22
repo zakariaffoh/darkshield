@@ -523,7 +523,7 @@ pub trait IUserCredentialService: Interface {
         &self,
         realm_id: &str,
         user_id: &str,
-        password: &CredentialRepresentation,
+        password: &PasswordCredentialModel,
     ) -> Result<(), String>;
 
     async fn disable_credential_type(
@@ -610,7 +610,7 @@ impl IUserCredentialService for UserCredentialService {
         &self,
         realm_id: &str,
         user_id: &str,
-        password: &CredentialRepresentation,
+        password: &PasswordCredentialModel,
     ) -> Result<(), String> {
         todo!()
     }

@@ -5,8 +5,8 @@ use crate::auditable::AuditableModel;
 
 use super::attributes::AttributesMap;
 
-const HASH_ALGORITHM_DEFAULT: &str = "pbkdf2-sha256";
-const HASH_ITERATIONS_DEFAULT: u32 = 27500;
+pub const HASH_ALGORITHM_DEFAULT: &str = "pbkdf2-sha256";
+pub const HASH_ITERATIONS_DEFAULT: u32 = 27500;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PasswordPolicy {

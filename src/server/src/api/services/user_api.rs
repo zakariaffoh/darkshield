@@ -1,27 +1,31 @@
 use crate::context::DarkShieldContext;
-use actix_web::web::to;
+use ::services::services::credentials_services::IUserCredentialService;
 use commons::{validation::EmailValidator, ApiResult};
 use models::entities::{
     auth::{RequiredActionEnum, RequiredActionModel},
     authz::{GroupModel, GroupPagingResult, RoleModel},
     credentials::{
-        CredentialRepresentation, CredentialTypeEnum, PasswordCredentialModel, UserCredentialModel,
+        CredentialRepresentation, CredentialTypeEnum, CredentialViewRepresentation,
+        PasswordCredentialModel, UserCredentialModel,
     },
-    realm::RealmModel,
+    realm::{RealmModel, HASH_ALGORITHM_DEFAULT},
     user::{UserCreateModel, UserModel, UserProfileHelper, UserStorageEnum},
 };
 use services::services::{
     auth_services::IRequiredActionService,
     authz_services::{IGroupService, IRoleService},
     realm_service::IRealmService,
-    user_services::{IUserCredentialService, IUserService},
+    user_services::IUserService,
 };
 use shaku::HasComponent;
 
 pub struct UserApi;
 
 impl UserApi {
-    pub async fn create_user(context: &DarkShieldContext, user: UserModel) -> ApiResult<UserModel> {
+    pub async fn create_user(
+        context: &DarkShieldContext,
+        user: UserCreateModel,
+    ) -> ApiResult<UserModel> {
         let realm_service: &dyn IRealmService = context.services().resolve_ref();
         let realm_model = realm_service.load_realm(&user.realm_id).await;
         match &realm_model {
@@ -45,12 +49,12 @@ impl UserApi {
         let user_service: &dyn IUserService = context.services().resolve_ref();
         let required_action_service: &dyn IRequiredActionService = context.services().resolve_ref();
 
-        if &realm.registration_allowed.unwrap_or(false) {
+        if realm.registration_allowed.unwrap() {
             log::error!("User registration not allowed for realm {}", &user.realm_id,);
             return ApiResult::from_error(403, "403", "User registration not allowed");
         }
         let mut user_name = user.user_name.clone();
-        if &realm.register_email_as_username.unwrap_or(false) {
+        if realm.register_email_as_username.unwrap() {
             user_name = user.email.clone();
         }
         if user_name.is_empty() {
@@ -90,7 +94,7 @@ impl UserApi {
 
         let required_actions = required_actions_list.unwrap();
         let user_model =
-            UserApi::user_model_from_representation(&realm, &user, &required_actions).await;
+            UserApi::user_model_from_representation(&realm, &user, required_actions).await;
         match user_model {
             Err(err) => {
                 log::error!("Invalid user. Error: {}", &err);
@@ -100,7 +104,7 @@ impl UserApi {
         }
 
         let user_model = user_model.unwrap();
-        let credential_input = UserApi::create_user_credential_input(&realm, &user_model).await;
+        let credential_input = UserApi::create_user_credential_input(&realm, &user).await;
         match credential_input {
             Err(err) => {
                 log::error!("Invalid user credential. Error: {}", &err);
@@ -110,7 +114,9 @@ impl UserApi {
         }
         let credential_input = credential_input.unwrap();
 
-        let created_user = user_service.create_user(&user, &credential_input).await;
+        let created_user = user_service
+            .create_user(&user_model, &credential_input)
+            .await;
         if let Err(err) = created_user {
             log::error!(
                 "Failed to create user: {}, realm: {}. Error: {}",
@@ -126,33 +132,38 @@ impl UserApi {
 
     async fn user_model_from_representation(
         realm: &RealmModel,
-        user_create: UserCreateModel,
+        user_create: &UserCreateModel,
         required_actions: Vec<RequiredActionModel>,
     ) -> Result<UserModel, String> {
         let realm_required_action_models = required_actions;
         let mut valid_actions: Vec<String> = Vec::new();
 
         if !realm_required_action_models.is_empty() {
-            let mut actions = user_create.required_actions.unwrap_or(Vec::new());
+            let actions = if let Some(required_actions) = &user_create.required_actions {
+                required_actions.clone()
+            } else {
+                Vec::<String>::new()
+            };
+
             let realm_valid_actions: Vec<String> = realm_required_action_models
                 .iter()
                 .map(|r| r.action.to_string())
                 .collect();
             for action in actions.iter() {
                 if realm_valid_actions.contains(&action) {
-                    valid_actions.append(action.to_owned());
+                    valid_actions.push(action.to_owned());
                 }
             }
         }
 
         if user_create.credential.credential_type == CredentialTypeEnum::PASSWORD
-            && user_create.credential.is_temporary
+            && user_create.credential.is_temporary.unwrap()
         {
-            valid_actions.append(RequiredActionEnum::UpdatePassword.to_string());
+            valid_actions.push(RequiredActionEnum::UpdatePassword.to_string());
         }
 
         if !user_create.email.is_empty() {
-            let validate_email = EmailValidator::validate(user_rep.email);
+            let validate_email = EmailValidator::validate(&user_create.email);
             if let Err(err) = validate_email {
                 log::error!(
                     "Email user: {} email{} is invalid",
@@ -164,18 +175,18 @@ impl UserApi {
         }
 
         let user = UserModel {
-            user_id: user_create.user_id,
-            realm_id: user_create.realm_id,
-            user_name: user_create.user_name,
-            enabled: user_create.enabled,
-            email: user_create.email,
+            user_id: user_create.user_id.clone(),
+            realm_id: user_create.realm_id.clone(),
+            user_name: user_create.user_name.clone(),
+            enabled: user_create.enabled.clone(),
+            email: user_create.email.clone(),
             email_verified: Some(false),
             required_actions: Some(valid_actions),
             not_before: user_create.not_before,
             user_storage: Some(UserStorageEnum::Local),
-            attributes: user_create.attributes,
+            attributes: user_create.attributes.clone(),
             is_service_account: user_create.is_service_account,
-            service_account_client_link: user_create.service_account_client_link,
+            service_account_client_link: user_create.service_account_client_link.clone(),
             metadata: None,
         };
 
@@ -190,19 +201,18 @@ impl UserApi {
         realm: &RealmModel,
         user: &UserCreateModel,
     ) -> Result<UserCredentialModel, String> {
+        let password_policy = if let Some(policy) = &realm.password_policy {
+            policy.hash_algorithm.clone()
+        } else {
+            Some(HASH_ALGORITHM_DEFAULT.to_owned())
+        };
+
         Ok(UserCredentialModel::new(
             uuid::Uuid::new_v4().to_string(),
             CredentialTypeEnum::PASSWORD.to_string(),
             user.credential.secret.clone(),
             None,
-            Some(
-                realm
-                    .password_policy
-                    .as_ref()
-                    .unwrap_or_default()
-                    .hash_algorithm
-                    .clone(),
-            ),
+            password_policy,
             None,
         ))
     }
@@ -235,7 +245,7 @@ impl UserApi {
             .await
             .unwrap_or_default()
         {
-            log::error!("User with user id: {} does not exist", &user_name);
+            log::error!("User with user id: {} does not exist", &user.user_name);
             return ApiResult::from_error(404, "404", "User does not exists in the realm");
         }
         match user_service.udpate_user(&user).await {
@@ -243,7 +253,7 @@ impl UserApi {
                 log::error!("User: {} updated. Error: {}", &user.user_id, &err);
                 return ApiResult::from_error(500, "500", "Failed to update user");
             }
-            _ => Ok(()),
+            _ => ApiResult::no_content(),
         }
     }
 
@@ -258,7 +268,7 @@ impl UserApi {
             .await
             .unwrap_or_default()
         {
-            log::error!("User with user id: {} does not exist", &user_name);
+            log::error!("User with user id: {} does not exist", &user_id);
             return ApiResult::from_error(404, "404", "User does not exists in the realm");
         }
         let deleted_user = user_service.delete_user(&realm_id, &user_id).await;
@@ -573,7 +583,7 @@ impl UserApi {
         context: &DarkShieldContext,
         realm_id: &str,
         user_id: &str,
-    ) -> ApiResult<()> {
+    ) -> ApiResult<Vec<CredentialViewRepresentation>> {
         let user_credential_service: &dyn IUserCredentialService = context.services().resolve_ref();
         let user_credentials = user_credential_service
             .load_user_credentials_view(&realm_id, &user_id)
@@ -617,13 +627,13 @@ impl UserApi {
         match disabled_response {
             Err(err) => {
                 log::error!(
-                    "Failed to disable user: {} credential type",
+                    "Failed to disable user: {} credential_type: {}",
                     &user_id,
                     &credential_type
                 );
                 return ApiResult::from_error(500, "500", "failed to disable credential type");
             }
-            _ => Ok(()),
+            _ => ApiResult::no_content(),
         }
     }
 
@@ -661,7 +671,7 @@ impl UserApi {
         if password.is_temporary.unwrap_or_default() {
             if let Some(actions) = user.required_actions {
                 let mut update_actions = actions;
-                update_actions.append(RequiredActionEnum::UpdatePassword.to_string());
+                update_actions.push(RequiredActionEnum::UpdatePassword.to_string());
                 user.required_actions = Some(update_actions);
             } else {
                 user.required_actions = Some(vec![RequiredActionEnum::UpdatePassword.to_string()])
@@ -669,7 +679,7 @@ impl UserApi {
         }
         let password_credential = PasswordCredentialModel::from_password(&password.secret);
         let updated_credential = user_credential_service
-            .reset_user_password(&user, password_credential)
+            .reset_user_password(&realm_id, &user.user_id, &password_credential)
             .await;
 
         match updated_credential {
@@ -677,7 +687,7 @@ impl UserApi {
                 log::error!("Failed to update user: {} credential", &user_id,);
                 return ApiResult::from_error(500, "500", "failed to update user");
             }
-            _ => Ok(()),
+            _ => ApiResult::no_content(),
         }
     }
 
@@ -772,7 +782,7 @@ impl UserApi {
             )
             .await;
 
-        match updated_credential {
+        match response {
             Err(err) => {
                 log::error!(
                     "Failed to move user: {} credential {}, realm: {}. Error: {}",
@@ -783,7 +793,7 @@ impl UserApi {
                 );
                 return ApiResult::from_error(500, "500", "failed to move user credential");
             }
-            _ => Ok(()),
+            _ => ApiResult::no_content(),
         }
     }
 
@@ -846,7 +856,7 @@ impl UserApi {
             .move_credential_to_first(&realm_id, &user_id, &credential_id)
             .await;
 
-        match updated_credential {
+        match response {
             Err(err) => {
                 log::error!(
                     "Failed to move user: {} credential {}, realm: {}. Error: {}",
@@ -857,7 +867,7 @@ impl UserApi {
                 );
                 return ApiResult::from_error(500, "500", "failed to move user credential");
             }
-            _ => Ok(()),
+            Ok(_) => ApiResult::no_content(),
         }
     }
 

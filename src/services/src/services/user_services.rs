@@ -18,7 +18,7 @@ use store::providers::interfaces::authz_provider::IRoleProvider;
 pub trait IUserService: Interface {
     async fn create_user(
         &self,
-        realm: UserModel,
+        realm: &UserModel,
         credential: &UserCredentialModel,
     ) -> Result<(), String>;
 
@@ -110,7 +110,7 @@ pub struct UserService {
 impl IUserService for UserService {
     async fn create_user(
         &self,
-        user: UserModel,
+        user: &UserModel,
         credential: &UserCredentialModel,
     ) -> Result<(), String> {
         todo!()

@@ -2,7 +2,7 @@ use crate::{api::services::user_api::UserApi, context::DarkShieldContext};
 use log;
 use models::entities::{
     credentials::CredentialRepresentation,
-    user::{UserCreateModel, UserModel},
+    user::{UserCreateModel, UserModel, UserUpdateModel},
 };
 
 use actix_web::{
@@ -18,7 +18,7 @@ pub async fn create_user(
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let (realm_id, user_id) = params.into_inner();
-    let mut user_model: UserModel = user.0.into();
+    let mut user_model: UserCreateModel = user.0;
     log::info!("Creating user {}, realm: {}", &user_id, &realm_id);
     user_model.user_id = user_id;
     user_model.realm_id = realm_id;
@@ -28,7 +28,7 @@ pub async fn create_user(
 #[put("/realm/{realm_id}/user/{user_id}")]
 pub async fn update_user(
     params: web::Path<(String, String)>,
-    user: web::Json<UserCreateModel>,
+    user: web::Json<UserUpdateModel>,
     context: web::Data<DarkShieldContext>,
 ) -> impl Responder {
     let (realm_id, user_id) = params.into_inner();
