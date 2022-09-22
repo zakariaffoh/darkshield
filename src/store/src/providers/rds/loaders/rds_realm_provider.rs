@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use models::auditable::AuditableModel;
+use models::entities::attributes::AttributesMap;
 use models::entities::realm::{PasswordPolicy, RealmModel};
 use serde_json::{self, json};
 use shaku::Component;
@@ -33,7 +34,7 @@ impl RdsRealmProvider {
         )
         .map_or_else(|_| None, |p| Some(p));
 
-        let attributes = serde_json::from_value::<HashMap<String, Option<String>>>(
+        let attributes = serde_json::from_value::<AttributesMap>(
             row.get::<&str, serde_json::Value>("attributes"),
         )
         .map_or_else(|_| None, |p| Some(p));

@@ -9,7 +9,10 @@ use crate::providers::{
 use async_trait::async_trait;
 use deadpool_postgres::Object;
 use log;
-use models::{auditable::AuditableModel, entities::authz::*};
+use models::{
+    auditable::AuditableModel,
+    entities::{attributes::AttributesMap, authz::*},
+};
 use serde_json::json;
 use shaku::Component;
 use std::{collections::HashMap, sync::Arc};
@@ -1001,10 +1004,9 @@ pub struct RdsIdentityProvider {
 
 impl RdsIdentityProvider {
     fn read_record(&self, row: Row) -> IdentityProviderModel {
-        let configs = serde_json::from_value::<HashMap<String, Option<String>>>(
-            row.get::<&str, serde_json::Value>("configs"),
-        )
-        .map_or_else(|_| None, |p| Some(p));
+        let configs =
+            serde_json::from_value::<AttributesMap>(row.get::<&str, serde_json::Value>("configs"))
+                .map_or_else(|_| None, |p| Some(p));
 
         IdentityProviderModel {
             internal_id: row.get("internal_id"),
@@ -1263,10 +1265,9 @@ pub struct RdsResourceServerProvider {
 
 impl RdsResourceServerProvider {
     fn read_record(&self, row: &Row) -> ResourceServerModel {
-        let configs = serde_json::from_value::<HashMap<String, Option<String>>>(
-            row.get::<&str, serde_json::Value>("configs"),
-        )
-        .map_or_else(|_| None, |p| Some(p));
+        let configs =
+            serde_json::from_value::<AttributesMap>(row.get::<&str, serde_json::Value>("configs"))
+                .map_or_else(|_| None, |p| Some(p));
 
         ResourceServerModel {
             server_id: row.get("server_id"),
@@ -1571,10 +1572,9 @@ pub struct RdsResourceProvider {
 
 impl RdsResourceProvider {
     fn read_record(&self, row: &Row) -> ResourceModel {
-        let configs = serde_json::from_value::<HashMap<String, Option<String>>>(
-            row.get::<&str, serde_json::Value>("configs"),
-        )
-        .map_or_else(|_| None, |p| Some(p));
+        let configs =
+            serde_json::from_value::<AttributesMap>(row.get::<&str, serde_json::Value>("configs"))
+                .map_or_else(|_| None, |p| Some(p));
 
         ResourceModel {
             resource_id: row.get("resource_id"),

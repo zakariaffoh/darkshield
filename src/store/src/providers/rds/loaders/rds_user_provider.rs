@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use models::auditable::AuditableModel;
+use models::entities::attributes::AttributesMap;
 use models::entities::user::UserModel;
 use tokio_postgres::Row;
 
@@ -28,6 +29,11 @@ pub struct RdsUserProvider {
 
 impl RdsUserProvider {
     fn read_user_record(&self, row: Row) -> UserModel {
+        let attributes = serde_json::from_value::<AttributesMap>(
+            row.get::<&str, serde_json::Value>("attributes"),
+        )
+        .map_or_else(|_| None, |p| Some(p));
+
         UserModel {
             user_id: row.get("user_id"),
             realm_id: row.get("realm_id"),
@@ -38,7 +44,7 @@ impl RdsUserProvider {
             required_actions: row.get("required_actions"),
             not_before: row.get("not_before"),
             user_storage: row.get("user_storage"),
-            attributes: row.get("attributes"),
+            attributes: attributes,
             is_service_account: row.get("is_service_account"),
             service_account_client_link: row.get("service_account_client_link"),
             metadata: Some(AuditableModel {

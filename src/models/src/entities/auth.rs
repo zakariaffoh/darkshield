@@ -1,10 +1,9 @@
 use crate::auditable::AuditableModel;
 use postgres_types::{FromSql, ToSql};
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    fmt::{Display, Formatter, Result},
-};
+use std::fmt::{Display, Formatter, Result};
+
+use super::attributes::AttributesMap;
 
 #[derive(Debug, Serialize, Deserialize, ToSql, FromSql, PartialEq, Eq, Hash)]
 pub enum RequiredActionEnum {
@@ -204,14 +203,14 @@ pub struct AuthenticatorConfigModel {
     pub config_id: String,
     pub realm_id: String,
     pub alias: String,
-    pub configs: Option<HashMap<String, Option<String>>>,
+    pub configs: Option<AttributesMap>,
     pub metadata: Option<AuditableModel>,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct AuthenticatorConfigMutationModel {
     alias: String,
-    configs: Option<HashMap<String, Option<String>>>,
+    configs: Option<AttributesMap>,
 }
 
 impl Into<AuthenticatorConfigModel> for AuthenticatorConfigMutationModel {

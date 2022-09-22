@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use commons::ApiResult;
 use models::entities::authz::GroupModel;
 use models::entities::credentials::CredentialRepresentation;
+use models::entities::credentials::UserCredentialModel;
 use models::entities::user::UserModel;
 use shaku::Component;
 use shaku::Interface;
@@ -15,13 +16,24 @@ use store::providers::interfaces::authz_provider::IRoleProvider;
 
 #[async_trait]
 pub trait IUserService: Interface {
-    async fn create_user(&self, realm: UserModel) -> Result<(), String>;
-    async fn udpate_user(&self, realm: UserModel) -> Result<(), String>;
+    async fn create_user(
+        &self,
+        realm: UserModel,
+        credential: &UserCredentialModel,
+    ) -> Result<(), String>;
+
+    async fn udpate_user(&self, user: &UserModel) -> Result<(), String>;
+
     async fn delete_user(&self, realm_id: &str, user_id: &str) -> Result<(), String>;
+
     async fn load_user(&self, realm_id: &str, user_id: &str) -> Result<Option<UserModel>, String>;
+
     async fn load_users_by_realm_id(&self, realm_id: &str) -> Result<Vec<UserModel>, String>;
+
     async fn count_users(&self, realm_id: &str) -> Result<i64, String>;
+
     async fn user_exists_by_id(&self, realm_id: &str, user_id: &str) -> Result<bool, String>;
+
     async fn add_user_role(
         &self,
         realm_id: &str,
@@ -59,7 +71,16 @@ pub trait IUserService: Interface {
         realm_id: &str,
         user_id: &str,
     ) -> Result<Vec<GroupModel>, String>;
+
     async fn user_count_groups(&self, realm_id: &str, user_id: &str) -> Result<i64, String>;
+
+    async fn user_exists_by_user_name(
+        &self,
+        realm_id: &str,
+        user_name: &str,
+    ) -> Result<bool, String>;
+
+    async fn user_exists_by_email(&self, realm_id: &str, email: &str) -> Result<bool, String>;
 }
 
 #[allow(dead_code)]
@@ -80,28 +101,45 @@ pub struct UserService {
 
     #[shaku(inject)]
     required_actions_provider: Arc<dyn IRequiredActionProvider>,
+
+    #[shaku(inject)]
+    password_credential_service: Arc<dyn IRequiredActionProvider>,
 }
 
 #[async_trait]
 impl IUserService for UserService {
-    async fn create_user(&self, realm: UserModel) -> Result<(), String> {
+    async fn create_user(
+        &self,
+        user: UserModel,
+        credential: &UserCredentialModel,
+    ) -> Result<(), String> {
         todo!()
     }
-    async fn udpate_user(&self, realm: UserModel) -> Result<(), String> {
+
+    async fn udpate_user(&self, user: &UserModel) -> Result<(), String> {
         todo!()
     }
+
     async fn delete_user(&self, realm_id: &str, user_id: &str) -> Result<(), String> {
         todo!()
     }
+
     async fn load_user(&self, realm_id: &str, user_id: &str) -> Result<Option<UserModel>, String> {
         todo!()
     }
+
     async fn load_users_by_realm_id(&self, realm_id: &str) -> Result<Vec<UserModel>, String> {
         todo!()
     }
+
     async fn count_users(&self, realm_id: &str) -> Result<i64, String> {
         todo!()
     }
+
+    async fn user_exists_by_id(&self, realm_id: &str, user_id: &str) -> Result<bool, String> {
+        todo!()
+    }
+
     async fn add_user_role(
         &self,
         realm_id: &str,
@@ -110,6 +148,7 @@ impl IUserService for UserService {
     ) -> Result<(), String> {
         todo!()
     }
+
     async fn remove_user_role(
         &self,
         realm_id: &str,
@@ -135,6 +174,7 @@ impl IUserService for UserService {
     ) -> Result<(), String> {
         todo!()
     }
+
     async fn remove_user_group_mapping(
         &self,
         realm_id: &str,
@@ -151,11 +191,20 @@ impl IUserService for UserService {
     ) -> Result<Vec<GroupModel>, String> {
         todo!()
     }
+
     async fn user_count_groups(&self, realm_id: &str, user_id: &str) -> Result<i64, String> {
         todo!()
     }
 
-    async fn user_exists_by_id(&self, realm_id: &str, user_id: &str) -> Result<bool, String> {
+    async fn user_exists_by_user_name(
+        &self,
+        realm_id: &str,
+        user_name: &str,
+    ) -> Result<bool, String> {
+        todo!()
+    }
+
+    async fn user_exists_by_email(&self, realm_id: &str, email: &str) -> Result<bool, String> {
         todo!()
     }
 }
@@ -716,120 +765,6 @@ impl IUserConsentService for UserConsentService {
         client_id: &str,
         scope: &str,
     ) -> ApiResult<()> {
-        todo!()
-    }
-
-    async fn move_credential_to_position(
-        &self,
-        realm_id: &str,
-        user_id: &str,
-        credential_id: &str,
-        previous_credential_id: &str,
-    ) -> ApiResult<()> {
-        todo!()
-    }
-
-    async fn move_credential_to_first(
-        &self,
-        realm_id: &str,
-        user_id: &str,
-        credential_id: &str,
-    ) -> ApiResult<()> {
-        todo!()
-    }
-
-    async fn reset_user_password(
-        &self,
-        realm_id: &str,
-        user_id: &str,
-        password: &CredentialRepresentation,
-    ) -> ApiResult<()> {
-        todo!()
-    }
-
-    async fn disable_credential_type(
-        &self,
-        realm_id: &str,
-        user_id: &str,
-        credential_type: &str,
-    ) -> ApiResult<()> {
-        todo!()
-    }
-}
-
-#[async_trait]
-pub trait IUserCredentialService: Interface {
-    async fn user_disable_credential_type(
-        &self,
-        realm_id: &str,
-        user_id: &str,
-        credential_type: &str,
-    ) -> ApiResult<()>;
-
-    async fn load_user_credentials(&self, realm_id: &str, user_id: &str) -> ApiResult<()>;
-
-    async fn move_credential_to_position(
-        &self,
-        realm_id: &str,
-        user_id: &str,
-        credential_id: &str,
-        previous_credential_id: &str,
-    ) -> ApiResult<()>;
-
-    async fn move_credential_to_first(
-        &self,
-        realm_id: &str,
-        user_id: &str,
-        credential_id: &str,
-    ) -> ApiResult<()>;
-
-    async fn reset_user_password(
-        &self,
-        realm_id: &str,
-        user_id: &str,
-        password: &CredentialRepresentation,
-    ) -> ApiResult<()>;
-
-    async fn disable_credential_type(
-        &self,
-        realm_id: &str,
-        user_id: &str,
-        credential_type: &str,
-    ) -> ApiResult<()>;
-}
-
-#[allow(dead_code)]
-#[derive(Component)]
-#[shaku(interface = IUserCredentialService)]
-pub struct UserCredentialService {
-    #[shaku(inject)]
-    group_provider: Arc<dyn IGroupProvider>,
-
-    #[shaku(inject)]
-    role_provider: Arc<dyn IRoleProvider>,
-
-    #[shaku(inject)]
-    user_provider: Arc<dyn IUserProvider>,
-
-    #[shaku(inject)]
-    realm_provider: Arc<dyn IRealmProvider>,
-
-    #[shaku(inject)]
-    required_actions_provider: Arc<dyn IRequiredActionProvider>,
-}
-
-#[async_trait]
-impl IUserCredentialService for UserCredentialService {
-    async fn user_disable_credential_type(
-        &self,
-        realm_id: &str,
-        user_id: &str,
-        credential_type: &str,
-    ) -> ApiResult<()> {
-        todo!()
-    }
-
-    async fn load_user_credentials(&self, realm_id: &str, user_id: &str) -> ApiResult<()> {
         todo!()
     }
 

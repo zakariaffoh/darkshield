@@ -1,7 +1,4 @@
 use async_trait::async_trait;
-use commons::ApiResult;
-use log;
-use models::auditable::AuditableModel;
 use models::entities::auth::AuthenticationExecutionModel;
 use models::entities::auth::AuthenticationFlowModel;
 use models::entities::auth::AuthenticatorConfigModel;
@@ -13,7 +10,6 @@ use store::providers::interfaces::auth_providers::IAuthenticationExecutionProvid
 use store::providers::interfaces::auth_providers::IAuthenticationFlowProvider;
 use store::providers::interfaces::auth_providers::IAuthenticatorConfigProvider;
 use store::providers::interfaces::auth_providers::IRequiredActionProvider;
-use uuid;
 
 #[async_trait]
 pub trait IRequiredActionService: Interface {

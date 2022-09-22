@@ -1,8 +1,8 @@
-use std::collections::HashMap;
-
 use crate::auditable::AuditableModel;
 use postgres_types::{FromSql, ToSql};
 use serde::{Deserialize, Serialize};
+
+use super::attributes::AttributesMap;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Permission {}
@@ -93,7 +93,7 @@ pub struct IdentityProviderModel {
     pub description: String,
     pub enabled: Option<bool>,
     pub trust_email: Option<bool>,
-    pub configs: Option<HashMap<String, Option<String>>>,
+    pub configs: Option<AttributesMap>,
     pub metadata: Option<AuditableModel>,
 }
 
@@ -105,7 +105,7 @@ pub struct IdentityProviderMutationModel {
     pub description: String,
     pub enabled: Option<bool>,
     pub trust_email: Option<bool>,
-    pub configs: Option<HashMap<String, Option<String>>>,
+    pub configs: Option<AttributesMap>,
 }
 
 impl Into<IdentityProviderModel> for IdentityProviderMutationModel {
@@ -152,7 +152,7 @@ pub struct ResourceServerModel {
     pub decision_strategy: DecisionStrategyEnum,
     pub remote_resource_management: Option<bool>,
     pub user_managed_access_enabled: Option<bool>,
-    pub configs: Option<HashMap<String, Option<String>>>,
+    pub configs: Option<AttributesMap>,
     pub metadata: Option<AuditableModel>,
 }
 
@@ -165,7 +165,7 @@ pub struct ResourceServerMutationModel {
     pub decision_strategy: DecisionStrategyEnum,
     pub remote_resource_management: Option<bool>,
     pub user_managed_access_enabled: Option<bool>,
-    pub configs: Option<HashMap<String, Option<String>>>,
+    pub configs: Option<AttributesMap>,
 }
 
 impl Into<ResourceServerModel> for ResourceServerMutationModel {
@@ -198,7 +198,7 @@ pub struct ResourceModel {
     pub resource_type: String,
     pub resource_owner: String,
     pub user_managed_access_enabled: Option<bool>,
-    pub configs: Option<HashMap<String, Option<String>>>,
+    pub configs: Option<AttributesMap>,
     pub metadata: Option<AuditableModel>,
 }
 
@@ -211,7 +211,7 @@ pub struct ResourceMutationModel {
     pub resource_type: String,
     pub resource_owner: String,
     pub user_managed_access_enabled: Option<bool>,
-    pub configs: Option<HashMap<String, Option<String>>>,
+    pub configs: Option<AttributesMap>,
 }
 
 impl Into<ResourceModel> for ResourceMutationModel {

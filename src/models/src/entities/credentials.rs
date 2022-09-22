@@ -42,6 +42,52 @@ pub trait CredentialInputUpdater {
     ) -> Vec<CredentialModel>;
 }
 
+#[async_trait]
+pub trait CredentialInputValidator {
+    fn supports_credential_type(&self, credential_type: &str) -> bool;
+
+    async fn is_configured_for(
+        &self,
+        realm: &RealmModel,
+        user: &UserModel,
+        credential_type: &str,
+    ) -> bool;
+
+    fn is_valid(
+        &self,
+        realm: &RealmModel,
+        user: &UserModel,
+        credential_input: &Box<dyn CredentialInput>,
+    ) -> bool;
+
+    async fn load_password_credential(
+        &self,
+        realm: &RealmModel,
+        user: &UserModel,
+    ) -> Result<Option<PasswordCredentialModel>, String>;
+}
+
+#[async_trait]
+pub trait CredentialProvider {
+    fn get_credential_type(&self) -> &str;
+
+    async fn create_credential(
+        &self,
+        realm: &RealmModel,
+        user: &UserModel,
+        credential: &CredentialModel,
+    ) -> &str;
+
+    async fn delete_credential(
+        &self,
+        realm: &RealmModel,
+        user: &UserModel,
+        credential_id: &str,
+    ) -> &str;
+
+    async fn credential_from_model(&self, model: &UserCredentialModel) -> CredentialModel;
+}
+
 enum CredentialDataEnum {
     HashAlgorithm,
     HashIteration,
@@ -63,41 +109,41 @@ impl ToString for CredentialDataEnum {
 }
 
 pub struct CredentialModel {
-    pub credential_type: Option<String>,
-    pub realm_id: Option<String>,
-    pub user_id: Option<String>,
-    pub credential_id: Option<String>,
+    pub credential_type: String,
+    pub realm_id: String,
+    pub user_id: String,
+    pub credential_id: String,
     pub user_label: Option<String>,
     pub secret_data: Option<HashMap<String, CredentialFieldEnum>>,
     pub credential_data: Option<HashMap<String, CredentialFieldEnum>>,
-    pub priority: Option<i64>,
+    pub priority: i64,
     pub metadata: Option<AuditableModel>,
 }
 
 impl CredentialModel {
     pub fn credential_data(credential_data: Option<HashMap<String, CredentialFieldEnum>>) -> Self {
         CredentialModel {
-            credential_type: None,
-            realm_id: None,
-            user_id: None,
-            credential_id: None,
+            credential_type: Default::default(),
+            realm_id: Default::default(),
+            user_id: Default::default(),
+            credential_id: String::new(),
             user_label: None,
             secret_data: None,
             credential_data: credential_data,
-            priority: None,
+            priority: Default::default(),
             metadata: None,
         }
     }
     pub fn secret_data(secret_data: Option<HashMap<String, CredentialFieldEnum>>) -> Self {
         CredentialModel {
-            credential_type: None,
-            realm_id: None,
-            user_id: None,
-            credential_id: None,
+            credential_type: Default::default(),
+            realm_id: Default::default(),
+            user_id: Default::default(),
+            credential_id: Default::default(),
             user_label: None,
             secret_data: secret_data,
             credential_data: None,
-            priority: None,
+            priority: Default::default(),
             metadata: None,
         }
     }
@@ -378,9 +424,9 @@ impl OTPCredentialModel {
 }
 
 pub struct PasswordCredentialData {
-    hash_iterations: Option<i64>,
-    algorithm: Option<String>,
-    additional_parameters: Option<HashMap<String, String>>,
+    pub hash_iterations: Option<i64>,
+    pub algorithm: Option<String>,
+    pub additional_parameters: Option<HashMap<String, String>>,
 }
 
 impl PasswordCredentialData {
@@ -436,6 +482,9 @@ pub struct PasswordCredentialModel {
 }
 
 impl PasswordCredentialModel {
+    pub const PASSWORD_CREDENTIAL_TYPE: &'static str = "password";
+    pub const PASSWORD_HISTORY_CREDENTIAL_TYPE: &'static str = "password-history";
+
     pub fn new(credential_data: PasswordCredentialData, secret_data: PasswordSecretData) -> Self {
         let mut password = PasswordCredentialModel {
             model: CredentialModel::default(),
@@ -453,7 +502,7 @@ impl PasswordCredentialModel {
         let mut password = PasswordCredentialModel::new(credential_data, secret_data);
         password.set_credential_data();
         password.set_secret_data();
-        password.set_credential_type(Some("password".to_owned()));
+        password.set_credential_type(PasswordCredentialModel::PASSWORD_CREDENTIAL_TYPE.to_owned());
         password
     }
 
@@ -488,11 +537,11 @@ impl PasswordCredentialModel {
         PasswordCredentialModel::from("", "", 0, password)
     }
 
-    fn password_credential_data(&self) -> &PasswordCredentialData {
+    pub fn password_credential_data(&self) -> &PasswordCredentialData {
         &self.credential_data
     }
 
-    fn password_secret_data(&self) -> &PasswordSecretData {
+    pub fn password_secret_data(&self) -> &PasswordSecretData {
         &self.secret_data
     }
 
@@ -547,18 +596,18 @@ impl PasswordCredentialModel {
     fn fill_credential_data(&mut self) {
         self.set_credential_data();
         self.set_secret_data();
-        self.set_credential_type(Some("password".to_owned()));
+        self.set_credential_type(PasswordCredentialModel::PASSWORD_CREDENTIAL_TYPE.to_owned());
     }
 
     fn set_metadata(&mut self, metadata: Option<AuditableModel>) {
         self.model.metadata = metadata;
     }
 
-    fn set_credential_id(&mut self, credential_id: Option<String>) {
+    fn set_credential_id(&mut self, credential_id: String) {
         self.model.credential_id = credential_id;
     }
 
-    fn set_credential_type(&mut self, credential_type: Option<String>) {
+    fn set_credential_type(&mut self, credential_type: String) {
         self.model.credential_type = credential_type;
     }
 
@@ -607,6 +656,25 @@ pub struct UserCredentialModel {
 }
 
 impl UserCredentialModel {
+    pub fn new(
+        credential_id: String,
+        credential_type: String,
+        challenge_response: String,
+        device: Option<String>,
+        algorithm: Option<String>,
+        admin_request: Option<bool>,
+    ) -> Self {
+        Self {
+            credential_id: Some(credential_id),
+            credential_type: Some(credential_type),
+            challenge_response: Some(challenge_response),
+            device: device,
+            algorithm: algorithm,
+            admin_request: admin_request,
+            notes: None,
+        }
+    }
+
     pub fn from_otp(
         credential_id: &str,
         credential_type: &str,
@@ -783,9 +851,9 @@ impl UserCredentialModel {
 
 #[derive(Serialize, Deserialize)]
 pub struct CredentialRepresentation {
-    credential_type: CredentialTypeEnum,
-    is_temporary: Option<bool>,
-    secret: String,
+    pub credential_type: CredentialTypeEnum,
+    pub is_temporary: Option<bool>,
+    pub secret: String,
 }
 
 #[derive(Serialize, Deserialize)]
