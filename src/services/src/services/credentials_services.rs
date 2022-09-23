@@ -19,6 +19,77 @@ use store::providers::interfaces::realm_provider::IRealmProvider;
 use store::providers::interfaces::user_provider::IUserProvider;
 
 #[async_trait]
+pub trait CredentialInputValidator {
+    fn supports_credential_type(&self, credential_type: &str) -> bool;
+
+    async fn is_configured_for(
+        &self,
+        realm: &RealmModel,
+        user: &UserModel,
+        credential_type: &str,
+    ) -> bool;
+
+    fn is_valid(
+        &self,
+        realm: &RealmModel,
+        user: &UserModel,
+        credential_input: &Box<dyn CredentialInput>,
+    ) -> bool;
+
+    async fn load_password_credential(
+        &self,
+        realm: &RealmModel,
+        user: &UserModel,
+    ) -> Result<Option<PasswordCredentialModel>, String>;
+}
+
+#[async_trait]
+pub trait CredentialInputUpdater {
+    fn supports_credential_type(&self, credential_type: &str) -> bool;
+
+    fn update_credential(
+        &self,
+        realm: &RealmModel,
+        user: &UserModel,
+        credential_input: &Box<dyn CredentialInput>,
+    ) -> bool;
+
+    async fn disable_credential_type(
+        &self,
+        realm: &RealmModel,
+        user: &UserModel,
+        credential_type: &str,
+    ) -> Result<(), String>;
+
+    async fn get_disableable_credential_types(
+        self,
+        realm: RealmModel,
+        user: UserModel,
+    ) -> Vec<CredentialModel>;
+}
+
+#[async_trait]
+pub trait CredentialProvider {
+    fn get_credential_type(&self) -> &str;
+
+    async fn create_credential(
+        &self,
+        realm: &RealmModel,
+        user: &UserModel,
+        credential: &CredentialModel,
+    ) -> &str;
+
+    async fn delete_credential(
+        &self,
+        realm: &RealmModel,
+        user: &UserModel,
+        credential_id: &str,
+    ) -> &str;
+
+    async fn credential_from_model(&self, model: &UserCredentialModel) -> CredentialModel;
+}
+
+#[async_trait]
 pub trait IUserCredentialStore: Interface {
     fn id(&self) -> String;
 
@@ -85,12 +156,16 @@ pub trait IUserCredentialStore: Interface {
     ) -> Result<Vec<CredentialModel>, String>;
 }
 
+#[allow(dead_code)]
+#[derive(Component)]
+#[shaku(interface = IUserCredentialStore)]
 pub struct UserCredentialStore {
+    #[shaku(inject)]
     credential_provider: Arc<dyn ICredentialProvider>,
 }
 
 impl UserCredentialStore {
-    pub fn new(provider: Arc<dyn ICredentialProvider>) -> Self {
+    pub fn new(provider: &Arc<dyn ICredentialProvider>) -> Self {
         Self {
             credential_provider: Arc::clone(&provider),
         }
@@ -349,13 +424,13 @@ impl IUserCredentialStore for UserCredentialStore {
             start_priority += PRIORITY_DIFFERENCE
         }
 
-        let credential_data: Vec<(String, String, i64)> = credentials_by_priority
+        let credential_data: Vec<(String, i64)> = credentials_by_priority
             .iter()
-            .map(|cr| (realm.realm_id.clone(), cr.0.to_owned(), cr.1))
+            .map(|cr| (cr.0.to_owned(), cr.1))
             .collect();
 
         self.credential_provider
-            .update_credential_priorities(&realm.realm_id, &user.user_id, &credential_data)
+            .update_credential_priorities(&realm.realm_id, &credential_data)
             .await
     }
 }
@@ -370,6 +445,7 @@ pub struct UserCredentialProvider {}
 
 impl IUserCredentialProvider for UserCredentialProvider {}
 
+#[allow(dead_code)]
 pub struct PasswordCredentialProvider {
     user_credential_provider: Arc<dyn IUserCredentialProvider>,
 }
@@ -402,16 +478,16 @@ impl CredentialInputUpdater for PasswordCredentialProvider {
         realm: &RealmModel,
         user: &UserModel,
         credential_type: &str,
-    ) {
+    ) -> Result<(), String> {
         todo!()
     }
 
     async fn get_disableable_credential_types(
         self,
-        realm: RealmModel,
-        user: UserModel,
+        _realm: RealmModel,
+        _user: UserModel,
     ) -> Vec<CredentialModel> {
-        todo!()
+        Vec::new()
     }
 }
 
@@ -475,7 +551,7 @@ impl CredentialProvider for PasswordCredentialProvider {
         user: &UserModel,
         credential_id: &str,
     ) -> &str {
-        todo!()
+        self.user_credential_provider.re
     }
 
     async fn credential_from_model(&self, model: &UserCredentialModel) -> CredentialModel {
@@ -566,6 +642,131 @@ pub struct UserCredentialService {
 
     #[shaku(inject)]
     required_actions_provider: Arc<dyn IRequiredActionProvider>,
+
+    #[shaku(inject)]
+    credential_store_provider: Arc<dyn IUserCredentialStore>,
+}
+
+impl UserCredentialService {
+    fn user_storage_provider(&self) -> Arc<dyn IUserCredentialStore> {
+        Arc::clone(&self.credential_store_provider)
+    }
+}
+
+#[async_trait]
+impl IUserCredentialStore for UserCredentialService {
+    fn id(&self) -> String {
+        "user-credential-manager".to_string()
+    }
+
+    async fn create_credential(
+        &self,
+        realm: &RealmModel,
+        user: &UserModel,
+        cred: CredentialModel,
+    ) -> Result<CredentialModel, String> {
+        self.user_storage_provider()
+            .create_credential(&realm, &user, cred)
+            .await
+    }
+
+    async fn update_credential(
+        &self,
+        realm: &RealmModel,
+        user: &UserModel,
+        cred: &CredentialModel,
+    ) -> Result<bool, String> {
+        self.user_storage_provider()
+            .update_credential(&realm, &user, &cred)
+            .await
+    }
+
+    async fn remove_stored_credential(
+        &self,
+        realm: &RealmModel,
+        user: &UserModel,
+        credential_id: &str,
+    ) -> Result<bool, String> {
+        if let Some(svc_link) = &user.service_account_client_link {
+            if !svc_link.is_empty() {
+                return Err("Cannot manage credential for this account".to_owned());
+            }
+        }
+
+        self.user_storage_provider()
+            .remove_stored_credential(&realm, &user, &credential_id)
+            .await
+    }
+
+    async fn load_stored_credential_by_id(
+        &self,
+        realm: &RealmModel,
+        user: &UserModel,
+        credential_id: &str,
+    ) -> Result<Option<CredentialModel>, String> {
+        self.user_storage_provider()
+            .load_stored_credential_by_id(&realm, &user, &credential_id)
+            .await
+    }
+
+    async fn load_stored_credentials_by_type(
+        &self,
+        realm: &RealmModel,
+        user: &UserModel,
+        credential_type: &str,
+    ) -> Result<Vec<CredentialModel>, String> {
+        self.user_storage_provider()
+            .load_stored_credentials_by_type(&realm, &user, &credential_type)
+            .await
+    }
+
+    async fn load_stored_credential_by_name_and_type(
+        &self,
+        realm: &RealmModel,
+        user: &UserModel,
+        credential_name: &str,
+        credential_type: &str,
+    ) -> Result<Option<CredentialModel>, String> {
+        self.user_storage_provider()
+            .load_stored_credential_by_name_and_type(
+                &realm,
+                &user,
+                &credential_name,
+                &credential_type,
+            )
+            .await
+    }
+
+    async fn move_credential_to(
+        &self,
+        realm: &RealmModel,
+        user: &UserModel,
+        credential_id: &str,
+        new_previous_credential_id: &str,
+    ) -> Result<bool, String> {
+        self.user_storage_provider()
+            .move_credential_to(&realm, &user, &credential_id, &new_previous_credential_id)
+            .await
+    }
+
+    async fn load_stored_credentials(
+        &self,
+        realm: &RealmModel,
+        user: &UserModel,
+    ) -> Result<Vec<CredentialModel>, String> {
+        self.user_storage_provider()
+            .load_stored_credentials(&realm, &user)
+            .await
+    }
+
+    async fn load_stored_credentials_by_realm_id(
+        &self,
+        realm_id: &str,
+    ) -> Result<Vec<CredentialModel>, String> {
+        self.user_storage_provider()
+            .load_stored_credentials_by_realm_id(&realm_id)
+            .await
+    }
 }
 
 #[async_trait]
@@ -647,13 +848,15 @@ impl IUserCredentialService for UserCredentialService {
         user: &UserModel,
         credential_type: &str,
     ) -> Result<Vec<CredentialModel>, String> {
-        todo!()
+        self.user_storage_provider()
+            .load_stored_credentials_by_type(&realm, &user, &credential_type)
+            .await
     }
 }
 
 pub struct PolicyValidationError {
-    message: String,
-    parameters: Vec<String>,
+    pub message: String,
+    pub parameters: Vec<String>,
 }
 
 impl ToString for PolicyValidationError {
@@ -679,7 +882,7 @@ impl PasswordPolicyProvider for BlackListPasswordPolicyProvider {
     async fn validate(
         &self,
         realm: &RealmModel,
-        user: &UserModel,
+        _: &UserModel,
         password: &str,
     ) -> Result<(), PolicyValidationError> {
         let black_list_passwords = realm
@@ -707,7 +910,7 @@ impl PasswordPolicyProvider for PasswordDigitPolicyProvider {
     async fn validate(
         &self,
         realm: &RealmModel,
-        user: &UserModel,
+        _: &UserModel,
         password: &str,
     ) -> Result<(), PolicyValidationError> {
         let password_digits_count = *realm
@@ -740,7 +943,7 @@ impl PasswordPolicyProvider for UpperCasePasswordPolicyProvider {
     async fn validate(
         &self,
         realm: &RealmModel,
-        user: &UserModel,
+        _: &UserModel,
         password: &str,
     ) -> Result<(), PolicyValidationError> {
         let min_upper_case = *realm
@@ -773,7 +976,7 @@ impl PasswordPolicyProvider for LowerCasePasswordPolicyProvider {
     async fn validate(
         &self,
         realm: &RealmModel,
-        user: &UserModel,
+        _: &UserModel,
         password: &str,
     ) -> Result<(), PolicyValidationError> {
         let min_lower_case = *realm
@@ -807,7 +1010,7 @@ impl PasswordPolicyProvider for SpecialCharsPasswordPolicyProvider {
     async fn validate(
         &self,
         realm: &RealmModel,
-        user: &UserModel,
+        _: &UserModel,
         password: &str,
     ) -> Result<(), PolicyValidationError> {
         let special_chars = *realm
@@ -936,7 +1139,7 @@ impl PasswordPolicyProvider for MaximumLengthPasswordPolicyProvider {
     async fn validate(
         &self,
         realm: &RealmModel,
-        user: &UserModel,
+        _: &UserModel,
         password: &str,
     ) -> Result<(), PolicyValidationError> {
         let password_max_length = *realm
@@ -963,7 +1166,7 @@ impl PasswordPolicyProvider for MinimumLengthPasswordPolicyProvider {
     async fn validate(
         &self,
         realm: &RealmModel,
-        user: &UserModel,
+        _: &UserModel,
         password: &str,
     ) -> Result<(), PolicyValidationError> {
         let password_min_length = *realm
@@ -1126,7 +1329,7 @@ impl PasswordPolicyProvider for PasswordHistoryPolicyProvider {
                                 });
                             }
                         }
-                        Err(err) => {
+                        Err(_) => {
                             return Err(PolicyValidationError {
                                 message: "invalidPasswordHistoryMessage".to_string(),
                                 parameters: vec!["server error".to_owned()],
@@ -1134,7 +1337,7 @@ impl PasswordPolicyProvider for PasswordHistoryPolicyProvider {
                         }
                     }
                 }
-                Err(err) => {
+                Err(_) => {
                     return Err(PolicyValidationError {
                         message: "invalidPasswordHistoryMessage".to_string(),
                         parameters: vec!["server error".to_owned()],
@@ -1173,7 +1376,7 @@ impl PasswordPolicyProvider for PasswordHistoryPolicyProvider {
                         }
                     }
                 }
-                Err(err) => {
+                Err(_) => {
                     return Err(PolicyValidationError {
                         message: "invalidPasswordHistoryMessage".to_string(),
                         parameters: vec!["server error".to_owned()],
@@ -1190,7 +1393,7 @@ pub struct PasswordPolicyManager {
 }
 
 impl PasswordPolicyManager {
-    fn new(user_credential_service: Arc<dyn IUserCredentialService>) -> Self {
+    pub fn new(user_credential_service: Arc<dyn IUserCredentialService>) -> Self {
         Self {
             user_credential_service: Arc::clone(&user_credential_service),
         }

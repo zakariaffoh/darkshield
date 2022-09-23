@@ -8,7 +8,7 @@ use crate::services::{
         ScopeService,
     },
     client_services::{ClientScopeService, ClientService, ProtocolMapperService},
-    credentials_services::UserCredentialService,
+    credentials_services::{UserCredentialService, UserCredentialStore},
     health_check::HealthCheckService,
     realm_service::RealmService,
     tokens_services::{RevokedTokenStoreService, SingleUseTokenService},
@@ -28,6 +28,7 @@ use store::providers::rds::{
         rds_client_provider::{
             RdsClientProvider, RdsClientScopeProvider, RdsProtocolMapperProvider,
         },
+        rds_credential_provider::RdsCredentialProvider,
         rds_health_check::RdsHealthCheckProvider,
         rds_login_failure::RdsUserLoginFailureProvider,
         rds_realm_provider::RdsRealmProvider,
@@ -66,6 +67,7 @@ module! {
             RdsAuthenticationSessionProvider,
             RdsRootAuthenticationSessionProvider,
             RdsUserSessionProvider,
+            RdsCredentialProvider,
             HealthCheckService,
             RealmService,
             RoleService,
@@ -87,7 +89,8 @@ module! {
             UserActionService,
             UserService,
             UserImpersonationService,
-            UserCredentialService
+            UserCredentialService,
+            UserCredentialStore
         ],
         providers = [],
     }

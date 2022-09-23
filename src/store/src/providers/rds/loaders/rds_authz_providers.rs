@@ -15,7 +15,7 @@ use models::{
 };
 use serde_json::json;
 use shaku::Component;
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 use tokio_postgres::Row;
 
 #[allow(dead_code)]
