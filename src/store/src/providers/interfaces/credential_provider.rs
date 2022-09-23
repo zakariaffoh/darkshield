@@ -42,6 +42,13 @@ pub trait ICredentialProvider: Interface {
         credential_type: &str,
     ) -> Result<Option<CredentialModel>, String>;
 
+    async fn reset_password_credential(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        credential: &CredentialModel,
+    ) -> Result<bool, String>;
+
     async fn load_stored_credentials(
         &self,
         realm_id: &str,
@@ -63,7 +70,14 @@ pub trait ICredentialProvider: Interface {
     async fn update_credential_priorities(
         &self,
         realm_id: &str,
-        user_id: &str,
-        credential_data: &Vec<(String, String, i64)>,
+        credential_data: &Vec<(String, i64)>,
     ) -> Result<bool, String>;
+
+    async fn update_user_credential_label(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+        credential_id: &str,
+        user_label: &str,
+    ) -> Result<(), String>;
 }

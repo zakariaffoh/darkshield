@@ -4,7 +4,6 @@ use models::entities::attributes::AttributesMap;
 use models::entities::realm::{PasswordPolicy, RealmModel};
 use serde_json::{self, json};
 use shaku::Component;
-use std::collections::HashMap;
 use std::sync::Arc;
 use tokio_postgres::Row;
 

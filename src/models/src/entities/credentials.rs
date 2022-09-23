@@ -1,13 +1,10 @@
-use std::collections::HashMap;
-
-use async_trait::async_trait;
+use super::realm::RealmModel;
+use crate::{auditable::AuditableModel, credentials::otp::OTPPolicy};
 use chrono::{DateTime, Utc};
 use crypto::random::generate_random_bytes;
+use postgres_types::ToSql;
 use serde::{Deserialize, Serialize};
-
-use crate::{auditable::AuditableModel, credentials::otp::OTPPolicy};
-
-use super::{realm::RealmModel, user::UserModel};
+use std::collections::HashMap;
 
 pub trait CredentialInput {
     fn credential_id(&self) -> String;
@@ -15,77 +12,6 @@ pub trait CredentialInput {
     fn credentialm_type(&self) -> String;
 
     fn challenge_response(&self) -> String;
-}
-
-#[async_trait]
-pub trait CredentialInputUpdater {
-    fn supports_credential_type(&self, credential_type: &str) -> bool;
-
-    fn update_credential(
-        &self,
-        realm: &RealmModel,
-        user: &UserModel,
-        credential_input: &Box<dyn CredentialInput>,
-    ) -> bool;
-
-    async fn disable_credential_type(
-        &self,
-        realm: &RealmModel,
-        user: &UserModel,
-        credential_type: &str,
-    );
-
-    async fn get_disableable_credential_types(
-        self,
-        realm: RealmModel,
-        user: UserModel,
-    ) -> Vec<CredentialModel>;
-}
-
-#[async_trait]
-pub trait CredentialInputValidator {
-    fn supports_credential_type(&self, credential_type: &str) -> bool;
-
-    async fn is_configured_for(
-        &self,
-        realm: &RealmModel,
-        user: &UserModel,
-        credential_type: &str,
-    ) -> bool;
-
-    fn is_valid(
-        &self,
-        realm: &RealmModel,
-        user: &UserModel,
-        credential_input: &Box<dyn CredentialInput>,
-    ) -> bool;
-
-    async fn load_password_credential(
-        &self,
-        realm: &RealmModel,
-        user: &UserModel,
-    ) -> Result<Option<PasswordCredentialModel>, String>;
-}
-
-#[async_trait]
-pub trait CredentialProvider {
-    fn get_credential_type(&self) -> &str;
-
-    async fn create_credential(
-        &self,
-        realm: &RealmModel,
-        user: &UserModel,
-        credential: &CredentialModel,
-    ) -> &str;
-
-    async fn delete_credential(
-        &self,
-        realm: &RealmModel,
-        user: &UserModel,
-        credential_id: &str,
-    ) -> &str;
-
-    async fn credential_from_model(&self, model: &UserCredentialModel) -> CredentialModel;
 }
 
 enum CredentialDataEnum {
@@ -108,20 +34,22 @@ impl ToString for CredentialDataEnum {
     }
 }
 
+pub type CredentialFieldsMap = HashMap<String, CredentialFieldEnum>;
+
 pub struct CredentialModel {
     pub credential_type: String,
     pub realm_id: String,
     pub user_id: String,
     pub credential_id: String,
     pub user_label: Option<String>,
-    pub secret_data: Option<HashMap<String, CredentialFieldEnum>>,
-    pub credential_data: Option<HashMap<String, CredentialFieldEnum>>,
+    pub secret_data: Option<CredentialFieldsMap>,
+    pub credential_data: Option<CredentialFieldsMap>,
     pub priority: i64,
     pub metadata: Option<AuditableModel>,
 }
 
 impl CredentialModel {
-    pub fn credential_data(credential_data: Option<HashMap<String, CredentialFieldEnum>>) -> Self {
+    pub fn credential_data(credential_data: Option<CredentialFieldsMap>) -> Self {
         CredentialModel {
             credential_type: Default::default(),
             realm_id: Default::default(),
@@ -134,7 +62,7 @@ impl CredentialModel {
             metadata: None,
         }
     }
-    pub fn secret_data(secret_data: Option<HashMap<String, CredentialFieldEnum>>) -> Self {
+    pub fn secret_data(secret_data: Option<CredentialFieldsMap>) -> Self {
         CredentialModel {
             credential_type: Default::default(),
             realm_id: Default::default(),
@@ -165,7 +93,7 @@ impl Default for CredentialModel {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, ToSql)]
 pub enum CredentialTypeEnum {
     PASSWORD,
     PasswordHistory,
@@ -452,9 +380,9 @@ impl PasswordCredentialData {
 }
 
 pub struct PasswordSecretData {
-    value: Option<String>,
-    salt: Option<String>,
-    additional_parameters: Option<HashMap<String, String>>,
+    pub value: Option<String>,
+    pub salt: Option<String>,
+    pub additional_parameters: Option<HashMap<String, String>>,
 }
 
 impl PasswordSecretData {
