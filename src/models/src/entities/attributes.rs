@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-pub type AttributesMap = HashMap<String, AttributeValue>;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub enum AttributeValue {
@@ -11,6 +10,8 @@ pub enum AttributeValue {
     Bool(bool),
     ListStr(Vec<String>),
 }
+
+pub type AttributesMap = HashMap<String, AttributeValue>;
 
 pub struct AttributeHelper;
 
@@ -61,6 +62,28 @@ impl AttributeHelper {
             AttributeValue::ListStr(_) => return true,
             _ => return false,
         }
+    }
+
+}
+pub struct AttributeMapHelper;
+
+impl AttributeMapHelper{
+    pub fn bool_value(
+        attributes: &AttributesMap,
+        attr_name: &str,
+    ) -> Option<bool>{
+        if attributes.is_none(){
+            return None
+        }
+
+        let attribute = attributes.get(attr_name);
+        if let Some(attr)  = attribute {
+            match AttributeHelper::bool_value(&attr){
+                Ok(attr_value) => return Ok(attr_value),
+                Err(_) => retun None
+            }
+        }
+        return None
     }
 }
 
