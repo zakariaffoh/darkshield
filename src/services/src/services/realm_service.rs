@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use crypto::keys::{KeyTypeEnum, KeyUseEnum};
+use crypto::{KeyTypeEnum, KeyUseEnum};
 use models::entities::credentials::CredentialViewRepresentation;
 use models::entities::realm::ExportedRealm;
 use models::entities::realm::ImportedRealm;
