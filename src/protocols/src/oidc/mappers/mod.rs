@@ -1,9 +1,9 @@
 
 pub struct ProtocolMapperPriorities{
-    pub const PRIORITY_ROLE_NAMES_MAPPER: i64 = 10
-    pub const PRIORITY_HARDCODED_ROLE_MAPPER: i64 = 20
-    pub const PRIORITY_AUDIENCE_RESOLVE_MAPPER: i64 = 30
-    pub const PRIORITY_ROLE_MAPPER: i64 = 40
+    const PRIORITY_ROLE_NAMES_MAPPER: i64 = 10,
+    const PRIORITY_HARDCODED_ROLE_MAPPER: i64 = 20,
+    const PRIORITY_AUDIENCE_RESOLVE_MAPPER: i64 = 30,
+    const PRIORITY_ROLE_MAPPER: i64 = 40,
 }
 
 pub struct OidcAttributesMapperConsts{
@@ -202,7 +202,7 @@ impl ProtocolMapperHelper{
         client_session_ctx: &Box<ClientSessionContext>
     ) -> Result<HashMap<ProtocolMapperModel, Arc<dyn ProtocolMapper>>, String> {
         let protocols_mappers = client_session_ctx.protocol_mappers_stream().await;
-        let mut mappers HashMap<ProtocolMapperModel, Arc<dyn ProtocolMapper>> = HashMap::new();
+        let mut mappers: HashMap<ProtocolMapperModel, Arc<dyn ProtocolMapper>> = HashMap::new();
         for protocol in protocols_mappers.into_iter(){
             let protocol_mapper = ProtocolMapperFactory::create(&protocol);
             match &protocol_mapper{

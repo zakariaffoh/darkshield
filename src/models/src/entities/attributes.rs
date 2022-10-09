@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub enum AttributeValue {
     Int(i64),
@@ -63,27 +62,24 @@ impl AttributeHelper {
             _ => return false,
         }
     }
-
 }
 pub struct AttributeMapHelper;
 
-impl AttributeMapHelper{
-    pub fn bool_value(
-        attributes: &AttributesMap,
-        attr_name: &str,
-    ) -> Option<bool>{
-        if attributes.is_none(){
-            return None
+impl AttributeMapHelper {
+    pub fn bool_value(attributes: &AttributesMap, attr_name: &str) -> Option<bool> {
+        if attributes.is_empty() {
+            return None;
         }
 
         let attribute = attributes.get(attr_name);
-        if let Some(attr)  = attribute {
-            match AttributeHelper::bool_value(&attr){
-                Ok(attr_value) => return Ok(attr_value),
-                Err(_) => retun None
-            }
-        }
-        return None
+        match attribute {
+            Some(attr) => match AttributeHelper::bool_value(&attr) {
+                Ok(attr_value) => return Some(attr_value),
+                Err(_) => return None,
+            },
+            _ => {}
+        };
+        return None;
     }
 }
 

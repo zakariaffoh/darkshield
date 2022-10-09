@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::auditable::AuditableModel;
 use postgres_types::{FromSql, ToSql};
 use serde::{Deserialize, Serialize};
@@ -5,7 +7,22 @@ use serde::{Deserialize, Serialize};
 use super::attributes::AttributesMap;
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Permission {}
+pub struct Permission {
+    resource_id: Option<String>,
+    resource_name: Option<String>,
+    scopes: Option<Vec<String>>,
+    claims: Option<HashMap<String, Vec<String>>>,
+}
+
+impl Permission {
+    fn resource_id(&self) -> &Option<String> {
+        &self.resource_id
+    }
+
+    fn set_resource_id(&mut self, resource_id: Option<String>) {
+        self.resource_id = resource_id
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RoleModel {

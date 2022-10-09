@@ -551,7 +551,7 @@ impl CredentialProvider for PasswordCredentialProvider {
         user: &UserModel,
         credential_id: &str,
     ) -> &str {
-        self.user_credential_provider.re
+        todo!()
     }
 
     async fn credential_from_model(&self, model: &UserCredentialModel) -> CredentialModel {
