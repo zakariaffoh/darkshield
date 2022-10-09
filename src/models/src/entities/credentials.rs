@@ -1,7 +1,7 @@
 use super::realm::RealmModel;
 use crate::{auditable::AuditableModel, credentials::otp::OTPPolicy};
 use chrono::{DateTime, Utc};
-use crypto::random::generate_random_bytes;
+use crypto::utils::generate_random_bytes;
 use postgres_types::ToSql;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

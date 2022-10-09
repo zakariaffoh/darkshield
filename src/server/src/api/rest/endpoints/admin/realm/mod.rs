@@ -1,6 +1,6 @@
 use crate::api::services::realm_api::ReamlApi;
 use crate::context::DarkShieldContext;
-use crypto::keys::{KeyTypeEnum, KeyUseEnum};
+use crypto::{KeyTypeEnum, KeyUseEnum};
 use log;
 use models::entities::realm::{RealmCreateModel, RealmModel, RealmUpdateModel};
 use services::services::realm_service::IRealmService;

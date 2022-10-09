@@ -1,6 +1,6 @@
 use crate::context::DarkShieldContext;
 use commons::ApiResult;
-use crypto::keys::{KeyTypeEnum, KeyUseEnum};
+use crypto::{KeyTypeEnum, KeyUseEnum};
 use log;
 use models::{
     auditable::AuditableModel,
