@@ -3,8 +3,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::str;
 
-use crate::entities::authz::Permission;
-
 pub enum TokenCategoryEnum {
     Id,
     Access,
@@ -169,7 +167,7 @@ pub struct JsonWebTokenImp {
 }
 
 impl JsonWebTokenImp {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             token_id: Default::default(),
             issuer: Default::default(),
@@ -1039,6 +1037,8 @@ impl AccessTokenAcces {
     }
 }
 
+pub struct Permission;
+
 pub struct Authorization {
     permissions: Vec<Permission>,
 }
@@ -1439,6 +1439,26 @@ pub struct LogoutTokenImp {
     events: HashMap<String, ClaimValue>,
 }
 
+impl LogoutTokenImp {
+    pub fn new() -> Self {
+        Self {
+            jwt: JsonWebTokenImp::new(),
+            session_id: None,
+            events: HashMap::new(),
+        }
+    }
+}
+
+impl LogoutToken for LogoutTokenImp {
+    fn logout_token(&self) -> &LogoutTokenImp {
+        &self
+    }
+
+    fn logout_token_mut(&mut self) -> &mut LogoutTokenImp {
+        self
+    }
+}
+
 impl JsonWebToken for LogoutTokenImp {
     fn jwt(&self) -> &JsonWebTokenImp {
         &self.jwt
@@ -1456,9 +1476,9 @@ impl Token for LogoutTokenImp {
 }
 
 pub trait AuthorizationResponseToken: JsonWebToken {
-    fn response_token(&self) -> &LogoutTokenImp;
+    fn response_token(&self) -> &AuthorizationResponseTokenImp;
 
-    fn response_token_mut(&mut self) -> &mut LogoutTokenImp;
+    fn response_token_mut(&mut self) -> &mut AuthorizationResponseTokenImp;
 
     fn serialize_response_token_to_map(&self, json_map: &mut HashMap<String, JwtClaimValue>) {
         self.jwt().serialize_to_map(json_map);
@@ -1481,6 +1501,24 @@ pub trait AuthorizationResponseToken: JsonWebToken {
 
 pub struct AuthorizationResponseTokenImp {
     jwt: JsonWebTokenImp,
+}
+
+impl AuthorizationResponseTokenImp {
+    pub fn new() -> Self {
+        Self {
+            jwt: JsonWebTokenImp::new(),
+        }
+    }
+}
+
+impl AuthorizationResponseToken for AuthorizationResponseTokenImp {
+    fn response_token(&self) -> &AuthorizationResponseTokenImp {
+        &self
+    }
+
+    fn response_token_mut(&mut self) -> &mut AuthorizationResponseTokenImp {
+        self
+    }
 }
 
 impl JsonWebToken for AuthorizationResponseTokenImp {
