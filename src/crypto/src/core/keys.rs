@@ -1,6 +1,7 @@
 use std::{collections::HashMap, convert::TryFrom};
 
 use ring::hmac::{self, Algorithm};
+use ring::signature;
 
 #[derive(Debug, PartialEq)]
 pub enum SignatureAlgorithmEnum {
@@ -72,7 +73,6 @@ pub trait Signature {
 
 pub struct MacSignature {
     hmac_algo: Algorithm,
-    algorithm: String,
 }
 
 impl MacSignature {
@@ -86,7 +86,6 @@ impl MacSignature {
         if let Some(hmac_algo) = hmac {
             Ok(Self {
                 hmac_algo: hmac_algo,
-                algorithm: algorithm.to_owned(),
             })
         } else {
             Err(format!("Algorithm: {} is not supported", algorithm))
@@ -136,3 +135,5 @@ impl RsaSignature {
         }
     }
 }
+
+pub struct Certificate;
