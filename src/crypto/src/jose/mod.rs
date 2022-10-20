@@ -1,5 +1,6 @@
 pub mod jwk;
 pub mod jws;
+pub mod jwe;
 
 pub trait JoseHeader {
     fn algorithm(&self) -> &Option<String>;
