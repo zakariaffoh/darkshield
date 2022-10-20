@@ -2,7 +2,7 @@ use std::{collections::HashMap, convert::TryFrom};
 
 use ring::hmac::{self, Algorithm};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum SignatureAlgorithmEnum {
     HS256,
     HS384,
@@ -38,7 +38,6 @@ impl TryFrom<&str> for SignatureAlgorithmEnum {
     }
 }
 
-
 impl ToString for SignatureAlgorithmEnum {
     fn to_string(&self) -> String {
         match &self {
@@ -58,7 +57,6 @@ impl ToString for SignatureAlgorithmEnum {
     }
 }
 
-
 pub trait Key {
     fn encoded(&self) -> &[u8];
 
@@ -75,8 +73,7 @@ pub trait PublicKey: Key {
     fn encoded(&self) -> &[u8];
 }
 
-pub trait SecretKey: Key {
-}
+pub trait SecretKey: Key {}
 
 pub trait Signature {
     fn public_key(&mut self, public_key: dyn PublicKey);
@@ -103,28 +100,22 @@ impl MacSignature {
             _ => None,
         };
         if let Some(hmac_algo) = hmac {
-            Ok(Self {
-                hmac_algo: hmac_algo,
-            })
+            Ok(Self { hmac_algo })
         } else {
             Err(format!("Algorithm: {} is not supported", algorithm))
         }
     }
 
-    pub fn sign(&self, key: &[u8], data: &[u8]) -> Vec<u8> {
+    pub fn sign(&self, key: &[u8], data: &[u8]) -> Result<Vec<u8>, String> {
         let hmac_key = hmac::Key::new(self.hmac_algo, key);
         let signature = hmac::sign(&hmac_key, data);
-        let dd = signature.as_ref();
-        return Vec::<u8>::from(dd);
+        return Ok(Vec::<u8>::from(signature.as_ref()));
     }
 
     pub fn verify(&self, key: &[u8], data: &[u8], signature: &[u8]) -> bool {
         let v_key = hmac::Key::new(self.hmac_algo, key);
         let result = hmac::verify(&v_key, data, signature);
-        match result {
-            Ok(_) => true,
-            Err(_) => false,
-        }
+        matches!(result, Ok(_))
     }
 }
 
@@ -159,25 +150,24 @@ pub struct Certificate;
 
 pub struct KeyModel;
 
-impl KeyModel{
-    pub fn kid(&self) -> &str{
+impl KeyModel {
+    pub fn kid(&self) -> &str {
         todo!()
     }
 
-    pub fn algorithm(&self) -> &str{
+    pub fn algorithm(&self) -> &str {
         todo!()
     }
 
-    pub fn private_key(&self) -> &Box<dyn PrivateKey>{
+    pub fn private_key(&self) -> &Box<dyn PrivateKey> {
         todo!()
     }
 
-    pub fn public_key(&self) -> &Box<dyn PublicKey>{
+    pub fn public_key(&self) -> &Box<dyn PublicKey> {
         todo!()
     }
 
-    pub fn secret_key(&self) -> &Box<dyn SecretKey>{
+    pub fn secret_key(&self) -> &Box<dyn SecretKey> {
         todo!()
     }
 }
-

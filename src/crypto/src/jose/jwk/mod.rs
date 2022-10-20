@@ -133,3 +133,9 @@ impl Jwk for RSAJwk {
         &self.claims
     }
 }
+
+pub struct JwkBuilder;
+
+pub struct JwkParser {
+    jwk: dyn Jwk,
+}

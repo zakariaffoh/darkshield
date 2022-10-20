@@ -7,7 +7,7 @@ impl AESBackend {
     pub fn encrypt(
         data: &[u8],
         aad: Option<&[u8]>,
-    ) -> Result<Tuple<Vec<u8>, Vec<u8>, Vec<u8>>, String>{
+    ) -> Result<Tuple<Vec<u8>, Vec<u8>, Vec<u8>>, String> {
         todo!()
     }
 
@@ -16,15 +16,15 @@ impl AESBackend {
         aad: Option<&[u8]>,
         tag: Option<&[u8]>,
         iv: Option<&[u8]>,
-    ) -> Result<String, String>{
+    ) -> Result<String, String> {
         todo!()
     }
 
-    pub fn wrap_key(self, key_data: &[u8]) -> Result<Vec<u8>, String>{
+    pub fn wrap_key(self, key_data: &[u8]) -> Result<Vec<u8>, String> {
         todo!()
     }
 
-    pub fn unwrap_key(self, key_data: &[u8]) -> Result<Vec<u8>, String>{
+    pub fn unwrap_key(self, key_data: &[u8]) -> Result<Vec<u8>, String> {
         todo!()
     }
 }

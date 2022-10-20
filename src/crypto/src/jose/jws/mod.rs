@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::{collections::HashMap, str};
 
 use commons::tokens::{
@@ -182,15 +183,23 @@ impl JwsBuilder {
         self.encode_all(&encoding_jws_str, None)
     }
 
-    async fn sign(&mut self, signer: &dyn SignatureSignerContext) -> Result<String, String> {
-        self.kid = signer.kid().await;
-        let algorithm = signer.algorithm().await;
+    async fn sign(&mut self, signer: Arc<dyn SignatureSignerContext>) -> Result<String, String> {
+        self.kid = (signer.kid().await).map_or(None, |d| Some(d));
+        if let None = &self.kid {
+            return Err("Invalid kid".to_owned());
+        }
+
+        let algorithm = (signer.algorithm().await).map_or(None, |d| Some(d));
         let data = self.marshal_content();
-        let encoding_jws_str = self.encode(&algorithm, data);
-        let signature = signer.sign(&encoding_jws_str).await;
+        if let None = &algorithm {
+            return Err("Invalid algorithm".to_owned());
+        }
+
+        let encoding_jws_str = self.encode(&algorithm.as_ref().unwrap(), data);
+        let signature = signer.sign(&encoding_jws_str.as_bytes()).await;
         match signature {
             Ok(sig) => {
-                let sig_bytes = Some(sig.as_bytes());
+                let sig_bytes = Some(sig.as_ref());
                 return Ok(self.encode_all(&encoding_jws_str, sig_bytes));
             }
             Err(err) => {

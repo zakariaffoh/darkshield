@@ -1053,10 +1053,10 @@ impl Authorization {
     }
 
     pub fn to_claim_vec(&self) -> Vec<ClaimValue> {
-        let mut permissions = Vec::new();
-        for permission in self.permissions.iter() {
-            //permissions.push(permission.to_map());
-        }
+        let permissions = Vec::new();
+        /*for permission in self.permissions.iter() {
+            permissions.push(permission.to_map());
+        }*/
         permissions
     }
 }
@@ -1165,13 +1165,13 @@ pub trait AccessToken: IdToken {
     }
 
     fn serialize_access_token_to_map(&self, json_map: &mut HashMap<String, JwtClaimValue>) {
-        let map_resource_map = |map: &HashMap<String, AccessTokenAcces>| {
+        /*let map_resource_map = |map: &HashMap<String, AccessTokenAcces>| {
             let mut result: HashMap<String, JwtClaimValue> = HashMap::new();
             for (key, value) in map.iter() {
                 result.insert(key.clone(), JwtClaimValue::Map((*value).to_claim_map()));
             }
             result
-        };
+        };*/
 
         self.id_token().serialize_id_token_to_map(json_map);
         if self.trusted_certificates().is_some() {

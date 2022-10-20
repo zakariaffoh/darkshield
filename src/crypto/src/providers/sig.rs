@@ -1,505 +1,527 @@
+use std::sync::Arc;
+
 use async_trait::async_trait;
 
-use crate::{core::{keys::{KeyModel, MacSignature, SignatureAlgorithmEnum}, sig::RSASignature}};
+use crate::core::{
+    keys::{KeyModel, MacSignature, SignatureAlgorithmEnum},
+    sig::RSASignature,
+};
 
 use super::keys::RealmKeyProvider;
 
 #[async_trait]
-pub trait SignatureSignerContext{
+pub trait SignatureSignerContext: Send + Sync {
+    async fn kid(&self) -> Result<String, String> {
+        let key = self.get_key().await;
+        match key {
+            Ok(k) => Ok(k.kid().to_owned()),
+            Err(err) => Err(err),
+        }
+    }
 
-    async fn kid(&self) -> Result<String, String>;
+    async fn algorithm(&self) -> Result<String, String> {
+        let key = self.get_key().await;
+        match key {
+            Ok(k) => Ok(k.algorithm().to_owned()),
+            Err(err) => Err(err),
+        }
+    }
 
-    async fn algorithm(&self) -> Result<String, String>;
-
-    async fn hash_algorithm(&self) -> Result<String, String>;
+    async fn hash_algorithm(&self) -> Result<String, String> {
+        let key = self.get_key().await;
+        match key {
+            Ok(k) => Ok(RSASignature::hash_algorithm(k.algorithm())),
+            Err(err) => Err(err),
+        }
+    }
 
     async fn sign(&self, data: &[u8]) -> Result<Vec<u8>, String>;
+
+    async fn get_key(&self) -> Result<KeyModel, String>;
 }
 
 #[async_trait]
 pub trait SignatureVerifierContext {
-
-    async fn kid(&self) -> Result<String, String>;
-
-    async fn algorithm(&self) -> Result<String, String>;
-
-    async fn hash_algorithm(&self) -> Result<String, String>;
-
-    async fn verify(&self, data: &[u8], signature: &[u8]) -> Result<bool, String>;
-}
-
-
-#[async_trait]
-pub trait AsymmetricSignatureSignerContext: SignatureSignerContext{
-    
-    async fn kid(&self) -> Result<String, String>{
+    async fn kid(&self) -> Result<String, String> {
         let key = self.get_key().await;
         match key {
             Ok(k) => Ok(k.kid().to_owned()),
-            Err(err) => Err(err)
+            Err(err) => Err(err),
         }
     }
 
-    async fn algorithm(&self) -> Result<String, String>{
+    async fn algorithm(&self) -> Result<String, String> {
         let key = self.get_key().await;
         match key {
             Ok(k) => Ok(k.algorithm().to_owned()),
-            Err(err) => Err(err)
+            Err(err) => Err(err),
         }
     }
 
-    async fn hash_algorithm(&self) -> Result<String, String>{
+    async fn hash_algorithm(&self) -> Result<String, String> {
         let key = self.get_key().await;
         match key {
-            Ok(k) => Ok( RSASignature::hash_algorithm(k.algorithm())),
-            Err(err) => Err(err)
+            Ok(k) => Ok(RSASignature::hash_algorithm(k.algorithm())),
+            Err(err) => Err(err),
         }
     }
 
-    async fn sign(&self, data: &[u8]) -> Result<Vec<u8>, String>{
-        let key = self.get_key().await;
-        match key {
-            Ok(k) => {  
-                let algo =  key.algorithm();
+    async fn verify(&self, data: &[u8], signature: &[u8]) -> Result<bool, String>;
+
+    async fn get_key(&self) -> Result<KeyModel, String>;
+}
+
+#[async_trait]
+trait AsymmetricSignatureSignerContext: SignatureSignerContext {
+    async fn sign_internal(&self, data: &[u8]) -> Result<Vec<u8>, String> {
+        let provided_key = self.get_key().await;
+        match provided_key {
+            Ok(key) => {
+                let algo = key.algorithm();
                 let mut verifier = RSASignature::new(algo);
                 verifier.private_key(key.private_key());
                 verifier.update(data);
                 verifier.sign()
             }
-            Err(err) => Err(err)
+            Err(err) => Err(err),
         }
     }
-    async fn get_key(&self) -> Result<KeyModel, String>;
 }
 
-
 #[async_trait]
-pub trait MacSignatureSignerContext: SignatureSignerContext{
-    async fn kid(&self) -> &str{
-        (self.get_key().await).kid()
+trait MacSignatureSignerContext: SignatureSignerContext {
+    async fn sign_internal(&self, data: &[u8]) -> Result<Vec<u8>, String> {
+        let provider_key = self.get_key().await;
+        match provider_key {
+            Ok(key) => {
+                let mac_sinature = MacSignature::new(key.algorithm());
+                match mac_sinature {
+                    Ok(signer) => signer.sign(key.secret_key().encoded(), data),
+                    Err(err) => Err(err),
+                }
+            }
+            Err(err) => Err(err),
+        }
     }
-
-    async fn algorithm(&self) -> &str{
-        (self.get_key().await).algorithm()
-    }
-
-    async fn hash_algorithm(&self) -> String{
-        let algo = (self.get_key().await).algorithm();
-        RSASignature::hash_algorithm(algo)
-    }
-
-    async fn sign(&self, data: &[u8]) -> Result<Vec<u8>, String>{
-       todo!()
-    }
-
-    async fn get_key(&self) -> &KeyModel;
 }
 
-
 #[async_trait]
-pub trait AsymmetricSignatureVerifierContext: SignatureVerifierContext{
-    async fn kid(&self) -> Result<String, String>{
-        let key = self.get_key().await;
-        match key {
-            Ok(k) => Ok(k.kid().to_owned()),
-            Err(err) => Err(err)
-        }
-    }
-
-    async fn algorithm(&self) -> Result<String, String>{
-        let key = self.get_key().await;
-        match key {
-            Ok(k) => Ok(k.algorithm().to_owned()),
-            Err(err) => Err(err)
-        }
-    }
-
-    async fn hash_algorithm(&self) -> Result<String, String>{
-        let key = self.get_key().await;
-        match key {
-            Ok(k) => Ok( RSASignature::hash_algorithm(k.algorithm())),
-            Err(err) => Err(err)
-        }
-    }
-
-    async fn verify(&self, data: &[u8], signature: &[u8]) -> Result<bool, String>{
-        let key = self.get_key().await;
-        match key {
-            Ok(k) => {  
-                let key = self.get_key().await;
-                let algo =  key.algorithm();
+trait AsymmetricSignatureVerifierContext: SignatureVerifierContext {
+    async fn verify_internal(&self, data: &[u8], signature: &[u8]) -> Result<bool, String> {
+        let provided_key = self.get_key().await;
+        match provided_key {
+            Ok(key) => {
+                let algo = key.algorithm();
                 let mut verifier = RSASignature::new(algo);
                 verifier.private_key(key.private_key());
                 verifier.public_key(key.public_key());
                 verifier.update(data);
                 verifier.verify(signature)
             }
-            Err(err) => Err(err)
+            Err(err) => Err(err),
         }
     }
-    
-    async fn get_key(&self) -> &KeyModel;
 }
 
 #[async_trait]
-pub trait MacSignatureVerifierContext: SignatureVerifierContext{
-    
-    async fn kid(&self) -> &str{
-        (self.get_key().await).kid()
-    }
-
-    async fn algorithm(&self) -> &str{
-        (self.get_key().await).algorithm()
-    }
-
-    async fn hash_algorithm(&self) -> String{
-        let algo = (self.get_key().await).algorithm();
-        RSASignature::hash_algorithm(algo)
-    }
-
-    async fn verify(&self, data: &[u8], signature: &[u8]) -> Result<bool, String>{
-        let key = self.get_key().await;
-        let algorithm = key.algorithm();
-        let signature_provider = MacSignature::new(algorithm);
-        match signature_provider {
-            Ok(provider) => {
-                let result = provider.verify(data, &key.secret_key().encoded(), signature);
-                return Ok(result)
-            },
-            Err(err) =>{
-                Err(err)
-            }  
+trait MacSignatureVerifierContext: SignatureVerifierContext {
+    async fn verify_internal(&self, data: &[u8], signature: &[u8]) -> Result<bool, String> {
+        let provided_key = self.get_key().await;
+        match provided_key {
+            Ok(key) => {
+                let provider = MacSignature::new(key.algorithm());
+                match provider {
+                    Ok(signer) => Ok(signer.verify(data, &key.secret_key().encoded(), signature)),
+                    Err(err) => Err(err),
+                }
+            }
+            Err(err) => Err(err),
         }
     }
-
-    async fn get_key(&self) -> &KeyModel;
 }
 
 pub struct ServerAsymmetricSignatureSignerContext {
     realm_id: String,
-    key_provider: dyn RealmKeyProvider,
-    algorithm: SignatureAlgorithmEnum
+    key_provider: Arc<dyn RealmKeyProvider>,
+    algorithm: SignatureAlgorithmEnum,
 }
 
-impl ServerAsymmetricSignatureSignerContext{
+impl ServerAsymmetricSignatureSignerContext {
     pub fn new(
         realm_id: &str,
-        key_provider: dyn RealmKeyProvider,
-        algorithm: SignatureAlgorithmEnum
-    ) -> Self{
-        Self { 
+        key_provider: Arc<dyn RealmKeyProvider>,
+        algorithm: &SignatureAlgorithmEnum,
+    ) -> Self {
+        Self {
             realm_id: realm_id.to_owned(),
             key_provider: key_provider,
-            algorithm: algorithm 
+            algorithm: algorithm.clone(),
         }
     }
 }
 
 #[async_trait]
-impl AsymmetricSignatureSignerContext for ServerAsymmetricSignatureSignerContext {
-    async fn get_key(&self) -> Result<KeyModel, String>{
-        self.key_provider.load_active_key(&self.realm_id, &crate::KeyUseEnum::SIG, &self.algorithm.to_string()).await
+impl AsymmetricSignatureSignerContext for ServerAsymmetricSignatureSignerContext {}
+
+#[async_trait]
+impl SignatureSignerContext for ServerAsymmetricSignatureSignerContext {
+    async fn sign(&self, data: &[u8]) -> Result<Vec<u8>, String> {
+        self.sign_internal(data).await
+    }
+
+    async fn get_key(&self) -> Result<KeyModel, String> {
+        self.key_provider
+            .load_active_key(
+                &self.realm_id,
+                &crate::KeyUseEnum::SIG,
+                &self.algorithm.to_string(),
+            )
+            .await
     }
 }
 
-impl SignatureSignerContext for ServerAsymmetricSignatureSignerContext{}
-
-pub struct ServerECDSASignatureSignerContext{
+pub struct ServerECDSASignatureSignerContext {
     realm_id: String,
-    key_provider: dyn RealmKeyProvider,
-    algorithm: SignatureAlgorithmEnum
+    key_provider: Arc<dyn RealmKeyProvider>,
+    algorithm: SignatureAlgorithmEnum,
 }
 
-impl ServerECDSASignatureSignerContext{
+impl ServerECDSASignatureSignerContext {
     pub fn new(
         realm_id: &str,
-        key_provider: dyn RealmKeyProvider,
-        algorithm: SignatureAlgorithmEnum
-    ) -> Self{
-        Self { 
+        key_provider: Arc<dyn RealmKeyProvider>,
+        algorithm: &SignatureAlgorithmEnum,
+    ) -> Self {
+        Self {
             realm_id: realm_id.to_owned(),
             key_provider: key_provider,
-            algorithm: algorithm 
+            algorithm: algorithm.clone(),
         }
     }
 }
 
 #[async_trait]
-impl AsymmetricSignatureSignerContext for ServerECDSASignatureSignerContext {
-    async fn get_key(&self) -> Result<KeyModel, String>{
-        self.key_provider.load_active_key(&self.realm_id, &crate::KeyUseEnum::SIG, &self.algorithm.to_string()).await
+impl AsymmetricSignatureSignerContext for ServerECDSASignatureSignerContext {}
+
+#[async_trait]
+impl SignatureSignerContext for ServerECDSASignatureSignerContext {
+    async fn sign(&self, data: &[u8]) -> Result<Vec<u8>, String> {
+        todo!()
     }
 
-    async fn sign(&self, data: &[u8]) -> Result<Vec<u8>, String>{
-       todo!()
+    async fn get_key(&self) -> Result<KeyModel, String> {
+        self.key_provider
+            .load_active_key(
+                &self.realm_id,
+                &crate::KeyUseEnum::SIG,
+                &self.algorithm.to_string(),
+            )
+            .await
     }
 }
 
-impl SignatureSignerContext for ServerECDSASignatureSignerContext{}
-
-
-pub struct ServerMacSignatureSignerContext{
+pub struct ServerMacSignatureSignerContext {
     realm_id: String,
-    key_provider: dyn RealmKeyProvider,
-    algorithm: SignatureAlgorithmEnum
+    key_provider: Arc<dyn RealmKeyProvider>,
+    algorithm: SignatureAlgorithmEnum,
 }
 
-impl ServerMacSignatureSignerContext{
+impl ServerMacSignatureSignerContext {
     pub fn new(
         realm_id: &str,
-        key_provider: dyn RealmKeyProvider,
-        algorithm: SignatureAlgorithmEnum
-    ) -> Self{
-        Self { 
+        key_provider: Arc<dyn RealmKeyProvider>,
+        algorithm: &SignatureAlgorithmEnum,
+    ) -> Self {
+        Self {
             realm_id: realm_id.to_owned(),
             key_provider: key_provider,
-            algorithm: algorithm 
+            algorithm: algorithm.clone(),
         }
     }
 }
 
 #[async_trait]
-impl MacSignatureSignerContext for ServerMacSignatureSignerContext {
-    async fn get_key(&self) -> Result<KeyModel, String>{
-        self.key_provider.load_active_key(&self.realm_id, &crate::KeyUseEnum::SIG, &self.algorithm.to_string()).await
+impl MacSignatureSignerContext for ServerMacSignatureSignerContext {}
+
+#[async_trait]
+impl SignatureSignerContext for ServerMacSignatureSignerContext {
+    async fn sign(&self, data: &[u8]) -> Result<Vec<u8>, String> {
+        self.sign_internal(data).await
+    }
+
+    async fn get_key(&self) -> Result<KeyModel, String> {
+        self.key_provider
+            .load_active_key(
+                &self.realm_id,
+                &crate::KeyUseEnum::SIG,
+                &self.algorithm.to_string(),
+            )
+            .await
     }
 }
 
-impl SignatureSignerContext for ServerMacSignatureSignerContext{}
-
-
-pub struct ServerAsymmetricSignatureVerifierContext{
+pub struct ServerAsymmetricSignatureVerifierContext {
     realm_id: String,
-    key_provider: dyn RealmKeyProvider,
+    key_provider: Arc<dyn RealmKeyProvider>,
     kid: String,
-    algorithm: SignatureAlgorithmEnum
+    algorithm: SignatureAlgorithmEnum,
 }
 
-impl ServerAsymmetricSignatureVerifierContext{
+impl ServerAsymmetricSignatureVerifierContext {
     pub fn new(
         realm_id: &str,
-        key_provider: dyn RealmKeyProvider,
+        key_provider: Arc<dyn RealmKeyProvider>,
         kid: &str,
-        algorithm: SignatureAlgorithmEnum
-    ) -> Self{
-        Self { 
+        algorithm: &SignatureAlgorithmEnum,
+    ) -> Self {
+        Self {
             realm_id: realm_id.to_owned(),
             key_provider: key_provider,
             kid: kid.to_owned(),
-            algorithm: algorithm 
+            algorithm: algorithm.clone(),
         }
     }
 }
 
+impl AsymmetricSignatureVerifierContext for ServerAsymmetricSignatureVerifierContext {}
+
 #[async_trait]
-impl AsymmetricSignatureVerifierContext for ServerAsymmetricSignatureVerifierContext {
-    async fn get_key(&self) -> Result<KeyModel, String>{
-        self.key_provider.load_active_key(&self.realm_id, &crate::KeyUseEnum::SIG, &self.algorithm.to_string()).await
+impl SignatureVerifierContext for ServerAsymmetricSignatureVerifierContext {
+    async fn verify(&self, data: &[u8], signature: &[u8]) -> Result<bool, String> {
+        self.verify_internal(data, signature).await
+    }
+
+    async fn get_key(&self) -> Result<KeyModel, String> {
+        self.key_provider
+            .load_active_key(
+                &self.realm_id,
+                &crate::KeyUseEnum::SIG,
+                &self.algorithm.to_string(),
+            )
+            .await
     }
 }
 
-impl SignatureVerifierContext for ServerAsymmetricSignatureVerifierContext{}
-
-
-pub struct ServerECDSASignatureVerifierContext{
+pub struct ServerECDSASignatureVerifierContext {
     realm_id: String,
-    key_provider: dyn RealmKeyProvider,
+    key_provider: Arc<dyn RealmKeyProvider>,
     kid: String,
-    algorithm: SignatureAlgorithmEnum
+    algorithm: SignatureAlgorithmEnum,
 }
 
-
-impl ServerECDSASignatureVerifierContext{
+impl ServerECDSASignatureVerifierContext {
     pub fn new(
         realm_id: &str,
-        key_provider: dyn RealmKeyProvider,
+        key_provider: Arc<dyn RealmKeyProvider>,
         kid: &str,
-        algorithm: SignatureAlgorithmEnum
-    ) -> Self{
-        Self { 
+        algorithm: &SignatureAlgorithmEnum,
+    ) -> Self {
+        Self {
             realm_id: realm_id.to_owned(),
             key_provider: key_provider,
             kid: kid.to_owned(),
-            algorithm: algorithm 
+            algorithm: algorithm.clone(),
         }
     }
 }
 
+impl AsymmetricSignatureVerifierContext for ServerECDSASignatureVerifierContext {}
+
 #[async_trait]
-impl AsymmetricSignatureVerifierContext for ServerECDSASignatureVerifierContext {
-    async fn get_key(&self) -> Result<KeyModel, String>{
-        self.key_provider.load_active_key(&self.realm_id, &crate::KeyUseEnum::SIG, &self.algorithm.to_string()).await
+impl SignatureVerifierContext for ServerECDSASignatureVerifierContext {
+    async fn get_key(&self) -> Result<KeyModel, String> {
+        self.key_provider
+            .load_active_key(
+                &self.realm_id,
+                &crate::KeyUseEnum::SIG,
+                &self.algorithm.to_string(),
+            )
+            .await
     }
 
-    async fn verify(&self, data: &[u8], signature: &[u8]) -> Result<bool, String>{
+    async fn verify(&self, data: &[u8], signature: &[u8]) -> Result<bool, String> {
         todo!()
     }
 }
 
-impl SignatureVerifierContext for ServerECDSASignatureVerifierContext{}
-
-
-pub struct ServerMacSignatureVerifierContext{
+pub struct ServerMacSignatureVerifierContext {
     realm_id: String,
-    key_provider: dyn RealmKeyProvider,
-    kid: String,
-    algorithm: SignatureAlgorithmEnum
+    key_provider: Arc<dyn RealmKeyProvider>,
+    algorithm: SignatureAlgorithmEnum,
 }
 
-impl ServerMacSignatureVerifierContext{
+impl ServerMacSignatureVerifierContext {
     pub fn new(
         realm_id: &str,
-        key_provider: dyn RealmKeyProvider,
-        kid: &str,
-        algorithm: SignatureAlgorithmEnum
-    ) -> Self{
-        Self { 
+        key_provider: Arc<dyn RealmKeyProvider>,
+        algorithm: &SignatureAlgorithmEnum,
+    ) -> Self {
+        Self {
             realm_id: realm_id.to_owned(),
             key_provider: key_provider,
-            kid: kid.to_owned(),
-            algorithm: algorithm 
+            algorithm: algorithm.clone(),
         }
     }
 }
 
+impl MacSignatureVerifierContext for ServerMacSignatureVerifierContext {}
+
 #[async_trait]
-impl MacSignatureVerifierContext for ServerMacSignatureVerifierContext {
-    async fn get_key(&self) -> Result<KeyModel, String>{
-        self.key_provider.load_active_key(&self.realm_id, &crate::KeyUseEnum::SIG, &self.algorithm.to_string()).await
+impl SignatureVerifierContext for ServerMacSignatureVerifierContext {
+    async fn verify(&self, data: &[u8], signature: &[u8]) -> Result<bool, String> {
+        self.verify_internal(data, signature).await
+    }
+    async fn get_key(&self) -> Result<KeyModel, String> {
+        self.key_provider
+            .load_active_key(
+                &self.realm_id,
+                &crate::KeyUseEnum::SIG,
+                &self.algorithm.to_string(),
+            )
+            .await
     }
 }
 
-impl SignatureVerifierContext for ServerMacSignatureVerifierContext{}
-
-
-pub trait SignatureProvider{
+pub trait SignatureProvider {
     fn signer(&self) -> Box<dyn SignatureSignerContext>;
 
-    fn verifier(&self, kid: &str)-> Box<dyn SignatureVerifierContext>; 
+    fn verifier(&self, kid: &str) -> Box<dyn SignatureVerifierContext>;
 
     fn is_asymmetric_algorithm(&self) -> bool;
 }
 
-pub struct AsymmetricSignatureProvider{
+pub struct AsymmetricSignatureProvider {
     realm_id: String,
-    key_provider: Box<dyn RealmKeyProvider>,
-    algorithm: SignatureAlgorithmEnum
+    key_provider: Arc<dyn RealmKeyProvider>,
+    algorithm: SignatureAlgorithmEnum,
 }
 
-impl AsymmetricSignatureProvider{
+impl AsymmetricSignatureProvider {
     pub fn new(
         realm_id: &str,
-        key_provider: Box<dyn RealmKeyProvider>,
-        algorithm: SignatureAlgorithmEnum
-    ) -> Self{
-        Self { 
+        key_provider: Arc<dyn RealmKeyProvider>,
+        algorithm: SignatureAlgorithmEnum,
+    ) -> Self {
+        Self {
             realm_id: realm_id.to_owned(),
             key_provider: key_provider,
-            algorithm: algorithm 
+            algorithm: algorithm,
         }
     }
 }
 
-impl SignatureProvider for AsymmetricSignatureProvider{
+impl SignatureProvider for AsymmetricSignatureProvider {
     fn signer(&self) -> Box<dyn SignatureSignerContext> {
-        ServerAsymmetricSignatureSignerContext::new(
-            &self.realm_id, &self.key_provider, &self.algorithm
-        )
+        Box::new(ServerAsymmetricSignatureSignerContext::new(
+            &self.realm_id,
+            Arc::clone(&self.key_provider),
+            &self.algorithm,
+        ))
     }
 
-    fn verifier(&self, kid: &str)-> Box<dyn SignatureVerifierContext> {
-        ServerAsymmetricSignatureVerifierContext::new(
-            &self.realm_id, &self.key_provider, kid, &self.algorithm
-        )
+    fn verifier(&self, kid: &str) -> Box<dyn SignatureVerifierContext> {
+        Box::new(ServerAsymmetricSignatureVerifierContext::new(
+            &self.realm_id,
+            Arc::clone(&self.key_provider),
+            kid,
+            &self.algorithm,
+        ))
     }
 
     fn is_asymmetric_algorithm(&self) -> bool {
-        return true
+        return true;
     }
 }
 
-
-pub struct ECDSASignatureProvider{
+pub struct ECDSASignatureProvider {
     realm_id: String,
-    key_provider: Box<dyn RealmKeyProvider>,
-    algorithm: SignatureAlgorithmEnum
+    key_provider: Arc<dyn RealmKeyProvider>,
+    algorithm: SignatureAlgorithmEnum,
 }
 
-impl ECDSASignatureProvider{
+impl ECDSASignatureProvider {
     pub fn new(
         realm_id: &str,
-        key_provider: Box<dyn RealmKeyProvider>,
-        algorithm: SignatureAlgorithmEnum
-    ) -> Self{
-        Self { 
+        key_provider: Arc<dyn RealmKeyProvider>,
+        algorithm: SignatureAlgorithmEnum,
+    ) -> Self {
+        Self {
             realm_id: realm_id.to_owned(),
             key_provider: key_provider,
-            algorithm: algorithm 
+            algorithm: algorithm,
         }
     }
 }
 
-impl SignatureProvider for ECDSASignatureProvider{
+impl SignatureProvider for ECDSASignatureProvider {
     fn signer(&self) -> Box<dyn SignatureSignerContext> {
-        ServerECDSASignatureSignerContext::new(
-            &self.realm_id, &self.key_provider, &self.algorithm
-        )
+        Box::new(ServerECDSASignatureSignerContext::new(
+            &self.realm_id,
+            Arc::clone(&self.key_provider),
+            &self.algorithm,
+        ))
     }
 
-    fn verifier(&self, kid: &str)-> Box<dyn SignatureVerifierContext> {
-        ServerECDSASignatureVerifierContext::new(
-            &self.realm_id, &self.key_provider, kid, &self.algorithm
-        )
+    fn verifier(&self, kid: &str) -> Box<dyn SignatureVerifierContext> {
+        Box::new(ServerECDSASignatureVerifierContext::new(
+            &self.realm_id,
+            Arc::clone(&self.key_provider),
+            kid,
+            &self.algorithm,
+        ))
     }
 
     fn is_asymmetric_algorithm(&self) -> bool {
-        return true
+        return true;
     }
 }
 
-pub struct MacSecretSignatureProvider{
+pub struct MacSecretSignatureProvider {
     realm_id: String,
-    key_provider: Box<dyn RealmKeyProvider>,
-    algorithm: SignatureAlgorithmEnum
+    key_provider: Arc<dyn RealmKeyProvider>,
+    algorithm: SignatureAlgorithmEnum,
 }
 
-impl MacSecretSignatureProvider{
+impl MacSecretSignatureProvider {
     pub fn new(
         realm_id: &str,
-        key_provider: Box<dyn RealmKeyProvider>,
-        algorithm: SignatureAlgorithmEnum
-    ) -> Self{
-        Self { 
+        key_provider: Arc<dyn RealmKeyProvider>,
+        algorithm: SignatureAlgorithmEnum,
+    ) -> Self {
+        Self {
             realm_id: realm_id.to_owned(),
             key_provider: key_provider,
-            algorithm: algorithm 
+            algorithm: algorithm,
         }
     }
 }
 
-impl SignatureProvider for MacSecretSignatureProvider{
+impl SignatureProvider for MacSecretSignatureProvider {
     fn signer(&self) -> Box<dyn SignatureSignerContext> {
-        ServerMacSignatureSignerContext::new(
-            &self.realm_id, &self.key_provider, &self.algorithm
-        )
+        Box::new(ServerMacSignatureSignerContext::new(
+            &self.realm_id,
+            Arc::clone(&self.key_provider),
+            &self.algorithm,
+        ))
     }
 
-    fn verifier(&self, kid: &str)-> Box<dyn SignatureVerifierContext> {
-        ServerMacSignatureVerifierContext::new(
-            &self.realm_id, &self.key_provider, kid, &self.algorithm
-        )
+    fn verifier(&self, _: &str) -> Box<dyn SignatureVerifierContext> {
+        Box::new(ServerMacSignatureVerifierContext::new(
+            &self.realm_id,
+            Arc::clone(&self.key_provider),
+            &self.algorithm,
+        ))
     }
 
     fn is_asymmetric_algorithm(&self) -> bool {
-        return false
+        return false;
     }
 }
- 
+
 pub struct SignatureProviderFactory;
 
 impl SignatureProviderFactory {
-
-    pub fn  supported_algorithms() -> Vec<String>{
+    pub fn supported_algorithms() -> Vec<String> {
         vec![
             SignatureAlgorithmEnum::HS256.to_string(),
             SignatureAlgorithmEnum::HS384.to_string(),
@@ -517,56 +539,79 @@ impl SignatureProviderFactory {
     }
 
     pub fn server_sinature_provider(
-        realm_id:&str, realm_key_provider: &dyn RealmKeyProvider, algorithm: &SignatureAlgorithmEnum,
-    ) -> Box<dyn SignatureProvider>{
+        realm_id: &str,
+        realm_key_provider: Arc<dyn RealmKeyProvider>,
+        algorithm: &SignatureAlgorithmEnum,
+    ) -> Arc<dyn SignatureProvider> {
         match &algorithm {
-            SignatureAlgorithmEnum::RS256 => Box::new(AsymmetricSignatureProvider::new(
-                realm_id, realm_key_provider, SignatureAlgorithmEnum::RS256
+            SignatureAlgorithmEnum::RS256 => Arc::new(AsymmetricSignatureProvider::new(
+                realm_id,
+                realm_key_provider,
+                SignatureAlgorithmEnum::RS256,
             )),
-            SignatureAlgorithmEnum::RS384 => Box::new(AsymmetricSignatureProvider::new(
-                realm_id, realm_key_provider, SignatureAlgorithmEnum::RS384
+            SignatureAlgorithmEnum::RS384 => Arc::new(AsymmetricSignatureProvider::new(
+                realm_id,
+                realm_key_provider,
+                SignatureAlgorithmEnum::RS384,
             )),
-            SignatureAlgorithmEnum::RS512 => Box::new(AsymmetricSignatureProvider::new(
-                realm_id, realm_key_provider, SignatureAlgorithmEnum::RS512
+            SignatureAlgorithmEnum::RS512 => Arc::new(AsymmetricSignatureProvider::new(
+                realm_id,
+                realm_key_provider,
+                SignatureAlgorithmEnum::RS512,
             )),
-            SignatureAlgorithmEnum::PS256 => Box::new(AsymmetricSignatureProvider::new(
-                realm_id, realm_key_provider, SignatureAlgorithmEnum::PS256
+            SignatureAlgorithmEnum::PS256 => Arc::new(AsymmetricSignatureProvider::new(
+                realm_id,
+                realm_key_provider,
+                SignatureAlgorithmEnum::PS256,
             )),
-            SignatureAlgorithmEnum::PS384 => Box::new(AsymmetricSignatureProvider::new(
-                realm_id, realm_key_provider, SignatureAlgorithmEnum::PS384
+            SignatureAlgorithmEnum::PS384 => Arc::new(AsymmetricSignatureProvider::new(
+                realm_id,
+                realm_key_provider,
+                SignatureAlgorithmEnum::PS384,
             )),
-            SignatureAlgorithmEnum::PS512 => Box::new(AsymmetricSignatureProvider::new(
-                realm_id, realm_key_provider, SignatureAlgorithmEnum::PS512
+            SignatureAlgorithmEnum::PS512 => Arc::new(AsymmetricSignatureProvider::new(
+                realm_id,
+                realm_key_provider,
+                SignatureAlgorithmEnum::PS512,
             )),
-            SignatureAlgorithmEnum::HS256 => Box::new(MacSecretSignatureProvider::new(
-                realm_id, realm_key_provider, SignatureAlgorithmEnum::HS256
+            SignatureAlgorithmEnum::HS256 => Arc::new(MacSecretSignatureProvider::new(
+                realm_id,
+                realm_key_provider,
+                SignatureAlgorithmEnum::HS256,
             )),
-            SignatureAlgorithmEnum::HS384 => Box::new(MacSecretSignatureProvider::new(
-                realm_id, realm_key_provider, SignatureAlgorithmEnum::HS384
+            SignatureAlgorithmEnum::HS384 => Arc::new(MacSecretSignatureProvider::new(
+                realm_id,
+                realm_key_provider,
+                SignatureAlgorithmEnum::HS384,
             )),
-            SignatureAlgorithmEnum::HS512 => Box::new(MacSecretSignatureProvider::new(
-                realm_id, realm_key_provider, SignatureAlgorithmEnum::HS512
+            SignatureAlgorithmEnum::HS512 => Arc::new(MacSecretSignatureProvider::new(
+                realm_id,
+                realm_key_provider,
+                SignatureAlgorithmEnum::HS512,
             )),
-            SignatureAlgorithmEnum::ES256 => Box::new(ECDSASignatureProvider::new(
-                realm_id, realm_key_provider, SignatureAlgorithmEnum::ES256
+            SignatureAlgorithmEnum::ES256 => Arc::new(ECDSASignatureProvider::new(
+                realm_id,
+                realm_key_provider,
+                SignatureAlgorithmEnum::ES256,
             )),
-            SignatureAlgorithmEnum::ES384 => Box::new(ECDSASignatureProvider::new(
-                realm_id, realm_key_provider, SignatureAlgorithmEnum::ES384
+            SignatureAlgorithmEnum::ES384 => Arc::new(ECDSASignatureProvider::new(
+                realm_id,
+                realm_key_provider,
+                SignatureAlgorithmEnum::ES384,
             )),
-            SignatureAlgorithmEnum::ES512 => Box::new(ECDSASignatureProvider::new(
-                realm_id, realm_key_provider, SignatureAlgorithmEnum::ES512
+            SignatureAlgorithmEnum::ES512 => Arc::new(ECDSASignatureProvider::new(
+                realm_id,
+                realm_key_provider,
+                SignatureAlgorithmEnum::ES512,
             )),
         }
     }
-
-
 }
-
 
 pub struct ClientSignatureVerifierProviderFactory;
 
-impl ClientSignatureVerifierProviderFactory{
-    pub fn  supported_algorithms() -> Vec<String>{
+impl ClientSignatureVerifierProviderFactory {
+    pub fn supported_algorithms() -> Vec<String> {
         vec![
             SignatureAlgorithmEnum::HS256.to_string(),
             SignatureAlgorithmEnum::HS384.to_string(),
@@ -584,47 +629,71 @@ impl ClientSignatureVerifierProviderFactory{
     }
 
     pub fn client_sinature_provider(
-        realm_id:&str, realm_key_provider: &dyn RealmKeyProvider, algorithm: &SignatureAlgorithmEnum,
-    ) -> Box<dyn SignatureProvider>{
+        realm_id: &str,
+        realm_key_provider: Arc<dyn RealmKeyProvider>,
+        algorithm: &SignatureAlgorithmEnum,
+    ) -> Arc<dyn SignatureProvider> {
         match &algorithm {
-            SignatureAlgorithmEnum::RS256 => Box::new(AsymmetricSignatureProvider::new(
-                realm_id, realm_key_provider, SignatureAlgorithmEnum::RS256
+            SignatureAlgorithmEnum::RS256 => Arc::new(AsymmetricSignatureProvider::new(
+                realm_id,
+                realm_key_provider,
+                SignatureAlgorithmEnum::RS256,
             )),
-            SignatureAlgorithmEnum::RS384 => Box::new(AsymmetricSignatureProvider::new(
-                realm_id, realm_key_provider, SignatureAlgorithmEnum::RS384
+            SignatureAlgorithmEnum::RS384 => Arc::new(AsymmetricSignatureProvider::new(
+                realm_id,
+                realm_key_provider,
+                SignatureAlgorithmEnum::RS384,
             )),
-            SignatureAlgorithmEnum::RS512 => Box::new(AsymmetricSignatureProvider::new(
-                realm_id, realm_key_provider, SignatureAlgorithmEnum::RS512
+            SignatureAlgorithmEnum::RS512 => Arc::new(AsymmetricSignatureProvider::new(
+                realm_id,
+                realm_key_provider,
+                SignatureAlgorithmEnum::RS512,
             )),
-            SignatureAlgorithmEnum::PS256 => Box::new(AsymmetricSignatureProvider::new(
-                realm_id, realm_key_provider, SignatureAlgorithmEnum::PS256
+            SignatureAlgorithmEnum::PS256 => Arc::new(AsymmetricSignatureProvider::new(
+                realm_id,
+                realm_key_provider,
+                SignatureAlgorithmEnum::PS256,
             )),
-            SignatureAlgorithmEnum::PS384 => Box::new(AsymmetricSignatureProvider::new(
-                realm_id, realm_key_provider, SignatureAlgorithmEnum::PS384
+            SignatureAlgorithmEnum::PS384 => Arc::new(AsymmetricSignatureProvider::new(
+                realm_id,
+                realm_key_provider,
+                SignatureAlgorithmEnum::PS384,
             )),
-            SignatureAlgorithmEnum::PS512 => Box::new(AsymmetricSignatureProvider::new(
-                realm_id, realm_key_provider, SignatureAlgorithmEnum::PS512
+            SignatureAlgorithmEnum::PS512 => Arc::new(AsymmetricSignatureProvider::new(
+                realm_id,
+                realm_key_provider,
+                SignatureAlgorithmEnum::PS512,
             )),
-            SignatureAlgorithmEnum::HS256 => Box::new(MacSecretSignatureProvider::new(
-                realm_id, realm_key_provider, SignatureAlgorithmEnum::HS256
+            SignatureAlgorithmEnum::HS256 => Arc::new(MacSecretSignatureProvider::new(
+                realm_id,
+                realm_key_provider,
+                SignatureAlgorithmEnum::HS256,
             )),
-            SignatureAlgorithmEnum::HS384 => Box::new(MacSecretSignatureProvider::new(
-                realm_id, realm_key_provider, SignatureAlgorithmEnum::HS384
+            SignatureAlgorithmEnum::HS384 => Arc::new(MacSecretSignatureProvider::new(
+                realm_id,
+                realm_key_provider,
+                SignatureAlgorithmEnum::HS384,
             )),
-            SignatureAlgorithmEnum::HS512 => Box::new(MacSecretSignatureProvider::new(
-                realm_id, realm_key_provider, SignatureAlgorithmEnum::HS512
+            SignatureAlgorithmEnum::HS512 => Arc::new(MacSecretSignatureProvider::new(
+                realm_id,
+                realm_key_provider,
+                SignatureAlgorithmEnum::HS512,
             )),
-            SignatureAlgorithmEnum::ES256 => Box::new(ECDSASignatureProvider::new(
-                realm_id, realm_key_provider, SignatureAlgorithmEnum::ES256
+            SignatureAlgorithmEnum::ES256 => Arc::new(ECDSASignatureProvider::new(
+                realm_id,
+                realm_key_provider,
+                SignatureAlgorithmEnum::ES256,
             )),
-            SignatureAlgorithmEnum::ES384 => Box::new(ECDSASignatureProvider::new(
-                realm_id, realm_key_provider, SignatureAlgorithmEnum::ES384
+            SignatureAlgorithmEnum::ES384 => Arc::new(ECDSASignatureProvider::new(
+                realm_id,
+                realm_key_provider,
+                SignatureAlgorithmEnum::ES384,
             )),
-            SignatureAlgorithmEnum::ES512 => Box::new(ECDSASignatureProvider::new(
-                realm_id, realm_key_provider, SignatureAlgorithmEnum::ES512
+            SignatureAlgorithmEnum::ES512 => Arc::new(ECDSASignatureProvider::new(
+                realm_id,
+                realm_key_provider,
+                SignatureAlgorithmEnum::ES512,
             )),
         }
     }
-
-
 }
