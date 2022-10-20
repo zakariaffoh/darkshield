@@ -263,7 +263,6 @@ impl SignatureSignerContext for ServerMacSignatureSignerContext {
 pub struct ServerAsymmetricSignatureVerifierContext {
     realm_id: String,
     key_provider: Arc<dyn RealmKeyProvider>,
-    kid: String,
     algorithm: SignatureAlgorithmEnum,
 }
 
@@ -271,13 +270,11 @@ impl ServerAsymmetricSignatureVerifierContext {
     pub fn new(
         realm_id: &str,
         key_provider: Arc<dyn RealmKeyProvider>,
-        kid: &str,
         algorithm: &SignatureAlgorithmEnum,
     ) -> Self {
         Self {
             realm_id: realm_id.to_owned(),
             key_provider: key_provider,
-            kid: kid.to_owned(),
             algorithm: algorithm.clone(),
         }
     }
@@ -305,7 +302,6 @@ impl SignatureVerifierContext for ServerAsymmetricSignatureVerifierContext {
 pub struct ServerECDSASignatureVerifierContext {
     realm_id: String,
     key_provider: Arc<dyn RealmKeyProvider>,
-    kid: String,
     algorithm: SignatureAlgorithmEnum,
 }
 
@@ -313,13 +309,11 @@ impl ServerECDSASignatureVerifierContext {
     pub fn new(
         realm_id: &str,
         key_provider: Arc<dyn RealmKeyProvider>,
-        kid: &str,
         algorithm: &SignatureAlgorithmEnum,
     ) -> Self {
         Self {
             realm_id: realm_id.to_owned(),
             key_provider: key_provider,
-            kid: kid.to_owned(),
             algorithm: algorithm.clone(),
         }
     }
@@ -339,7 +333,7 @@ impl SignatureVerifierContext for ServerECDSASignatureVerifierContext {
             .await
     }
 
-    async fn verify(&self, data: &[u8], signature: &[u8]) -> Result<bool, String> {
+    async fn verify(&self, _data: &[u8], _signature: &[u8]) -> Result<bool, String> {
         todo!()
     }
 }
@@ -419,11 +413,10 @@ impl SignatureProvider for AsymmetricSignatureProvider {
         ))
     }
 
-    fn verifier(&self, kid: &str) -> Box<dyn SignatureVerifierContext> {
+    fn verifier(&self, _: &str) -> Box<dyn SignatureVerifierContext> {
         Box::new(ServerAsymmetricSignatureVerifierContext::new(
             &self.realm_id,
             Arc::clone(&self.key_provider),
-            kid,
             &self.algorithm,
         ))
     }
@@ -462,11 +455,10 @@ impl SignatureProvider for ECDSASignatureProvider {
         ))
     }
 
-    fn verifier(&self, kid: &str) -> Box<dyn SignatureVerifierContext> {
+    fn verifier(&self, _: &str) -> Box<dyn SignatureVerifierContext> {
         Box::new(ServerECDSASignatureVerifierContext::new(
             &self.realm_id,
             Arc::clone(&self.key_provider),
-            kid,
             &self.algorithm,
         ))
     }

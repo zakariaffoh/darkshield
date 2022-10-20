@@ -1,8 +1,15 @@
+use crate::core::{
+    aes::{AESBackend, CipherParams, EncryptionCipher, EncryptionCipherFactory},
+    keys::Key,
+};
+
+use self::enc::JweEncryptionProvider;
+
 pub mod enc;
 pub mod jwe;
 
-#[derive(Debug,PartialEq)]
-pub enum CekManagementAlgorithmEnum{
+#[derive(Debug, PartialEq)]
+pub enum CekManagementAlgorithmEnum {
     Rsa1_5,
     RsaOaep,
     RsaOaep256,
@@ -26,7 +33,7 @@ impl TryFrom<&str> for CekManagementAlgorithmEnum {
             "ECDH_ES" => Ok(CekManagementAlgorithmEnum::EcdhEs),
             "ECDH-ES" => Ok(CekManagementAlgorithmEnum::EcdhEs),
             "ECDH_ES_A128KW" => Ok(CekManagementAlgorithmEnum::EcdhEsA128kw),
-            "ECDH-ES+A128KW" => Ok(CekManagementAlgorithmEnum::EcdhEsA128kw),
+            "ECDH-ES-A128KW" => Ok(CekManagementAlgorithmEnum::EcdhEsA128kw),
             _ => Err(format!("Value: {} is not supported", value)),
         }
     }
@@ -46,63 +53,180 @@ impl ToString for CekManagementAlgorithmEnum {
     }
 }
 
+pub trait JweAlgorithmProvider {
+    fn decode_cek(
+        &self,
+        encoded_cek: &[u8],
+        encryption_key: &Box<dyn Key>,
+    ) -> Result<Vec<u8>, String>;
 
-pub trait JweAlgorithmProvider{
-    
+    fn encode_cek(
+        &self,
+        cek_bytes: &[u8],
+        encryption_provider: &Box<dyn JweEncryptionProvider>,
+        encryption_key: &Box<dyn Key>,
+    ) -> Result<Vec<u8>, String>;
 }
 
 pub struct DirectAlgorithmProvider;
 
-impl JweAlgorithmProvider for DirectAlgorithmProvider{
+impl JweAlgorithmProvider for DirectAlgorithmProvider {
+    fn decode_cek(
+        &self,
+        _encoded_cek: &[u8],
+        _encryption_key: &Box<dyn Key>,
+    ) -> Result<Vec<u8>, String> {
+        Ok(Vec::new())
+    }
 
+    fn encode_cek(
+        &self,
+        _cek_bytes: &[u8],
+        _encryption_provider: &Box<dyn JweEncryptionProvider>,
+        _encryption_key: &Box<dyn Key>,
+    ) -> Result<Vec<u8>, String> {
+        Ok(Vec::new())
+    }
 }
 
 pub struct AesKeyWrapAlgorithmProvider;
 
-impl JweAlgorithmProvider for AesKeyWrapAlgorithmProvider{
+impl JweAlgorithmProvider for AesKeyWrapAlgorithmProvider {
+    fn decode_cek(
+        &self,
+        encoded_cek: &[u8],
+        encryption_key: &Box<dyn Key>,
+    ) -> Result<Vec<u8>, String> {
+        let aes_backend_provider = AESBackend::new(
+            encryption_key.encoded(),
+            &CekManagementAlgorithmEnum::A128KW.to_string(),
+        );
+        match aes_backend_provider {
+            Ok(aes_backend) => aes_backend.unwrap_key(encoded_cek),
+            Err(err) => Err(err),
+        }
+    }
 
-}
-
-pub struct Rsa15AlgorithmProvider;
-
-impl JweAlgorithmProvider for Rsa15AlgorithmProvider{
-
-}
-
-
-pub struct RsaOaepCekAlgorithmProvider;
-
-impl JweAlgorithmProvider for RsaOaepCekAlgorithmProvider{
-
-}
-
-
-pub struct RsaKeyEncryptionJweAlgorithmProvider{
-    algorithm: CekManagementAlgorithmEnum
-}
-
-impl RsaKeyEncryptionJweAlgorithmProvider{
-    pub fn new(algorithm: CekManagementAlgorithmEnum) -> Self{
-        Self { algorithm }
+    fn encode_cek(
+        &self,
+        cek_bytes: &[u8],
+        _encryption_provider: &Box<dyn JweEncryptionProvider>,
+        encryption_key: &Box<dyn Key>,
+    ) -> Result<Vec<u8>, String> {
+        let aes_backend_provider = AESBackend::new(
+            encryption_key.encoded(),
+            &CekManagementAlgorithmEnum::A128KW.to_string(),
+        );
+        match aes_backend_provider {
+            Ok(aes_backend) => aes_backend.wrap_key(cek_bytes),
+            Err(err) => Err(err),
+        }
     }
 }
 
-impl JweAlgorithmProvider for RsaKeyEncryptionJweAlgorithmProvider{
-   
+trait KeyEncryptionJweAlgorithmProvider {
+    fn decode_cek_internal(
+        &self,
+        encoded_cek: &[u8],
+        encryption_key: &Box<dyn Key>,
+    ) -> Result<Vec<u8>, String> {
+        let cipher = self.cipher_provider();
+        cipher.init(CipherParams::new(
+            false,
+            Some(Vec::from(encryption_key.encoded())),
+            None,
+        ));
+        cipher.do_final(encoded_cek)
+    }
+
+    fn encode_cek_internal(
+        &self,
+        cek_bytes: &[u8],
+        _encryption_provider: &Box<dyn JweEncryptionProvider>,
+        encryption_key: &Box<dyn Key>,
+    ) -> Result<Vec<u8>, String> {
+        let cipher = self.cipher_provider();
+        cipher.init(CipherParams::new(
+            true,
+            Some(Vec::from(encryption_key.encoded())),
+            None,
+        ));
+        cipher.do_final(cek_bytes)
+    }
+
+    fn cipher_provider(&self) -> Box<dyn EncryptionCipher>;
 }
 
-
-pub struct ECDKKeyEncryptionJweAlgorithmProvider{
-    algorithm: CekManagementAlgorithmEnum
+pub struct RsaKeyEncryptionJweAlgorithmProvider {
+    algorithm: String,
 }
 
-impl ECDKKeyEncryptionJweAlgorithmProvider{
-    pub fn new(algorithm: CekManagementAlgorithmEnum) -> Self{
-        Self { algorithm }
+impl RsaKeyEncryptionJweAlgorithmProvider {
+    pub fn new(algorithm: &str) -> Self {
+        Self {
+            algorithm: algorithm.to_owned(),
+        }
     }
 }
 
-impl JweAlgorithmProvider for ECDKKeyEncryptionJweAlgorithmProvider{
-   
+impl KeyEncryptionJweAlgorithmProvider for RsaKeyEncryptionJweAlgorithmProvider {
+    fn cipher_provider(&self) -> Box<dyn EncryptionCipher> {
+        EncryptionCipherFactory::create(&self.algorithm)
+    }
 }
 
+impl JweAlgorithmProvider for RsaKeyEncryptionJweAlgorithmProvider {
+    fn decode_cek(
+        &self,
+        encoded_cek: &[u8],
+        encryption_key: &Box<dyn Key>,
+    ) -> Result<Vec<u8>, String> {
+        self.decode_cek_internal(encoded_cek, encryption_key)
+    }
+
+    fn encode_cek(
+        &self,
+        cek_bytes: &[u8],
+        encryption_provider: &Box<dyn JweEncryptionProvider>,
+        encryption_key: &Box<dyn Key>,
+    ) -> Result<Vec<u8>, String> {
+        self.encode_cek_internal(cek_bytes, encryption_provider, encryption_key)
+    }
+}
+
+pub struct ECDKKeyEncryptionJweAlgorithmProvider {
+    algorithm: String,
+}
+
+impl ECDKKeyEncryptionJweAlgorithmProvider {
+    pub fn new(algorithm: &str) -> Self {
+        Self {
+            algorithm: algorithm.to_owned(),
+        }
+    }
+}
+
+impl KeyEncryptionJweAlgorithmProvider for ECDKKeyEncryptionJweAlgorithmProvider {
+    fn cipher_provider(&self) -> Box<dyn EncryptionCipher> {
+        EncryptionCipherFactory::create(&self.algorithm)
+    }
+}
+
+impl JweAlgorithmProvider for ECDKKeyEncryptionJweAlgorithmProvider {
+    fn decode_cek(
+        &self,
+        encoded_cek: &[u8],
+        encryption_key: &Box<dyn Key>,
+    ) -> Result<Vec<u8>, String> {
+        self.decode_cek_internal(encoded_cek, encryption_key)
+    }
+
+    fn encode_cek(
+        &self,
+        cek_bytes: &[u8],
+        encryption_provider: &Box<dyn JweEncryptionProvider>,
+        encryption_key: &Box<dyn Key>,
+    ) -> Result<Vec<u8>, String> {
+        self.encode_cek_internal(cek_bytes, encryption_provider, encryption_key)
+    }
+}
