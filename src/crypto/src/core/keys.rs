@@ -1,7 +1,6 @@
 use std::{collections::HashMap, convert::TryFrom};
 
 use ring::hmac::{self, Algorithm};
-use ring::signature;
 
 #[derive(Debug, PartialEq)]
 pub enum SignatureAlgorithmEnum {
@@ -39,6 +38,27 @@ impl TryFrom<&str> for SignatureAlgorithmEnum {
     }
 }
 
+
+impl ToString for SignatureAlgorithmEnum {
+    fn to_string(&self) -> String {
+        match &self {
+            SignatureAlgorithmEnum::HS256 => "HS256".to_owned(),
+            SignatureAlgorithmEnum::HS384 => "HS384".to_owned(),
+            SignatureAlgorithmEnum::HS512 => "HS512".to_owned(),
+            SignatureAlgorithmEnum::RS256 => "RS256".to_owned(),
+            SignatureAlgorithmEnum::RS384 => "RS384".to_owned(),
+            SignatureAlgorithmEnum::RS512 => "RS512".to_owned(),
+            SignatureAlgorithmEnum::ES256 => "ES256".to_owned(),
+            SignatureAlgorithmEnum::ES384 => "ES384".to_owned(),
+            SignatureAlgorithmEnum::ES512 => "ES512".to_owned(),
+            SignatureAlgorithmEnum::PS256 => "PS256".to_owned(),
+            SignatureAlgorithmEnum::PS384 => "PS384".to_owned(),
+            SignatureAlgorithmEnum::PS512 => "PS512".to_owned(),
+        }
+    }
+}
+
+
 pub trait Key {
     fn encoded(&self) -> &[u8];
 
@@ -56,7 +76,6 @@ pub trait PublicKey: Key {
 }
 
 pub trait SecretKey: Key {
-    fn encoded(&self) -> &[u8];
 }
 
 pub trait Signature {
@@ -137,3 +156,28 @@ impl RsaSignature {
 }
 
 pub struct Certificate;
+
+pub struct KeyModel;
+
+impl KeyModel{
+    pub fn kid(&self) -> &str{
+        todo!()
+    }
+
+    pub fn algorithm(&self) -> &str{
+        todo!()
+    }
+
+    pub fn private_key(&self) -> &Box<dyn PrivateKey>{
+        todo!()
+    }
+
+    pub fn public_key(&self) -> &Box<dyn PublicKey>{
+        todo!()
+    }
+
+    pub fn secret_key(&self) -> &Box<dyn SecretKey>{
+        todo!()
+    }
+}
+
