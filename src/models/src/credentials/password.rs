@@ -88,8 +88,8 @@ pub struct PasswordHashFactory;
 impl PasswordHashFactory {
     pub fn hash_algorithm(algorithm: &str) -> Result<Box<dyn PasswordHashProvider>, String> {
         match algorithm {
-            "pbkdf2-sha224" => Ok(Box::new(Pbkdf2PasswordHashProvider::pbkd2_from_algorithm(
-                PBKDF2AlgorithmEnum::Pbkdf2HmacSha224.to_string().as_str(),
+            "pbkdf2" => Ok(Box::new(Pbkdf2PasswordHashProvider::pbkd2_from_algorithm(
+                PBKDF2AlgorithmEnum::Pbkdf2HmacSha1.to_string().as_str(),
             ))),
             "pbkdf2-sha256" => Ok(Box::new(Pbkdf2PasswordHashProvider::pbkd2_from_algorithm(
                 PBKDF2AlgorithmEnum::Pbkdf2HmacSha256.to_string().as_str(),

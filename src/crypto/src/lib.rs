@@ -1,8 +1,11 @@
+pub mod core;
 pub mod jose;
 pub mod pbkdf;
+pub mod providers;
 pub mod utils;
 
 use serde::{Deserialize, Serialize};
+use utils::HashUtils;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum KeyTypeEnum {
@@ -50,5 +53,27 @@ impl ToString for KeyStatusEnum {
             KeyStatusEnum::DISABLE => "DISABLE".to_owned(),
             KeyStatusEnum::PASSIVE => "PASSIVE".to_owned(),
         }
+    }
+}
+
+pub trait HashProvider {
+    fn hash(self, data: &str) -> Vec<u8>;
+}
+
+pub struct DefaultHashProvider {
+    algorithm: String,
+}
+
+impl DefaultHashProvider {
+    pub fn new(algorithm: &str) -> Self {
+        Self {
+            algorithm: algorithm.to_owned(),
+        }
+    }
+}
+
+impl HashProvider for DefaultHashProvider {
+    fn hash(self, data: &str) -> Vec<u8> {
+        HashUtils::hash(&self.algorithm, &data.as_bytes())
     }
 }
