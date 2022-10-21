@@ -1,12 +1,14 @@
+pub mod enc;
+pub mod header;
+pub mod jwe;
+pub mod zip;
+
 use crate::core::{
-    aes::{AESBackend, CipherParams, EncryptionCipher, EncryptionCipherFactory},
+    aes::{CipherParams, CryptographyAES, EncryptionCipher, EncryptionCipherFactory},
     keys::Key,
 };
 
-use self::enc::JweEncryptionProvider;
-
-pub mod enc;
-pub mod jwe;
+pub mod alg;
 
 #[derive(Debug, PartialEq)]
 pub enum CekManagementAlgorithmEnum {
@@ -53,7 +55,7 @@ impl ToString for CekManagementAlgorithmEnum {
     }
 }
 
-pub trait JweAlgorithmProvider {
+/*pub trait JweAlgorithmProvider {
     fn decode_cek(
         &self,
         encoded_cek: &[u8],
@@ -97,7 +99,7 @@ impl JweAlgorithmProvider for AesKeyWrapAlgorithmProvider {
         encoded_cek: &[u8],
         encryption_key: &Box<dyn Key>,
     ) -> Result<Vec<u8>, String> {
-        let aes_backend_provider = AESBackend::new(
+        let aes_backend_provider = CryptographyAES::new(
             encryption_key.encoded(),
             &CekManagementAlgorithmEnum::A128KW.to_string(),
         );
@@ -113,7 +115,7 @@ impl JweAlgorithmProvider for AesKeyWrapAlgorithmProvider {
         _encryption_provider: &Box<dyn JweEncryptionProvider>,
         encryption_key: &Box<dyn Key>,
     ) -> Result<Vec<u8>, String> {
-        let aes_backend_provider = AESBackend::new(
+        let aes_backend_provider = CryptographyAES::new(
             encryption_key.encoded(),
             &CekManagementAlgorithmEnum::A128KW.to_string(),
         );
@@ -229,4 +231,4 @@ impl JweAlgorithmProvider for ECDKKeyEncryptionJweAlgorithmProvider {
     ) -> Result<Vec<u8>, String> {
         self.encode_cek_internal(cek_bytes, encryption_provider, encryption_key)
     }
-}
+}*/
