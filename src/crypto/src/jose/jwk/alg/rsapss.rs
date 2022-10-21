@@ -430,7 +430,6 @@ impl RsaPssKeyPair {
             Ok(Some(DerType::Sequence)) => {}
             _ => return None,
         }
-
         {
             if !is_public {
                 // Version
@@ -451,7 +450,6 @@ impl RsaPssKeyPair {
                 Ok(Some(DerType::Sequence)) => {}
                 _ => return None,
             }
-
             {
                 match reader.next() {
                     Ok(Some(DerType::ObjectIdentifier)) => match reader.to_object_identifier() {

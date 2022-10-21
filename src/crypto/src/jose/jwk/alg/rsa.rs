@@ -6,16 +6,13 @@ use openssl::pkey::{PKey, Private};
 use openssl::rsa::Rsa;
 use serde_json::Value;
 
+use super::rsapss::RsaPssKeyPair;
 use crate::core::hash_algorithm::HashAlgorithm;
 use crate::jose::error::JoseError;
-use crate::jose::jwk::der::der_builder::DerBuilder;
-use crate::jose::jwk::der::der_reader::DerReader;
-use crate::jose::jwk::der::der_type::DerType;
+use crate::jose::jwk::der::{der_builder::DerBuilder, der_reader::DerReader, der_type::DerType};
 use crate::jose::jwk::jwk::{Jwk, KeyPair};
 use crate::jose::util;
 use crate::jose::util::oid::OID_RSA_ENCRYPTION;
-
-use super::rsapss::RsaPssKeyPair;
 
 #[derive(Debug, Clone)]
 pub struct RsaKeyPair {
@@ -292,7 +289,6 @@ impl RsaKeyPair {
             Ok(Some(DerType::Sequence)) => {}
             _ => return None,
         }
-
         {
             if !is_public {
                 // Version
@@ -313,7 +309,6 @@ impl RsaKeyPair {
                 Ok(Some(DerType::Sequence)) => {}
                 _ => return None,
             }
-
             {
                 match reader.next() {
                     Ok(Some(DerType::ObjectIdentifier)) => match reader.to_object_identifier() {
@@ -417,5 +412,32 @@ impl Deref for RsaKeyPair {
 
     fn deref(&self) -> &Self::Target {
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+
+    use super::RsaKeyPair;
+
+    #[test]
+    fn test_rsa_jwt() -> Result<()> {
+        for bits in vec![1024, 2048, 4096] {
+            let key_pair_1 = RsaKeyPair::generate(bits)?;
+            let der_private1 = key_pair_1.to_der_private_key();
+            let der_public1 = key_pair_1.to_der_public_key();
+
+            let jwk_key_pair_1 = key_pair_1.to_jwk_key_pair();
+
+            let key_pair_2 = RsaKeyPair::from_jwk(&jwk_key_pair_1)?;
+            let der_private2 = key_pair_2.to_der_private_key();
+            let der_public2 = key_pair_2.to_der_public_key();
+
+            assert_eq!(der_private1, der_private2);
+            assert_eq!(der_public1, der_public2);
+        }
+
+        Ok(())
     }
 }

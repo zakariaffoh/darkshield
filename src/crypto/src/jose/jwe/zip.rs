@@ -56,3 +56,18 @@ impl Deref for DeflateJweCompression {
 }
 
 pub use DeflateJweCompression::Def as DEF;
+
+#[cfg(test)]
+mod tests {
+    use crate::jose::jwe::zip::DeflateJweCompression;
+
+    #[test]
+    fn test_message_compression() {
+        let compression = DeflateJweCompression::Def;
+        assert_eq!("DEF", compression.name());
+        let result = compression
+            .decompress(&compression.compress("compress".as_bytes()).unwrap())
+            .unwrap();
+        assert_eq!("compress", String::from_utf8(result.to_vec()).unwrap());
+    }
+}

@@ -431,3 +431,55 @@ impl Deref for Pbes2HmacAeskwJweDecrypter {
         self
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+    use base64_url::base64;
+    use serde_json::json;
+
+    use crate::jose::{
+        jwe::{enc::AESCBCHMACJweEncryption, header::JweHeader},
+        jwk::jwk::Jwk,
+        util,
+    };
+
+    use super::Pbes2HmacAeskwJweAlgorithm;
+
+    #[test]
+    fn encrypt_and_decrypt_pbes2_hmac() -> Result<()> {
+        let enc = AESCBCHMACJweEncryption::A128cbcHs256;
+
+        for alg in vec![
+            Pbes2HmacAeskwJweAlgorithm::Pbes2Hs256A128kw,
+            Pbes2HmacAeskwJweAlgorithm::Pbes2Hs384A192kw,
+            Pbes2HmacAeskwJweAlgorithm::Pbes2Hs512A256kw,
+        ] {
+            let mut header = JweHeader::new();
+            header.set_content_encryption(enc.name());
+
+            let jwk = {
+                let key = util::random_bytes(8);
+                let key = base64::encode_config(&key, base64::URL_SAFE_NO_PAD);
+
+                let mut jwk = Jwk::new("oct");
+                jwk.set_key_use("enc");
+                jwk.set_parameter("k", Some(json!(key)))?;
+                jwk
+            };
+
+            let encrypter = alg.encrypter_from_jwk(&jwk)?;
+            let mut out_header = header.clone();
+            let src_key = util::random_bytes(enc.key_len());
+            let encrypted_key = encrypter.encrypt(&src_key, &header, &mut out_header)?;
+
+            let decrypter = alg.decrypter_from_jwk(&jwk)?;
+
+            let dst_key = decrypter.decrypt(encrypted_key.as_deref(), &enc, &out_header)?;
+
+            assert_eq!(&src_key as &[u8], &dst_key as &[u8]);
+        }
+
+        Ok(())
+    }
+}
