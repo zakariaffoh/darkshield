@@ -826,7 +826,7 @@ mod tests {
         header.set_x509_certificate_chain(&vec![b"x5c0", b"x5c1"]);
         header.set_x509_certificate_sha1_thumbprint(b"x5t");
         header.set_x509_certificate_sha256_thumbprint(b"x5t#S256");
-        header.set_key_id("kid");
+        header.set_kid("kid");
         header.set_token_type("typ");
         header.set_content_type("cty");
         header.set_critical(&vec!["crit0", "crit1"]);
@@ -849,7 +849,7 @@ mod tests {
         assert!(
             matches!(header.x509_certificate_sha256_thumbprint(), Some(val) if val == b"x5t#S256".to_vec())
         );
-        assert!(matches!(header.key_id(), Some("kid")));
+        assert!(matches!(header.kid(), Some("kid")));
         assert!(matches!(header.token_type(), Some("typ")));
         assert!(matches!(header.content_type(), Some("cty")));
         assert!(matches!(header.url(), Some("url")));
