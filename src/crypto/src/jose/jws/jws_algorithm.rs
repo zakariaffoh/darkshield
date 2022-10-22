@@ -1,12 +1,7 @@
-pub mod ecdsa;
-pub mod eddsa;
-pub mod hmac;
-pub mod rsassa;
-pub mod rsassa_pss;
-
 use std::fmt::Debug;
 
-use crate::jose::error::JoseError;
+use crate::jose::JoseError;
+
 pub trait JwsAlgorithm: Debug + Send + Sync {
     fn name(&self) -> &str;
 

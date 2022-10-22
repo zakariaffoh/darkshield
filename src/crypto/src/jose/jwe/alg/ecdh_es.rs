@@ -10,19 +10,19 @@ use openssl::hash::{Hasher, MessageDigest};
 use openssl::pkey::{PKey, Private, Public};
 use serde_json::{Map, Value};
 
-use crate::jose::error::JoseError;
-use crate::jose::jwe::header::JweHeader;
-use crate::jose::jwe::jwe::{JweAlgorithm, JweContentEncryption, JweDecrypter, JweEncrypter};
+use crate::jose::jwe::jwe_algorithm::{JweAlgorithm, JweDecrypter, JweEncrypter};
+use crate::jose::jwe::jwe_content_encryption::JweContentEncryption;
+use crate::jose::jwe::jwe_header::JweHeader;
 use crate::jose::jwk::alg::ec::{EcCurve, EcKeyPair};
 use crate::jose::jwk::alg::ecx::{EcxCurve, EcxKeyPair};
-use crate::jose::jwk::der::der_reader::DerReader;
-use crate::jose::jwk::der::der_type::DerType;
-use crate::jose::jwk::jwk::Jwk;
-use crate::jose::util;
+use crate::jose::jwk::Jwk;
+
+use crate::jose::util::der::{DerReader, DerType};
 use crate::jose::util::oid::{
     OID_ID_EC_PUBLIC_KEY, OID_PRIME256V1, OID_SECP256K1, OID_SECP384R1, OID_SECP521R1, OID_X25519,
     OID_X448,
 };
+use crate::jose::{util, JoseError};
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 enum EcdhEsKeyType {
@@ -979,22 +979,8 @@ impl Deref for EcdhEsJweDecrypter {
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use std::borrow::Cow;
     use std::fs;
     use std::path::PathBuf;
-
-    use super::{EcdhEsJweAlgorithm, EcdhEsKeyType};
-    use crate::jose::{
-        jwe::{
-            enc::{AESCBCHMACJweEncryption, AESGCMJweEncryption},
-            header::JweHeader,
-        },
-        jwk::{
-            alg::{ec::EcCurve, ecx::EcxCurve},
-            jwk::Jwk,
-        },
-        util,
-    };
 
     /*#[test]
     fn encrypt_and_decrypt_ecdh_es_with_pkcs8_der() -> Result<()> {

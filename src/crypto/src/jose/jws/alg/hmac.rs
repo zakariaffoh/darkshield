@@ -7,11 +7,10 @@ use openssl::pkey::{PKey, Private};
 use openssl::sign::Signer;
 use serde_json::Value;
 
-use crate::core::hash_algorithm::HashAlgorithm;
-use crate::jose::error::JoseError;
-use crate::jose::jwk::jwk::Jwk;
-
-use super::{JwsAlgorithm, JwsSigner, JwsVerifier};
+use crate::jose::jose_error::JoseError;
+use crate::jose::jwk::Jwk;
+use crate::jose::jws::jws_algorithm::{JwsAlgorithm, JwsSigner, JwsVerifier};
+use crate::jose::util::hash_algorithm::HashAlgorithm;
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum HmacJwsAlgorithm {

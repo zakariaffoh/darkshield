@@ -3,18 +3,17 @@ use std::convert::TryFrom;
 use std::fmt::Display;
 use std::ops::Deref;
 
+use crate::jose::jwe::jwe_algorithm::{JweAlgorithm, JweDecrypter, JweEncrypter};
+use crate::jose::jwe::jwe_content_encryption::JweContentEncryption;
+use crate::jose::jwe::jwe_header::JweHeader;
+use crate::jose::jwk::Jwk;
+use crate::jose::util::hash_algorithm::HashAlgorithm;
+use crate::jose::{util, JoseError};
 use anyhow::bail;
 use base64_url::base64;
 use openssl::aes::{self, AesKey};
 use openssl::pkcs5;
 use serde_json::{Number, Value};
-
-use crate::core::hash_algorithm::HashAlgorithm;
-use crate::jose::error::JoseError;
-use crate::jose::jwe::header::JweHeader;
-use crate::jose::jwe::jwe::{JweAlgorithm, JweContentEncryption, JweDecrypter, JweEncrypter};
-use crate::jose::jwk::jwk::Jwk;
-use crate::jose::util;
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum Pbes2HmacAeskwJweAlgorithm {
@@ -439,8 +438,8 @@ mod tests {
     use serde_json::json;
 
     use crate::jose::{
-        jwe::{enc::AESCBCHMACJweEncryption, header::JweHeader},
-        jwk::jwk::Jwk,
+        jwe::{enc::aescbc_hmac::AESCBCHMACJweEncryption, jwe_header::JweHeader},
+        jwk::Jwk,
         util,
     };
 

@@ -9,14 +9,13 @@ use openssl::pkey::{PKey, Private, Public};
 use openssl::rsa::Padding;
 use serde_json::Value;
 
-use crate::jose::error::JoseError;
-use crate::jose::jwe::header::JweHeader;
-use crate::jose::jwe::jwe::{JweAlgorithm, JweContentEncryption, JweDecrypter, JweEncrypter};
+use crate::jose::jwe::jwe_algorithm::{JweAlgorithm, JweDecrypter, JweEncrypter};
+use crate::jose::jwe::jwe_content_encryption::JweContentEncryption;
+use crate::jose::jwe::jwe_header::JweHeader;
 use crate::jose::jwk::alg::rsa::RsaKeyPair;
-use crate::jose::jwk::der::der_builder::DerBuilder;
-use crate::jose::jwk::der::der_type::DerType;
-use crate::jose::jwk::jwk::Jwk;
-use crate::jose::util;
+use crate::jose::jwk::Jwk;
+use crate::jose::util::der::{DerBuilder, DerType};
+use crate::jose::{util, JoseError};
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum RsaesJweAlgorithm {
@@ -529,13 +528,6 @@ mod tests {
     use anyhow::Result;
     use std::fs;
     use std::path::PathBuf;
-
-    use crate::jose::jwe::enc::AESCBCHMACJweEncryption;
-    use crate::jose::jwe::header::JweHeader;
-    use crate::jose::jwk::jwk::Jwk;
-    use crate::jose::util;
-
-    use super::RsaesJweAlgorithm;
 
     /*#[test]
     #[allow(deprecated)]

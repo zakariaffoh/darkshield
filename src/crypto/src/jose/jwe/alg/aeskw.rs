@@ -7,12 +7,13 @@ use std::fmt::Display;
 use std::ops::Deref;
 
 use crate::jose::{
-    error::JoseError,
     jwe::{
-        header::JweHeader,
-        jwe::{JweAlgorithm, JweContentEncryption, JweDecrypter, JweEncrypter},
+        jwe_algorithm::{JweAlgorithm, JweDecrypter, JweEncrypter},
+        jwe_content_encryption::JweContentEncryption,
+        jwe_header::JweHeader,
     },
-    jwk::jwk::Jwk,
+    jwk::Jwk,
+    JoseError,
 };
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
@@ -351,8 +352,12 @@ mod tests {
     use serde_json::json;
 
     use crate::jose::{
-        jwe::{enc::AESCBCHMACJweEncryption, header::JweHeader},
-        jwk::jwk::Jwk,
+        jwe::{
+            enc::aescbc_hmac::AESCBCHMACJweEncryption,
+            jwe_algorithm::{JweDecrypter, JweEncrypter},
+            jwe_header::JweHeader,
+        },
+        jwk::Jwk,
         util,
     };
 

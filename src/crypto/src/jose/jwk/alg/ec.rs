@@ -9,13 +9,11 @@ use openssl::nid::Nid;
 use openssl::pkey::{PKey, Private};
 use serde_json::Value;
 
-use crate::jose::error::JoseError;
-use crate::jose::jwk::der::der_builder::DerBuilder;
-use crate::jose::jwk::der::der_class::DerClass;
-use crate::jose::jwk::der::der_reader::DerReader;
-use crate::jose::jwk::der::der_type::DerType;
-use crate::jose::jwk::jwk::{Jwk, KeyPair};
+use crate::jose::jose_error::JoseError;
+
+use crate::jose::jwk::{Jwk, KeyPair};
 use crate::jose::util;
+use crate::jose::util::der::{DerBuilder, DerClass, DerReader, DerType};
 use crate::jose::util::oid::{
     ObjectIdentifier, OID_ID_EC_PUBLIC_KEY, OID_PRIME256V1, OID_SECP256K1, OID_SECP384R1,
     OID_SECP521R1,

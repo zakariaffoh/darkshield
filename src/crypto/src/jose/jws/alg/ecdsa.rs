@@ -7,16 +7,13 @@ use openssl::pkey::{PKey, Private, Public};
 use openssl::sign::{Signer, Verifier};
 use serde_json::Value;
 
-use crate::core::hash_algorithm::HashAlgorithm;
-use crate::jose::error::JoseError;
+use crate::jose::jose_error::JoseError;
 use crate::jose::jwk::alg::ec::{EcCurve, EcKeyPair};
-use crate::jose::jwk::der::der_builder::DerBuilder;
-use crate::jose::jwk::der::der_reader::DerReader;
-use crate::jose::jwk::der::der_type::DerType;
-use crate::jose::jwk::jwk::Jwk;
+use crate::jose::jwk::Jwk;
+use crate::jose::jws::jws_algorithm::{JwsAlgorithm, JwsSigner, JwsVerifier};
 use crate::jose::util;
-
-use super::{JwsAlgorithm, JwsSigner, JwsVerifier};
+use crate::jose::util::der::{DerBuilder, DerReader, DerType};
+use crate::jose::util::hash_algorithm::HashAlgorithm;
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum EcdsaJwsAlgorithm {
@@ -423,5 +420,259 @@ impl Deref for EcdsaJwsVerifier {
 
     fn deref(&self) -> &Self::Target {
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use anyhow::Result;
+    use std::fs;
+    use std::path::PathBuf;
+
+    #[test]
+    fn sign_and_verify_ecdsa_generated_der() -> Result<()> {
+        let input = b"abcde12345";
+
+        for alg in &[
+            EcdsaJwsAlgorithm::ES256,
+            EcdsaJwsAlgorithm::ES384,
+            EcdsaJwsAlgorithm::ES512,
+            EcdsaJwsAlgorithm::ES256k,
+        ] {
+            let key_pair = alg.generate_key_pair()?;
+
+            let signer = alg.signer_from_der(&key_pair.to_der_private_key())?;
+            let signature = signer.sign(input)?;
+
+            let verifier = alg.verifier_from_der(&key_pair.to_der_public_key())?;
+            verifier.verify(input, &signature)?;
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn sign_and_verify_ecdsa_generated_raw() -> Result<()> {
+        let input = b"abcde12345";
+
+        for alg in &[
+            EcdsaJwsAlgorithm::ES256,
+            EcdsaJwsAlgorithm::ES384,
+            EcdsaJwsAlgorithm::ES512,
+            EcdsaJwsAlgorithm::ES256k,
+        ] {
+            let key_pair = alg.generate_key_pair()?;
+
+            let signer = alg.signer_from_der(&key_pair.to_raw_private_key())?;
+            let signature = signer.sign(input)?;
+
+            let verifier = alg.verifier_from_der(&key_pair.to_der_public_key())?;
+            verifier.verify(input, &signature)?;
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn sign_and_verify_ecdsa_generated_pem() -> Result<()> {
+        let input = b"abcde12345";
+
+        for alg in &[
+            EcdsaJwsAlgorithm::ES256,
+            EcdsaJwsAlgorithm::ES384,
+            EcdsaJwsAlgorithm::ES512,
+            EcdsaJwsAlgorithm::ES256k,
+        ] {
+            let key_pair = alg.generate_key_pair()?;
+
+            let signer = alg.signer_from_pem(&key_pair.to_pem_private_key())?;
+            let signature = signer.sign(input)?;
+
+            let verifier = alg.verifier_from_pem(&key_pair.to_pem_public_key())?;
+            verifier.verify(input, &signature)?;
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn sign_and_verify_ecdsa_generated_traditional_pem() -> Result<()> {
+        let input = b"abcde12345";
+
+        for alg in &[
+            EcdsaJwsAlgorithm::ES256,
+            EcdsaJwsAlgorithm::ES384,
+            EcdsaJwsAlgorithm::ES512,
+            EcdsaJwsAlgorithm::ES256k,
+        ] {
+            let key_pair = alg.generate_key_pair()?;
+
+            let signer = alg.signer_from_pem(&key_pair.to_traditional_pem_private_key())?;
+            let signature = signer.sign(input)?;
+
+            let verifier = alg.verifier_from_pem(&key_pair.to_pem_public_key())?;
+            verifier.verify(input, &signature)?;
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn sign_and_verify_ecdsa_generated_jwk() -> Result<()> {
+        let input = b"abcde12345";
+
+        for alg in &[
+            EcdsaJwsAlgorithm::ES256,
+            EcdsaJwsAlgorithm::ES384,
+            EcdsaJwsAlgorithm::ES512,
+            EcdsaJwsAlgorithm::ES256k,
+        ] {
+            let key_pair = alg.generate_key_pair()?;
+
+            let signer = alg.signer_from_jwk(&key_pair.to_jwk_private_key())?;
+            let signature = signer.sign(input)?;
+
+            let verifier = alg.verifier_from_jwk(&key_pair.to_jwk_public_key())?;
+            verifier.verify(input, &signature)?;
+        }
+
+        Ok(())
+    }
+
+    /*#[test]
+    fn sign_and_verify_ecdsa_jwt() -> Result<()> {
+        let input = b"abcde12345";
+
+        for alg in &[
+            EcdsaJwsAlgorithm::ES256,
+            EcdsaJwsAlgorithm::ES384,
+            EcdsaJwsAlgorithm::ES512,
+            EcdsaJwsAlgorithm::ES256k,
+        ] {
+            let private_key = load_file(match alg {
+                EcdsaJwsAlgorithm::ES256 => "jwk/EC_P-256_private.jwk",
+                EcdsaJwsAlgorithm::ES384 => "jwk/EC_P-384_private.jwk",
+                EcdsaJwsAlgorithm::ES512 => "jwk/EC_P-521_private.jwk",
+                EcdsaJwsAlgorithm::ES256k => "jwk/EC_secp256k1_private.jwk",
+            })?;
+            let public_key = load_file(match alg {
+                EcdsaJwsAlgorithm::ES256 => "jwk/EC_P-256_public.jwk",
+                EcdsaJwsAlgorithm::ES384 => "jwk/EC_P-384_public.jwk",
+                EcdsaJwsAlgorithm::ES512 => "jwk/EC_P-521_public.jwk",
+                EcdsaJwsAlgorithm::ES256k => "jwk/EC_secp256k1_public.jwk",
+            })?;
+
+            let signer = alg.signer_from_jwk(&Jwk::from_bytes(&private_key)?)?;
+            let signature = signer.sign(input)?;
+
+            let verifier = alg.verifier_from_jwk(&Jwk::from_bytes(&public_key)?)?;
+            verifier.verify(input, &signature)?;
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn sign_and_verify_ecdsa_pkcs8_pem() -> Result<()> {
+        let input = b"abcde12345";
+
+        for alg in &[
+            EcdsaJwsAlgorithm::ES256,
+            EcdsaJwsAlgorithm::ES384,
+            EcdsaJwsAlgorithm::ES512,
+            EcdsaJwsAlgorithm::ES256k,
+        ] {
+            println!("{}", alg);
+
+            let private_key = load_file(match alg {
+                EcdsaJwsAlgorithm::ES256 => "pem/EC_P-256_private.pem",
+                EcdsaJwsAlgorithm::ES384 => "pem/EC_P-384_private.pem",
+                EcdsaJwsAlgorithm::ES512 => "pem/EC_P-521_private.pem",
+                EcdsaJwsAlgorithm::ES256k => "pem/EC_secp256k1_private.pem",
+            })?;
+            let public_key = load_file(match alg {
+                EcdsaJwsAlgorithm::ES256 => "pem/EC_P-256_public.pem",
+                EcdsaJwsAlgorithm::ES384 => "pem/EC_P-384_public.pem",
+                EcdsaJwsAlgorithm::ES512 => "pem/EC_P-521_public.pem",
+                EcdsaJwsAlgorithm::ES256k => "pem/EC_secp256k1_public.pem",
+            })?;
+
+            let signer = alg.signer_from_pem(&private_key)?;
+            let signature = signer.sign(input)?;
+
+            let verifier = alg.verifier_from_pem(&public_key)?;
+            verifier.verify(input, &signature)?;
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn sign_and_verify_ecdsa_pkcs8_der() -> Result<()> {
+        let input = b"abcde12345";
+
+        for alg in &[
+            EcdsaJwsAlgorithm::ES256,
+            EcdsaJwsAlgorithm::ES384,
+            EcdsaJwsAlgorithm::ES512,
+            EcdsaJwsAlgorithm::ES256k,
+        ] {
+            let private_key = load_file(match alg {
+                EcdsaJwsAlgorithm::ES256 => "der/EC_P-256_pkcs8_private.der",
+                EcdsaJwsAlgorithm::ES384 => "der/EC_P-384_pkcs8_private.der",
+                EcdsaJwsAlgorithm::ES512 => "der/EC_P-521_pkcs8_private.der",
+                EcdsaJwsAlgorithm::ES256k => "der/EC_secp256k1_pkcs8_private.der",
+            })?;
+            let public_key = load_file(match alg {
+                EcdsaJwsAlgorithm::ES256 => "der/EC_P-256_spki_public.der",
+                EcdsaJwsAlgorithm::ES384 => "der/EC_P-384_spki_public.der",
+                EcdsaJwsAlgorithm::ES512 => "der/EC_P-521_spki_public.der",
+                EcdsaJwsAlgorithm::ES256k => "der/EC_secp256k1_spki_public.der",
+            })?;
+
+            let signer = alg.signer_from_der(&private_key)?;
+            let signature = signer.sign(input)?;
+
+            let verifier = alg.verifier_from_der(&public_key)?;
+            verifier.verify(input, &signature)?;
+        }
+
+        Ok(())
+    }*/
+
+    #[test]
+    fn sign_and_verify_ecdsa_mismatch() -> Result<()> {
+        let input = b"abcde12345";
+
+        for alg in &[
+            EcdsaJwsAlgorithm::ES256,
+            EcdsaJwsAlgorithm::ES384,
+            EcdsaJwsAlgorithm::ES512,
+            EcdsaJwsAlgorithm::ES256k,
+        ] {
+            let signer_key_pair = alg.generate_key_pair()?;
+            let verifier_key_pair = alg.generate_key_pair()?;
+
+            let signer = alg.signer_from_der(&signer_key_pair.to_der_private_key())?;
+            let signature = signer.sign(input)?;
+
+            let verifier = alg.verifier_from_der(&verifier_key_pair.to_der_public_key())?;
+            verifier
+                .verify(input, &signature)
+                .expect_err("Unmatched signature did not fail");
+        }
+
+        Ok(())
+    }
+
+    fn load_file(path: &str) -> Result<Vec<u8>> {
+        let mut pb = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        pb.push("data");
+        pb.push(path);
+
+        let data = fs::read(&pb)?;
+        Ok(data)
     }
 }

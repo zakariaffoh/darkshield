@@ -1,17 +1,17 @@
 use std::ops::Deref;
 
+use crate::jose::Value;
 use anyhow::bail;
 use base64_url::base64;
 use openssl::pkey::{PKey, Private};
 use openssl::rsa::Rsa;
-use serde_json::Value;
 
 use super::rsapss::RsaPssKeyPair;
-use crate::core::hash_algorithm::HashAlgorithm;
-use crate::jose::error::JoseError;
-use crate::jose::jwk::der::{der_builder::DerBuilder, der_reader::DerReader, der_type::DerType};
-use crate::jose::jwk::jwk::{Jwk, KeyPair};
+use crate::jose::jose_error::JoseError;
+use crate::jose::jwk::{Jwk, KeyPair};
 use crate::jose::util;
+use crate::jose::util::der::{DerBuilder, DerReader, DerType};
+use crate::jose::util::hash_algorithm::HashAlgorithm;
 use crate::jose::util::oid::OID_RSA_ENCRYPTION;
 
 #[derive(Debug, Clone)]
