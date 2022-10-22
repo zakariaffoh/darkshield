@@ -73,10 +73,6 @@ impl EcxKeyPair {
         self.curve
     }
 
-    /// Generate a Montgomery curve key pair
-    ///
-    /// # Arguments
-    /// * `curve` - Montgomery curve curve algorithm
     pub fn generate(curve: EcxCurve) -> Result<EcxKeyPair, JoseError> {
         (|| -> anyhow::Result<EcxKeyPair> {
             let private_key = match curve {
@@ -94,10 +90,6 @@ impl EcxKeyPair {
         .map_err(|err| JoseError::InvalidKeyFormat(err))
     }
 
-    /// Create a Montgomery curve key pair from a private key that is a DER encoded PKCS#8 PrivateKeyInfo.
-    ///
-    /// # Arguments
-    /// * `input` - A private key that is a DER encoded PKCS#8 PrivateKeyInfo.
     pub fn from_der(input: impl AsRef<[u8]>) -> Result<Self, JoseError> {
         (|| -> anyhow::Result<Self> {
             let input = input.as_ref();
@@ -121,16 +113,6 @@ impl EcxKeyPair {
         })
     }
 
-    /// Create a Montgomery curve key pair from a private key of common or traditinal PEM format.
-    ///
-    /// Common PEM format is a DER and base64 encoded PKCS#8 PrivateKeyInfo
-    /// that surrounded by "-----BEGIN/END PRIVATE KEY----".
-    ///
-    /// Traditional PEM format is a DER and base64 encoded PKCS#8 PrivateKeyInfo
-    /// that surrounded by "-----BEGIN/END ED25519/ED448 PRIVATE KEY----".
-    ///
-    /// # Arguments
-    /// * `input` - A private key of common or traditinal PEM format.
     pub fn from_pem(input: impl AsRef<[u8]>) -> Result<Self, JoseError> {
         (|| -> anyhow::Result<Self> {
             let (alg, data) = util::parse_pem(input.as_ref())?;
@@ -170,10 +152,6 @@ impl EcxKeyPair {
         .map_err(|err| JoseError::InvalidKeyFormat(err))
     }
 
-    /// Create a Montgomery curve key pair from a private key that is formatted by a JWK of OKP type.
-    ///
-    /// # Arguments
-    /// * `jwk` - A private key that is formatted by a JWK of OKP type.
     pub fn from_jwk(jwk: &Jwk) -> Result<Self, JoseError> {
         (|| -> anyhow::Result<Self> {
             match jwk.key_type() {
@@ -232,7 +210,6 @@ impl EcxKeyPair {
         result.push_str("-----END ");
         result.push_str(alg);
         result.push_str("-----\r\n");
-
         result.into_bytes()
     }
 
@@ -350,7 +327,6 @@ impl EcxKeyPair {
             Ok(Some(DerType::Sequence)) => {}
             _ => return None,
         }
-
         {
             if !is_public {
                 // Version
@@ -371,7 +347,6 @@ impl EcxKeyPair {
                 Ok(Some(DerType::Sequence)) => {}
                 _ => return None,
             }
-
             {
                 curve = match reader.next() {
                     Ok(Some(DerType::ObjectIdentifier)) => match reader.to_object_identifier() {
@@ -466,5 +441,34 @@ impl Deref for EcxKeyPair {
 
     fn deref(&self) -> &Self::Target {
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+    use std::fs;
+    use std::path::PathBuf;
+
+    use super::{EcxCurve, EcxKeyPair};
+
+    #[test]
+    fn test_generate_ecx() -> Result<()> {
+        for curve in vec![EcxCurve::X25519, EcxCurve::X448] {
+            let key_pair_1 = EcxKeyPair::generate(curve)?;
+            let der_private1 = key_pair_1.to_der_private_key();
+            let der_public1 = key_pair_1.to_der_public_key();
+
+            let jwk_key_pair_1 = key_pair_1.to_jwk_key_pair();
+
+            let key_pair_2 = EcxKeyPair::from_jwk(&jwk_key_pair_1)?;
+            let der_private2 = key_pair_2.to_der_private_key();
+            let der_public2 = key_pair_2.to_der_public_key();
+
+            assert_eq!(der_private1, der_private2);
+            assert_eq!(der_public1, der_public2);
+        }
+
+        Ok(())
     }
 }

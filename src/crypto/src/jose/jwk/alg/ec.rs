@@ -104,7 +104,6 @@ impl EcKeyPair {
         self.private_key
     }
 
-    /// Generate EC key pair.
     pub fn generate(curve: EcCurve) -> Result<EcKeyPair, JoseError> {
         (|| -> anyhow::Result<EcKeyPair> {
             let ec_group = EcGroup::from_curve_name(curve.nid())?;
@@ -121,12 +120,6 @@ impl EcKeyPair {
         .map_err(|err| JoseError::InvalidKeyFormat(err))
     }
 
-    /// Create a EC key pair from a private key that is a DER encoded PKCS#8 PrivateKeyInfo or ECPrivateKey.
-    ///
-    /// # Arguments
-    ///
-    /// * `input` - A private key that is a DER encoded PKCS#8 PrivateKeyInfo or ECPrivateKey.
-    /// * `curve` - EC curve
     pub fn from_der(input: impl AsRef<[u8]>, curve: Option<EcCurve>) -> Result<Self, JoseError> {
         (|| -> anyhow::Result<Self> {
             let input = input.as_ref();
@@ -161,11 +154,6 @@ impl EcKeyPair {
         })
     }
 
-    /// Return a signer from a private key that is formatted by a JWK of EC type.
-    ///
-    /// # Arguments
-    ///
-    /// * `jwk` - A private key that is formatted by a JWK of EC type.
     pub fn from_jwk(jwk: &Jwk) -> Result<Self, JoseError> {
         (|| -> anyhow::Result<Self> {
             match jwk.key_type() {
@@ -251,18 +239,6 @@ impl EcKeyPair {
         .map_err(|err| JoseError::InvalidKeyFormat(err))
     }
 
-    /// Create a Ec key pair from a private key of common or traditinal PEM format.
-    ///
-    /// Common PEM format is a DER and base64 encoded PKCS#8 PrivateKeyInfo
-    /// that surrounded by "-----BEGIN/END PRIVATE KEY----".
-    ///
-    /// Traditional PEM format is a DER and base64 encoded ECPrivateKey
-    /// that surrounded by "-----BEGIN/END EC PRIVATE KEY----".
-    ///
-    /// # Arguments
-    ///
-    /// * `input` - A private key of common or traditinal PEM format.
-    /// * `curve` - EC curve
     pub fn from_pem(input: impl AsRef<[u8]>, curve: Option<EcCurve>) -> Result<Self, JoseError> {
         (|| -> anyhow::Result<Self> {
             let (alg, data) = util::parse_pem(input.as_ref())?;
@@ -339,7 +315,6 @@ impl EcKeyPair {
             let d = ec_key.private_key();
             let d = util::num_to_vec(&d, self.curve.coordinate_size());
             let d = base64::encode_config(&d, base64::URL_SAFE_NO_PAD);
-
             jwk.set_parameter("d", Some(Value::String(d))).unwrap();
         }
         if public {
@@ -356,7 +331,6 @@ impl EcKeyPair {
 
             let y = util::num_to_vec(&y, self.curve.coordinate_size());
             let y = base64::encode_config(&y, base64::URL_SAFE_NO_PAD);
-
             jwk.set_parameter("x", Some(Value::String(x))).unwrap();
             jwk.set_parameter("y", Some(Value::String(y))).unwrap();
         }
@@ -371,7 +345,6 @@ impl EcKeyPair {
             Ok(Some(DerType::Sequence)) => {}
             _ => return None,
         }
-
         {
             if !is_public {
                 // Version
@@ -388,7 +361,6 @@ impl EcKeyPair {
                 Ok(Some(DerType::Sequence)) => {}
                 _ => return None,
             }
-
             {
                 match reader.next() {
                     Ok(Some(DerType::ObjectIdentifier)) => match reader.to_object_identifier() {
@@ -426,7 +398,6 @@ impl EcKeyPair {
             Ok(Some(DerType::Sequence)) => {}
             _ => return None,
         }
-
         {
             // Version
             match reader.next() {
@@ -448,7 +419,6 @@ impl EcKeyPair {
                 Ok(Some(DerType::Other(DerClass::ContextSpecific, 0))) => {}
                 _ => return None,
             }
-
             {
                 // NamedCurve
                 curve = match reader.next() {
@@ -547,5 +517,37 @@ impl Deref for EcKeyPair {
 
     fn deref(&self) -> &Self::Target {
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+
+    use super::{EcCurve, EcKeyPair};
+
+    #[test]
+    fn test_ec_jwt() -> Result<()> {
+        for curve in vec![
+            EcCurve::P256,
+            EcCurve::P384,
+            EcCurve::P521,
+            EcCurve::Secp256k1,
+        ] {
+            let key_pair_1 = EcKeyPair::generate(curve)?;
+            let der_private1 = key_pair_1.to_der_private_key();
+            let der_public1 = key_pair_1.to_der_public_key();
+
+            let jwk_key_pair_1 = key_pair_1.to_jwk_key_pair();
+
+            let key_pair_2 = EcKeyPair::from_jwk(&jwk_key_pair_1)?;
+            let der_private2 = key_pair_2.to_der_private_key();
+            let der_public2 = key_pair_2.to_der_public_key();
+
+            assert_eq!(der_private1, der_private2);
+            assert_eq!(der_public1, der_public2);
+        }
+
+        Ok(())
     }
 }

@@ -332,7 +332,6 @@ impl EdKeyPair {
             Ok(Some(DerType::Sequence)) => {}
             _ => return None,
         }
-
         {
             if !is_public {
                 // Version
@@ -448,5 +447,32 @@ impl Deref for EdKeyPair {
 
     fn deref(&self) -> &Self::Target {
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+
+    use super::{EdCurve, EdKeyPair};
+
+    #[test]
+    fn test_ed_jwt() -> Result<()> {
+        for curve in vec![EdCurve::Ed25519, EdCurve::Ed448] {
+            let key_pair_1 = EdKeyPair::generate(curve)?;
+            let der_private1 = key_pair_1.to_der_private_key();
+            let der_public1 = key_pair_1.to_der_public_key();
+
+            let jwk_key_pair_1 = key_pair_1.to_jwk_key_pair();
+
+            let key_pair_2 = EdKeyPair::from_jwk(&jwk_key_pair_1)?;
+            let der_private2 = key_pair_2.to_der_private_key();
+            let der_public2 = key_pair_2.to_der_public_key();
+
+            assert_eq!(der_private1, der_private2);
+            assert_eq!(der_public1, der_public2);
+        }
+
+        Ok(())
     }
 }

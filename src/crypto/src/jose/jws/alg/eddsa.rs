@@ -401,7 +401,7 @@ mod tests {
         Ok(())
     }
 
-    #[test]
+    /*#[test]
     fn sign_and_verify_eddsa_jwt() -> Result<()> {
         let input = b"abcde12345";
 
@@ -457,7 +457,7 @@ mod tests {
         }
 
         Ok(())
-    }
+    }*/
 
     #[test]
     fn sign_and_verify_eddsa_mismatch() -> Result<()> {
