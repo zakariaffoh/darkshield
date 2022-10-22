@@ -16,7 +16,7 @@ use crate::jose::util;
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum EddsaJwsAlgorithm {
     /// EdDSA signature algorithms
-    Eddsa,
+    EDDSA,
 }
 
 impl EddsaJwsAlgorithm {
@@ -333,7 +333,7 @@ mod tests {
         let input = b"abcde12345";
 
         for curve in vec![EdCurve::Ed25519, EdCurve::Ed448] {
-            let alg = EddsaJwsAlgorithm::Eddsa;
+            let alg = EddsaJwsAlgorithm::EDDSA;
             let key_pair = alg.generate_key_pair(curve)?;
 
             let signer = alg.signer_from_der(&key_pair.to_der_private_key())?;
@@ -351,7 +351,7 @@ mod tests {
         let input = b"abcde12345";
 
         for curve in vec![EdCurve::Ed25519, EdCurve::Ed448] {
-            let alg = EddsaJwsAlgorithm::Eddsa;
+            let alg = EddsaJwsAlgorithm::EDDSA;
             let key_pair = alg.generate_key_pair(curve)?;
 
             let signer = alg.signer_from_pem(&key_pair.to_pem_private_key())?;
@@ -369,7 +369,7 @@ mod tests {
         let input = b"abcde12345";
 
         for curve in vec![EdCurve::Ed25519, EdCurve::Ed448] {
-            let alg = EddsaJwsAlgorithm::Eddsa;
+            let alg = EddsaJwsAlgorithm::EDDSA;
             let key_pair = alg.generate_key_pair(curve)?;
 
             let signer = alg.signer_from_pem(&key_pair.to_traditional_pem_private_key())?;
@@ -387,7 +387,7 @@ mod tests {
         let input = b"abcde12345";
 
         for curve in vec![EdCurve::Ed25519, EdCurve::Ed448] {
-            let alg = EddsaJwsAlgorithm::Eddsa;
+            let alg = EddsaJwsAlgorithm::EDDSA;
             let key_pair = alg.generate_key_pair(curve)?;
 
             let signer = alg.signer_from_jwk(&key_pair.to_jwk_private_key())?;
@@ -463,7 +463,7 @@ mod tests {
         let input = b"abcde12345";
 
         for curve in vec![EdCurve::Ed25519, EdCurve::Ed448] {
-            let alg = EddsaJwsAlgorithm::Eddsa;
+            let alg = EddsaJwsAlgorithm::EDDSA;
             let signer_key_pair = alg.generate_key_pair(curve)?;
             let verifier_key_pair = alg.generate_key_pair(curve)?;
 
