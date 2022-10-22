@@ -6,14 +6,12 @@ use openssl::pkey::{PKey, Private};
 use openssl::rsa::Rsa;
 use serde_json::Value;
 
-use crate::core::hash_algorithm::HashAlgorithm;
-use crate::jose::error::JoseError;
-use crate::jose::jwk::der::der_builder::DerBuilder;
-use crate::jose::jwk::der::der_class::DerClass;
-use crate::jose::jwk::der::der_reader::DerReader;
-use crate::jose::jwk::der::der_type::DerType;
-use crate::jose::jwk::jwk::{Jwk, KeyPair};
+use crate::jose::jose_error::JoseError;
+use crate::jose::util::der::{DerBuilder, DerClass, DerReader, DerType};
+
+use crate::jose::jwk::{Jwk, KeyPair};
 use crate::jose::util;
+use crate::jose::util::hash_algorithm::HashAlgorithm;
 use crate::jose::util::oid::{
     OID_MGF1, OID_RSASSA_PSS, OID_SHA1, OID_SHA256, OID_SHA384, OID_SHA512,
 };

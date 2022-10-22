@@ -6,14 +6,14 @@ use std::borrow::Cow;
 use std::fmt::Display;
 use std::ops::Deref;
 
-use crate::jose::jwk::jwk::Jwk;
 use crate::jose::{
-    error::JoseError,
     jwe::{
-        header::JweHeader,
-        jwe::{JweAlgorithm, JweContentEncryption, JweDecrypter, JweEncrypter},
+        jwe_algorithm::{JweAlgorithm, JweDecrypter, JweEncrypter},
+        jwe_content_encryption::JweContentEncryption,
+        jwe_header::JweHeader,
     },
-    util,
+    jwk::Jwk,
+    util, JoseError,
 };
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
@@ -362,9 +362,10 @@ impl Deref for AesgcmkwJweDecrypter {
 
 #[cfg(test)]
 mod tests {
+
     use crate::jose::{
-        jwe::{enc::AESCBCHMACJweEncryption, header::JweHeader},
-        jwk::jwk::Jwk,
+        jwe::{enc::aescbc_hmac::AESCBCHMACJweEncryption, jwe_header::JweHeader},
+        jwk::Jwk,
         util,
     };
 

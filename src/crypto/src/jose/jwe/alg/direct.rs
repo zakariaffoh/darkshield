@@ -6,10 +6,15 @@ use anyhow::bail;
 use base64_url::base64;
 use serde_json::Value;
 
-use crate::jose::error::JoseError;
-use crate::jose::jwe::header::JweHeader;
-use crate::jose::jwe::jwe::{JweAlgorithm, JweContentEncryption, JweDecrypter, JweEncrypter};
-use crate::jose::jwk::jwk::Jwk;
+use crate::jose::{
+    jwe::{
+        jwe_algorithm::{JweAlgorithm, JweDecrypter, JweEncrypter},
+        jwe_content_encryption::JweContentEncryption,
+        jwe_header::JweHeader,
+    },
+    jwk::Jwk,
+    JoseError,
+};
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum DirectJweAlgorithm {
@@ -281,10 +286,13 @@ mod tests {
 
     use super::DirectJweAlgorithm;
     use crate::jose::{
-        jwe::{enc::AESCBCHMACJweEncryption, header::JweHeader},
-        jwk::jwk::Jwk,
+        jwe::{
+            enc::aescbc_hmac::AESCBCHMACJweEncryption,
+            jwe_algorithm::{JweAlgorithm, JweDecrypter, JweEncrypter},
+            jwe_header::JweHeader,
+        },
+        jwk::Jwk,
     };
-
     #[test]
     fn encrypt_and_decrypt_direct() -> Result<()> {
         let enc = AESCBCHMACJweEncryption::A128cbcHs256;

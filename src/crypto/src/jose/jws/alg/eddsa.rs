@@ -7,12 +7,11 @@ use openssl::pkey::{PKey, Private, Public};
 use openssl::sign::{Signer, Verifier};
 use serde_json::Value;
 
-use crate::jose::error::JoseError;
+use crate::jose::jose_error::JoseError;
 use crate::jose::jwk::alg::ed::{EdCurve, EdKeyPair};
-use crate::jose::jwk::jwk::Jwk;
+use crate::jose::jwk::Jwk;
+use crate::jose::jws::jws_algorithm::{JwsAlgorithm, JwsSigner, JwsVerifier};
 use crate::jose::util;
-
-use super::{JwsAlgorithm, JwsSigner, JwsVerifier};
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum EddsaJwsAlgorithm {

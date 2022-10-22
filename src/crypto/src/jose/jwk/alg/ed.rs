@@ -1,21 +1,17 @@
 use std::fmt::Display;
 use std::ops::Deref;
 
+use crate::jose::Value;
 use anyhow::bail;
 use base64_url::base64;
 use openssl::pkey::{PKey, Private};
-use serde_json::Value;
 
-use crate::jose::{
-    error::JoseError,
-    jwk::{
-        der::{der_builder::DerBuilder, der_reader::DerReader, der_type::DerType},
-        jwk::{Jwk, KeyPair},
-    },
-    util::{
-        self,
-        oid::{ObjectIdentifier, OID_ED25519, OID_ED448},
-    },
+use crate::jose::jose_error::JoseError;
+use crate::jose::jwk::{Jwk, KeyPair};
+use crate::jose::util::der::{DerBuilder, DerReader, DerType};
+use crate::jose::util::{
+    self,
+    oid::{ObjectIdentifier, OID_ED25519, OID_ED448},
 };
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]

@@ -1,17 +1,15 @@
-use std::fmt::Display;
-use std::ops::Deref;
-
-use crate::jose::error::JoseError;
-use crate::jose::jwk::der::der_builder::DerBuilder;
-use crate::jose::jwk::der::der_reader::DerReader;
-use crate::jose::jwk::der::der_type::DerType;
-use crate::jose::jwk::jwk::{Jwk, KeyPair};
-use crate::jose::util;
-use crate::jose::util::oid::{ObjectIdentifier, OID_X25519, OID_X448};
+use crate::jose::Value;
 use anyhow::bail;
 use base64_url::base64;
 use openssl::pkey::{PKey, Private};
-use serde_json::Value;
+use std::fmt::Display;
+use std::ops::Deref;
+
+use crate::jose::jose_error::JoseError;
+use crate::jose::jwk::{Jwk, KeyPair};
+use crate::jose::util;
+use crate::jose::util::der::{DerBuilder, DerReader, DerType};
+use crate::jose::util::oid::{ObjectIdentifier, OID_X25519, OID_X448};
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum EcxCurve {
@@ -446,11 +444,8 @@ impl Deref for EcxKeyPair {
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Result;
-    use std::fs;
-    use std::path::PathBuf;
-
     use super::{EcxCurve, EcxKeyPair};
+    use anyhow::Result;
 
     #[test]
     fn test_generate_ecx() -> Result<()> {

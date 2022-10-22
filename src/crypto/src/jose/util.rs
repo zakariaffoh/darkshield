@@ -1,4 +1,7 @@
+pub mod der;
+pub mod hash_algorithm;
 pub mod oid;
+
 use anyhow::bail;
 use base64_url::base64;
 use once_cell::sync::Lazy;

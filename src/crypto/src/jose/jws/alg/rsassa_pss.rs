@@ -8,16 +8,16 @@ use openssl::rsa::Rsa;
 use openssl::sign::{Signer, Verifier};
 use serde_json::Value;
 
-use crate::core::hash_algorithm::HashAlgorithm;
-use crate::jose::error::JoseError;
+use crate::jose::jose_error::JoseError;
 use crate::jose::jwk::alg::rsa::RsaKeyPair;
 use crate::jose::jwk::alg::rsapss::RsaPssKeyPair;
-use crate::jose::jwk::der::der_builder::DerBuilder;
-use crate::jose::jwk::der::der_type::DerType;
-use crate::jose::jwk::jwk::Jwk;
-use crate::jose::util;
+use crate::jose::util::der::{DerBuilder, DerType};
 
-use super::{JwsAlgorithm, JwsSigner, JwsVerifier};
+use crate::jose::jwk::Jwk;
+use crate::jose::util;
+use crate::jose::util::hash_algorithm::HashAlgorithm;
+
+use crate::jose::jws::jws_algorithm::{JwsAlgorithm, JwsSigner, JwsVerifier};
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum RsaSsaPssJwsAlgorithm {
@@ -490,5 +490,254 @@ impl Deref for RsassaPssJwsVerifier {
 
     fn deref(&self) -> &Self::Target {
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use anyhow::Result;
+    use std::fs;
+    use std::path::PathBuf;
+
+    #[test]
+    fn sign_and_verify_rsassa_pss_generated_der() -> Result<()> {
+        let input = b"abcde12345";
+
+        for alg in &[
+            RsaSsaPssJwsAlgorithm::PS256,
+            RsaSsaPssJwsAlgorithm::PS384,
+            RsaSsaPssJwsAlgorithm::PS512,
+        ] {
+            let key_pair = alg.generate_key_pair(2048)?;
+
+            let signer = alg.signer_from_der(&key_pair.to_der_private_key())?;
+            let signature = signer.sign(input)?;
+
+            let verifier = alg.verifier_from_der(&key_pair.to_der_public_key())?;
+            verifier.verify(input, &signature)?;
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn sign_and_verify_rsassa_pss_generated_rsa_der() -> Result<()> {
+        let input = b"abcde12345";
+
+        let key_pair = RsaKeyPair::generate(2048)?;
+        for alg in &[
+            RsaSsaPssJwsAlgorithm::PS256,
+            RsaSsaPssJwsAlgorithm::PS384,
+            RsaSsaPssJwsAlgorithm::PS512,
+        ] {
+            let signer = alg.signer_from_der(&key_pair.to_der_private_key())?;
+            let signature = signer.sign(input)?;
+
+            let verifier = alg.verifier_from_der(&key_pair.to_der_public_key())?;
+            verifier.verify(input, &signature)?;
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn sign_and_verify_rsassa_pss_generated_raw() -> Result<()> {
+        let input = b"abcde12345";
+
+        for alg in &[
+            RsaSsaPssJwsAlgorithm::PS256,
+            RsaSsaPssJwsAlgorithm::PS384,
+            RsaSsaPssJwsAlgorithm::PS512,
+        ] {
+            let key_pair = alg.generate_key_pair(2048)?;
+
+            let signer = alg.signer_from_der(&key_pair.to_raw_private_key())?;
+            let signature = signer.sign(input)?;
+
+            let verifier = alg.verifier_from_der(&key_pair.to_raw_public_key())?;
+            verifier.verify(input, &signature)?;
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn sign_and_verify_rsassa_pss_generated_pem() -> Result<()> {
+        let input = b"abcde12345";
+
+        for alg in &[
+            RsaSsaPssJwsAlgorithm::PS256,
+            RsaSsaPssJwsAlgorithm::PS384,
+            RsaSsaPssJwsAlgorithm::PS512,
+        ] {
+            let key_pair = alg.generate_key_pair(2048)?;
+
+            let signer = alg.signer_from_pem(&key_pair.to_pem_private_key())?;
+            let signature = signer.sign(input)?;
+
+            let verifier = alg.verifier_from_pem(&key_pair.to_pem_public_key())?;
+            verifier.verify(input, &signature)?;
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn sign_and_verify_rsassa_pss_generated_traditional_pem() -> Result<()> {
+        let input = b"abcde12345";
+
+        for alg in &[
+            RsaSsaPssJwsAlgorithm::PS256,
+            RsaSsaPssJwsAlgorithm::PS384,
+            RsaSsaPssJwsAlgorithm::PS512,
+        ] {
+            let key_pair = alg.generate_key_pair(2048)?;
+
+            let signer = alg.signer_from_pem(&key_pair.to_traditional_pem_private_key())?;
+            let signature = signer.sign(input)?;
+
+            let verifier = alg.verifier_from_pem(&key_pair.to_pem_public_key())?;
+            verifier.verify(input, &signature)?;
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn sign_and_verify_rsassa_pss_generated_jwk() -> Result<()> {
+        let input = b"abcde12345";
+
+        for alg in &[
+            RsaSsaPssJwsAlgorithm::PS256,
+            RsaSsaPssJwsAlgorithm::PS384,
+            RsaSsaPssJwsAlgorithm::PS512,
+        ] {
+            let key_pair = alg.generate_key_pair(2048)?;
+
+            let signer = alg.signer_from_jwk(&key_pair.to_jwk_private_key())?;
+            let signature = signer.sign(input)?;
+
+            let verifier = alg.verifier_from_jwk(&key_pair.to_jwk_public_key())?;
+            verifier.verify(input, &signature)?;
+        }
+
+        Ok(())
+    }
+
+    /*#[test]
+    fn sign_and_verify_rsassa_pss_jwt() -> Result<()> {
+        let input = b"abcde12345";
+
+        for alg in &[
+            RsaSsaPssJwsAlgorithm::PS256,
+            RsaSsaPssJwsAlgorithm::PS384,
+            RsaSsaPssJwsAlgorithm::PS512,
+        ] {
+            let private_key = load_file("jwk/RSA_private.jwk")?;
+            let public_key = load_file("jwk/RSA_public.jwk")?;
+
+            let signer = alg.signer_from_jwk(&Jwk::from_bytes(&private_key)?)?;
+            let signature = signer.sign(input)?;
+
+            let verifier = alg.verifier_from_jwk(&Jwk::from_bytes(&public_key)?)?;
+            verifier.verify(input, &signature)?;
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn sign_and_verify_rsassa_pss_pkcs8_pem() -> Result<()> {
+        let input = b"abcde12345";
+
+        for alg in &[
+            RsaSsaPssJwsAlgorithm::PS256,
+            RsaSsaPssJwsAlgorithm::PS384,
+            RsaSsaPssJwsAlgorithm::PS512,
+        ] {
+            let private_key = load_file(match alg {
+                RsaSsaPssJwsAlgorithm::PS256 => "pem/RSA-PSS_2048bit_SHA-256_private.pem",
+                RsaSsaPssJwsAlgorithm::PS384 => "pem/RSA-PSS_2048bit_SHA-384_private.pem",
+                RsaSsaPssJwsAlgorithm::PS512 => "pem/RSA-PSS_2048bit_SHA-512_private.pem",
+            })?;
+            let public_key = load_file(match alg {
+                RsaSsaPssJwsAlgorithm::PS256 => "pem/RSA-PSS_2048bit_SHA-256_public.pem",
+                RsaSsaPssJwsAlgorithm::PS384 => "pem/RSA-PSS_2048bit_SHA-384_public.pem",
+                RsaSsaPssJwsAlgorithm::PS512 => "pem/RSA-PSS_2048bit_SHA-512_public.pem",
+            })?;
+
+            let signer = alg.signer_from_pem(&private_key)?;
+            let signature = signer.sign(input)?;
+
+            let verifier = alg.verifier_from_pem(&public_key)?;
+            verifier.verify(input, &signature)?;
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn sign_and_verify_rsassa_pss_pkcs8_der() -> Result<()> {
+        let input = b"abcde12345";
+
+        for alg in &[
+            RsaSsaPssJwsAlgorithm::PS256,
+            RsaSsaPssJwsAlgorithm::PS384,
+            RsaSsaPssJwsAlgorithm::PS512,
+        ] {
+            let private_key = load_file(match alg {
+                RsaSsaPssJwsAlgorithm::PS256 => "der/RSA-PSS_2048bit_SHA-256_pkcs8_private.der",
+                RsaSsaPssJwsAlgorithm::PS384 => "der/RSA-PSS_2048bit_SHA-384_pkcs8_private.der",
+                RsaSsaPssJwsAlgorithm::PS512 => "der/RSA-PSS_2048bit_SHA-512_pkcs8_private.der",
+            })?;
+            let public_key = load_file(match alg {
+                RsaSsaPssJwsAlgorithm::PS256 => "der/RSA-PSS_2048bit_SHA-256_spki_public.der",
+                RsaSsaPssJwsAlgorithm::PS384 => "der/RSA-PSS_2048bit_SHA-384_spki_public.der",
+                RsaSsaPssJwsAlgorithm::PS512 => "der/RSA-PSS_2048bit_SHA-512_spki_public.der",
+            })?;
+
+            let signer = alg.signer_from_der(&private_key)?;
+            let signature = signer.sign(input)?;
+
+            let verifier = alg.verifier_from_der(&public_key)?;
+            verifier.verify(input, &signature)?;
+        }
+
+        Ok(())
+    }*/
+
+    #[test]
+    fn sign_and_verify_rsassa_pss_mismatch() -> Result<()> {
+        let input = b"abcde12345";
+
+        for alg in &[
+            RsaSsaPssJwsAlgorithm::PS256,
+            RsaSsaPssJwsAlgorithm::PS384,
+            RsaSsaPssJwsAlgorithm::PS512,
+        ] {
+            let signer_key_pair = alg.generate_key_pair(2048)?;
+            let verifier_key_pair = alg.generate_key_pair(2048)?;
+
+            let signer = alg.signer_from_der(&signer_key_pair.to_der_private_key())?;
+            let signature = signer.sign(input)?;
+
+            let verifier = alg.verifier_from_der(&verifier_key_pair.to_der_public_key())?;
+            verifier
+                .verify(input, &signature)
+                .expect_err("Unmatched signature did not fail");
+        }
+
+        Ok(())
+    }
+
+    fn load_file(path: &str) -> Result<Vec<u8>> {
+        let mut pb = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        pb.push("data");
+        pb.push(path);
+
+        let data = fs::read(&pb)?;
+        Ok(data)
     }
 }
