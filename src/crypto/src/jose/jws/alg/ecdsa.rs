@@ -24,7 +24,7 @@ pub enum EcdsaJwsAlgorithm {
     /// ECDSA using P-521 and SHA-512
     ES512,
     /// ECDSA using secp256k1 curve and SHA-256
-    ES256k,
+    ES256K,
 }
 
 impl EcdsaJwsAlgorithm {
@@ -213,13 +213,13 @@ impl EcdsaJwsAlgorithm {
             Self::ES256 => EcCurve::P256,
             Self::ES384 => EcCurve::P384,
             Self::ES512 => EcCurve::P521,
-            Self::ES256k => EcCurve::Secp256k1,
+            Self::ES256K => EcCurve::Secp256k1,
         }
     }
 
     fn signature_len(&self) -> usize {
         match self {
-            Self::ES256 | Self::ES256k => 64,
+            Self::ES256 | Self::ES256K => 64,
             Self::ES384 => 96,
             Self::ES512 => 132,
         }
@@ -230,7 +230,7 @@ impl EcdsaJwsAlgorithm {
             Self::ES256 => HashAlgorithm::Sha256,
             Self::ES384 => HashAlgorithm::Sha384,
             Self::ES512 => HashAlgorithm::Sha512,
-            Self::ES256k => HashAlgorithm::Sha256,
+            Self::ES256K => HashAlgorithm::Sha256,
         }
     }
 }
@@ -241,7 +241,7 @@ impl JwsAlgorithm for EcdsaJwsAlgorithm {
             Self::ES256 => "ES256",
             Self::ES384 => "ES384",
             Self::ES512 => "ES512",
-            Self::ES256k => "ES256K",
+            Self::ES256K => "ES256K",
         }
     }
 
@@ -439,7 +439,7 @@ mod tests {
             EcdsaJwsAlgorithm::ES256,
             EcdsaJwsAlgorithm::ES384,
             EcdsaJwsAlgorithm::ES512,
-            EcdsaJwsAlgorithm::ES256k,
+            EcdsaJwsAlgorithm::ES256K,
         ] {
             let key_pair = alg.generate_key_pair()?;
 
@@ -461,7 +461,7 @@ mod tests {
             EcdsaJwsAlgorithm::ES256,
             EcdsaJwsAlgorithm::ES384,
             EcdsaJwsAlgorithm::ES512,
-            EcdsaJwsAlgorithm::ES256k,
+            EcdsaJwsAlgorithm::ES256K,
         ] {
             let key_pair = alg.generate_key_pair()?;
 
@@ -483,7 +483,7 @@ mod tests {
             EcdsaJwsAlgorithm::ES256,
             EcdsaJwsAlgorithm::ES384,
             EcdsaJwsAlgorithm::ES512,
-            EcdsaJwsAlgorithm::ES256k,
+            EcdsaJwsAlgorithm::ES256K,
         ] {
             let key_pair = alg.generate_key_pair()?;
 
@@ -505,7 +505,7 @@ mod tests {
             EcdsaJwsAlgorithm::ES256,
             EcdsaJwsAlgorithm::ES384,
             EcdsaJwsAlgorithm::ES512,
-            EcdsaJwsAlgorithm::ES256k,
+            EcdsaJwsAlgorithm::ES256K,
         ] {
             let key_pair = alg.generate_key_pair()?;
 
@@ -527,7 +527,7 @@ mod tests {
             EcdsaJwsAlgorithm::ES256,
             EcdsaJwsAlgorithm::ES384,
             EcdsaJwsAlgorithm::ES512,
-            EcdsaJwsAlgorithm::ES256k,
+            EcdsaJwsAlgorithm::ES256K,
         ] {
             let key_pair = alg.generate_key_pair()?;
 
@@ -650,7 +650,7 @@ mod tests {
             EcdsaJwsAlgorithm::ES256,
             EcdsaJwsAlgorithm::ES384,
             EcdsaJwsAlgorithm::ES512,
-            EcdsaJwsAlgorithm::ES256k,
+            EcdsaJwsAlgorithm::ES256K,
         ] {
             let signer_key_pair = alg.generate_key_pair()?;
             let verifier_key_pair = alg.generate_key_pair()?;

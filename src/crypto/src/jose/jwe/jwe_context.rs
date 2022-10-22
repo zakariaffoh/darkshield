@@ -2,17 +2,18 @@ use std::borrow::Cow;
 use std::cmp::Eq;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Debug;
-use std::io;
 
 use anyhow::bail;
 use base64_url::base64;
 use serde_json::{Map, Value};
 
 use super::enc::{A128CBC_HS256, A128GCM, A192CBC_HS384, A192GCM, A256CBC_HS512, A256GCM};
-use super::header::{JweHeader, JweHeaderSet};
-use super::zip::DeflateJweCompression;
-use crate::jose::error::JoseError;
-use crate::jose::util;
+use super::zip::deflate::DeflateJweCompression;
+use super::{
+    JweCompression, JweContentEncryption, JweDecrypter, JweEncrypter, JweHeader, JweHeaderSet,
+};
+
+use crate::jose::{util, JoseError};
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct JweContext {
@@ -1185,10 +1186,8 @@ impl JweContext {
 
 #[cfg(test)]
 mod tests {
-    use crate::jose::jwe::{alg::direct::DirectJweAlgorithm, header::JweHeader};
+    use crate::jose::jwe::{alg::direct::DirectJweAlgorithm, JweHeader, JweHeaderSet};
     use anyhow::Result;
-
-    use crate::jose::jwe::header::JweHeaderSet;
 
     use super::JweContext;
     const CONTENT_CIPHERS: [(&str, usize); 6] = [
