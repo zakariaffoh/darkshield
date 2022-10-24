@@ -976,6 +976,42 @@ impl IClientScopeProvider for RdsClientScopeProvider {
         }
         Ok(scopes)
     }
+
+    async fn load_client_scope_names_by_protocol(
+        &self,
+        realm_id: &str,
+        protocol: &str,
+    ) -> Result<Vec<String>, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let load_client_scope_name_sql = SelectRequestBuilder::new()
+            .table_name(client_tables::CLIENT_SCOPE_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("protocol".to_string()),
+            ])
+            .columns(vec!["name".to_owned()])
+            .sql_query()
+            .unwrap();
+
+        let client = client.unwrap();
+        let load_client_scope_name_stmt = client
+            .prepare_cached(&load_client_scope_name_sql)
+            .await
+            .unwrap();
+        let result = client
+            .query(&load_client_scope_name_stmt, &[&realm_id, &protocol])
+            .await;
+        match result {
+            Ok(rows) => Ok(rows
+                .into_iter()
+                .map(|row| row.get::<&str, String>("name"))
+                .collect()),
+            Err(err) => Err(err.to_string()),
+        }
+    }
 }
 
 #[allow(dead_code)]

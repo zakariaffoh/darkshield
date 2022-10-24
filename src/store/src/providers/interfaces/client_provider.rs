@@ -172,6 +172,12 @@ pub trait IClientScopeProvider: Interface {
         client_scope_id: &str,
         role_id: &str,
     ) -> Result<(), String>;
+
+    async fn load_client_scope_names_by_protocol(
+        &self,
+        realm_id: &str,
+        protocol: &str,
+    ) -> Result<Vec<String>, String>;
 }
 
 #[async_trait]

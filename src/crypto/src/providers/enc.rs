@@ -100,33 +100,38 @@ impl  ContentEncryptionProvider for Aes256GcmContentEncryptionProvider{
     fn encryption_provider(&self) -> Box<dyn JweEncryptionProvider> {
         Box::new(AesGcmEncryptionProvider::new(&ContentEncryptionAlgorithmEnum::A256GCM))
     }
-}
+}*/
 
 pub struct ContentEncryptionProviderFactory;
 
-impl ContentEncryptionProviderFactory{
-    pub fn encryption_provider(
-        algorithm: &ContentEncryptionAlgorithmEnum
-    ) -> Box<dyn ContentEncryptionProvider>{
+impl ContentEncryptionProviderFactory {
+    /*pub fn encryption_provider(
+        algorithm: &ContentEncryptionAlgorithmEnum,
+    ) -> Box<dyn ContentEncryptionProvider> {
         match &algorithm {
             ContentEncryptionAlgorithmEnum::A128GCM => Box::new(Aes128GcmContentEncryptionProvider),
             ContentEncryptionAlgorithmEnum::A192GCM => Box::new(Aes192GcmContentEncryptionProvider),
             ContentEncryptionAlgorithmEnum::A256GCM => Box::new(Aes256GcmContentEncryptionProvider),
-            ContentEncryptionAlgorithmEnum::A128cbcHs256 => Box::new(Aes128CbcHmacSha256ContentEncryptionProvider),
-            ContentEncryptionAlgorithmEnum::A192cbcHs384 => Box::new(Aes192CbcHmacSha384ContentEncryptionProvider),
-            ContentEncryptionAlgorithmEnum::A256cbcHs512 => Box::new(Aes256CbcHmacSha512ContentEncryptionProvider),
+            ContentEncryptionAlgorithmEnum::A128cbcHs256 => {
+                Box::new(Aes128CbcHmacSha256ContentEncryptionProvider)
+            }
+            ContentEncryptionAlgorithmEnum::A192cbcHs384 => {
+                Box::new(Aes192CbcHmacSha384ContentEncryptionProvider)
+            }
+            ContentEncryptionAlgorithmEnum::A256cbcHs512 => {
+                Box::new(Aes256CbcHmacSha512ContentEncryptionProvider)
+            }
         }
-    }
+    }*/
 
-    pub fn supported_algorithms() -> Vec<String>{
+    pub fn supported_algorithms() -> Vec<String> {
         vec![
-            ContentEncryptionAlgorithmEnum::A128GCM.to_string(),
-            ContentEncryptionAlgorithmEnum::A192GCM.to_string(),
-            ContentEncryptionAlgorithmEnum::A256GCM.to_string(),
-            ContentEncryptionAlgorithmEnum::A128cbcHs256.to_string(),
-            ContentEncryptionAlgorithmEnum::A192cbcHs384.to_string(),
-            ContentEncryptionAlgorithmEnum::A256cbcHs512.to_string(),
+            "A128GCM".to_string(),
+            "A192GCM".to_string(),
+            "A256GCM".to_string(),
+            "A128CBC-HS256".to_string(),
+            "A192CBC-HS384".to_string(),
+            "A256CBC-HS512".to_string(),
         ]
     }
 }
-*/

@@ -7,7 +7,6 @@ use models::entities::client::ProtocolMapperModel;
 use models::entities::user::UserModel;
 use shaku::Component;
 use shaku::Interface;
-use std::str::FromStr;
 use std::sync::Arc;
 use store::providers::interfaces::authz_provider::IRoleProvider;
 use store::providers::interfaces::client_provider::IClientProvider;
@@ -451,6 +450,12 @@ pub trait IClientScopeService: Interface {
 
     async fn client_scope_exists_by_name(&self, realm_id: &str, name: &str)
         -> Result<bool, String>;
+
+    async fn load_client_scope_names_by_protocol(
+        &self,
+        realm_id: &str,
+        protocol: &str,
+    ) -> Result<Vec<String>, String>;
 }
 
 #[allow(dead_code)]
@@ -562,6 +567,16 @@ impl IClientScopeService for ClientScopeService {
     ) -> Result<bool, String> {
         self.client_scope_provider
             .client_scope_exists_by_name(&realm_id, &name)
+            .await
+    }
+
+    async fn load_client_scope_names_by_protocol(
+        &self,
+        realm_id: &str,
+        protocol: &str,
+    ) -> Result<Vec<String>, String> {
+        self.client_scope_provider
+            .load_client_scope_names_by_protocol(&realm_id, &protocol)
             .await
     }
 }
