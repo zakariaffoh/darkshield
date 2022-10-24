@@ -1,6 +1,6 @@
 use crate::{
-    catalog::DarkshieldServices, darkshield::darkshield_session::DarkshieldSession,
-    services::client_services::IClientService,
+    catalog::DarkshieldServices, services::client_services::IClientService,
+    session::darkshield_session::DarkshieldSession,
 };
 use async_trait::async_trait;
 use chrono::Utc;

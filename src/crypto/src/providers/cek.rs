@@ -1,10 +1,4 @@
-/*use crate::jose::jwe::{
-    AesKeyWrapAlgorithmProvider, CekManagementAlgorithmEnum, DirectAlgorithmProvider,
-    ECDKKeyEncryptionJweAlgorithmProvider, JweAlgorithmProvider,
-    RsaKeyEncryptionJweAlgorithmProvider,
-};
-
-pub trait CekManagementProvider {
+/*pub trait CekManagementProvider {
     fn algorithm_provider(&self) -> Box<dyn JweAlgorithmProvider>;
 }
 
@@ -121,12 +115,22 @@ impl CekManagementProvider for ECDHESA128KWCekManagementProvider {
             &CekManagementAlgorithmEnum::EcdhEsA128kw.to_string(),
         ))
     }
+}*/
+
+pub enum CekManagementAlgorithmEnum {
+    Dir,
+    Rsa1_5,
+    A128KW,
+    RsaOaep,
+    RsaOaep256,
+    EcdhEs,
+    EcdhEsA128kw,
 }
 
 pub struct CekManagementProviderFactory;
 
 impl CekManagementProviderFactory {
-    pub fn encryption_provider(
+    /*pub fn encryption_provider(
         algorithm: &CekManagementAlgorithmEnum,
     ) -> Box<dyn CekManagementProvider> {
         match &algorithm {
@@ -138,18 +142,17 @@ impl CekManagementProviderFactory {
             CekManagementAlgorithmEnum::EcdhEs => Box::new(ECDHESCekManagementProvider),
             CekManagementAlgorithmEnum::EcdhEsA128kw => Box::new(ECDHESA128KWCekManagementProvider),
         }
-    }
+    }*/
 
     pub fn supported_algorithms() -> Vec<String> {
         vec![
-            CekManagementAlgorithmEnum::Dir.to_string(),
-            CekManagementAlgorithmEnum::Rsa1_5.to_string(),
-            CekManagementAlgorithmEnum::A128KW.to_string(),
-            CekManagementAlgorithmEnum::RsaOaep.to_string(),
-            CekManagementAlgorithmEnum::RsaOaep256.to_string(),
-            CekManagementAlgorithmEnum::EcdhEs.to_string(),
-            CekManagementAlgorithmEnum::EcdhEsA128kw.to_string(),
+            "Dir".to_string(),
+            "Rsa1_5".to_string(),
+            "A128KW".to_string(),
+            "RsaOaep".to_string(),
+            "RsaOaep256".to_string(),
+            "EcdhEs".to_string(),
+            "EcdhEsA128kw".to_string(),
         ]
     }
 }
-*/

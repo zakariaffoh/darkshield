@@ -1,4 +1,5 @@
 pub mod tokens;
+pub mod uri;
 pub mod validation;
 use actix_web::{body::BoxBody, http::header::ContentType, HttpResponse, Responder};
 use serde::Serialize;
