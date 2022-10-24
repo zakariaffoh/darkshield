@@ -1,10 +1,10 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use crate::auditable::AuditableModel;
 use postgres_types::{FromSql, ToSql};
 use serde::{Deserialize, Serialize};
 
-use super::attributes::AttributesMap;
+use super::{attributes::AttributesMap, client::ClientScopeModel, user::UserModel};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Permission {
@@ -280,4 +280,96 @@ impl Into<ScopeModel> for ScopeMutationModel {
             metadata: None,
         }
     }
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSql, FromSql, PartialEq, Eq, Hash)]
+#[postgres(name = "policytypeenum")]
+pub enum PolicyTypeEnum {
+    RegexPolicy,
+    RolePolicy,
+    GroupPolicy,
+    TimePolicy,
+    UserPolicy,
+    PyPolicy,
+    ClientPolicy,
+    ClientScopePolicy,
+    AggregatedPolicy,
+    ScopePermission,
+    ResourcePermission,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSql, FromSql, PartialEq, Eq, Hash)]
+#[postgres(name = "decisionlogicenum")]
+pub enum DecisionLogicEnum {
+    Affirmative,
+    Unanimous,
+    Consensus,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct PolicyModel {
+    policy_type: PolicyTypeEnum,
+    policy_id: String,
+    server_id: String,
+    realm_id: String,
+    name: String,
+    description: String,
+    decision: DecisionStrategyEnum,
+    logic: DecisionLogicEnum,
+    policy_owner: String,
+    configs: Option<BTreeMap<String, String>>,
+    policies: Option<Vec<PolicyModel>>,
+    resources: Option<Vec<ResourceModel>>,
+    scopes: Option<Vec<ScopeModel>>,
+    roles: Option<Vec<RoleModel>>,
+    groups: Option<GroupPolicyConfig>,
+    regex: Option<RegexConfig>,
+    time: Option<TimePolicyConfig>,
+    users: Option<Vec<UserModel>>,
+    script: Option<String>,
+    client_scopes: Option<Vec<ClientScopeModel>>,
+    resource_type: Option<String>,
+}
+
+impl PartialEq for PolicyModel {
+    fn eq(&self, other: &Self) -> bool {
+        self.policy_type == other.policy_type
+            && self.policy_id == other.policy_id
+            && self.server_id == other.server_id
+            && self.realm_id == other.realm_id
+            && self.name == other.name
+            && self.description == other.description
+            && self.policy_type == other.policy_type
+            && self.decision == other.decision
+            && self.logic == other.logic
+            && self.policy_owner == other.policy_owner
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct RegexConfig {
+    target_claim: String,
+    target_regex: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct TimePolicyConfig {
+    not_before_time: Option<u64>,
+    not_on_or_after_time: Option<u64>,
+    year: Option<u64>,
+    year_end: Option<u64>,
+    month: Option<u64>,
+    month_end: Option<u64>,
+    day_of_month: Option<u64>,
+    day_of_month_end: Option<u64>,
+    hour: Option<u64>,
+    hour_end: Option<u64>,
+    minute: Option<u64>,
+    minute_end: Option<u64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GroupPolicyConfig {
+    group_claim: Option<String>,
+    groups: Option<Vec<GroupModel>>,
 }
