@@ -13,6 +13,7 @@ store = { path = "../store", version = "0.1.0" }
 crypto = { path = "../crypto", version = "0.1.0" }
 protocols = { path = "../protocols", version = "0.1.0" }
 auth = { path = "../auth", version = "0.1.0" }
+authz = { path = "../authz", version = "0.1.0" }
 
 actix-web = "4.1.0"
 serde = {version = "1.0.143", features = ["derive"]}

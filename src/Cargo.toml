@@ -8,6 +8,7 @@ members = [
     "services",
     "store",
     "auth",
+    "authz",
     "server",
 ]
 
