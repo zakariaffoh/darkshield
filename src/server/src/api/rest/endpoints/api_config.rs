@@ -64,6 +64,17 @@ pub fn register_apis(api_config: &mut web::ServiceConfig) {
                         .service(authz::load_identity_provider)
                         .service(authz::delete_identity_provider)
                         .service(authz::load_identity_providers_by_realm)
+                        /* Policy API */
+                        .service(authz::create_policy)
+                        .service(authz::update_policy)
+                        .service(authz::load_policy_by_id)
+                        .service(authz::load_policy_scopes_by_policy_id)
+                        .service(authz::load_policy_resources_by_policy_id)
+                        .service(authz::load_associates_policies_by_policy_id)
+                        .service(authz::load_policies_by_server_id)
+                        .service(authz::count_policies_by_query)
+                        .service(authz::search_policies_by_query)
+                        .service(authz::delete_policy_by_id)
                         /* Authentication Execution API */
                         .service(auth::create_authentication_execution)
                         .service(auth::update_authentication_execution)

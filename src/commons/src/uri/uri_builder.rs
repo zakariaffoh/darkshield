@@ -7,11 +7,11 @@ impl UriBuilder {
         todo!()
     }
 
-    pub fn path(&self, parth1: &str) -> Self {
+    pub fn path(&self, _parth1: &str) -> Self {
         todo!()
     }
 
-    pub fn paths(&self, parth1: &str, parth2: &str, parth3: &str) -> Self {
+    pub fn paths(&self, _parth1: &str, _parth2: &str, _parth3: &str) -> Self {
         todo!()
     }
 

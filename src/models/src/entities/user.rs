@@ -169,8 +169,8 @@ impl UserAttributesHelper {
     pub const USER_ATTRIBUTES_PREFIX: &'static str = "user.attribute.";
 
     pub fn find_user_profile_attribute(
-        attributes: &Option<AttributesMap>,
-        attribute_name: &str,
+        _attributes: &Option<AttributesMap>,
+        _attribute_name: &str,
     ) -> Result<AttributeValue, String> {
         todo!()
     }

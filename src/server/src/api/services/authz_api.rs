@@ -6,8 +6,8 @@ use uuid;
 use models::{
     auditable::AuditableModel,
     entities::authz::{
-        GroupModel, IdentityProviderModel, ResourceModel, ResourceServerModel, RoleModel,
-        ScopeModel,
+        GroupModel, IdentityProviderModel, PolicyModel, PolicyRepresentation, ResourceModel,
+        ResourceServerModel, RoleModel, ScopeModel,
     },
 };
 use services::services::authz_services::{
@@ -1301,5 +1301,93 @@ impl AuthorizationModelApi {
             }
             _ => ApiResult::no_content(),
         }
+    }
+
+    pub async fn create_policy(
+        context: &DarkShieldContext,
+        realm_id: &str,
+        server_id: &str,
+        policy: &PolicyRepresentation,
+    ) -> ApiResult<PolicyModel> {
+        todo!()
+    }
+
+    pub async fn update_policy(
+        context: &DarkShieldContext,
+        realm_id: &str,
+        server_id: &str,
+        policy_id: &str,
+        policy: &PolicyRepresentation,
+    ) -> ApiResult<PolicyModel> {
+        todo!()
+    }
+
+    pub async fn load_policy_by_id(
+        context: &DarkShieldContext,
+        realm_id: &str,
+        server_id: &str,
+        policy_id: &str,
+    ) -> ApiResult<PolicyModel> {
+        todo!()
+    }
+
+    pub async fn load_policy_scopes_by_policy_id(
+        context: &DarkShieldContext,
+        realm_id: &str,
+        server_id: &str,
+        policy_id: &str,
+    ) -> ApiResult<Vec<PolicyModel>> {
+        todo!()
+    }
+
+    pub async fn load_policy_resources_by_policy_id(
+        context: &DarkShieldContext,
+        realm_id: &str,
+        server_id: &str,
+        policy_id: &str,
+    ) -> ApiResult<Vec<PolicyModel>> {
+        todo!()
+    }
+
+    pub async fn load_associates_policies_by_policy_id(
+        context: &DarkShieldContext,
+        realm_id: &str,
+        server_id: &str,
+        policy_id: &str,
+    ) -> ApiResult<Vec<PolicyModel>> {
+        todo!()
+    }
+
+    pub async fn load_policies_by_server_id(
+        context: &DarkShieldContext,
+        realm_id: &str,
+        server_id: &str,
+    ) -> ApiResult<Vec<PolicyModel>> {
+        todo!()
+    }
+
+    pub async fn count_policies_by_query(
+        context: &DarkShieldContext,
+        realm_id: &str,
+        count_query: &str,
+    ) -> ApiResult<u64> {
+        todo!()
+    }
+
+    pub async fn search_policies_by_query(
+        context: &DarkShieldContext,
+        realm_id: &str,
+        search_query: &str,
+    ) -> ApiResult<Vec<PolicyModel>> {
+        todo!()
+    }
+
+    pub async fn delete_policy_by_id(
+        context: &DarkShieldContext,
+        realm_id: &str,
+        server_id: &str,
+        policy_id: &str,
+    ) -> ApiResult<Vec<PolicyModel>> {
+        todo!()
     }
 }
