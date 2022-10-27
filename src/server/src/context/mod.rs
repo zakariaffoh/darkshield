@@ -1,4 +1,5 @@
 use deadpool_postgres::PoolConfig;
+use models::entities::user::UserModel;
 use serde::Deserialize;
 use std::{env, time::Duration};
 
@@ -7,15 +8,23 @@ use services::catalog::DarkshieldServices;
 #[allow(dead_code)]
 pub struct DarkShieldContext {
     services: DarkshieldServices,
+    authenticated_user: UserModel,
 }
 
 impl DarkShieldContext {
-    pub fn new(services: DarkshieldServices) -> Self {
-        Self { services: services }
+    pub fn new(services: DarkshieldServices, authenticated_user: UserModel) -> Self {
+        Self {
+            services,
+            authenticated_user,
+        }
     }
 
     pub fn services(&self) -> &DarkshieldServices {
         &self.services
+    }
+
+    pub fn authenticated_user(&self) -> &UserModel {
+        &self.authenticated_user
     }
 }
 
@@ -100,16 +109,4 @@ impl EnvironmentConfig {
     pub fn log_level(&self) -> String {
         self.log_level.clone()
     }
-}
-
-#[cfg(test)]
-mod tests {
-
-    /*use super::*;
-
-    #[test]
-    fn test_env_config() {
-        let config = EnvironmentConfig::from_env();
-        assert_eq!(config.pg_dbname, "darkshield_store_dev");
-    }*/
 }

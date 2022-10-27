@@ -28,7 +28,10 @@ impl ReamlApi {
         }
 
         let mut realm = realm;
-        realm.metadata = AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
+        realm.metadata = AuditableModel::from_creator(
+            context.authenticated_user().metadata.tenant.clone(),
+            "zaffoh".to_owned(),
+        );
 
         let created_realm = realm_service.create_realm(&realm).await;
         match created_realm {

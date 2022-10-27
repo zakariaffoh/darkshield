@@ -66,7 +66,7 @@ pub struct ClientModel {
     pub configs: Option<AttributesMap>,
     pub service_account_enabled: Option<bool>,
     pub auth_flow_binding_overrides: Option<AttributesMap>,
-    pub metadata: Option<AuditableModel>,
+    pub metadata: AuditableModel,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -107,7 +107,7 @@ impl Into<ClientModel> for ClientCreateModel {
             configs: None,
             service_account_enabled: None,
             auth_flow_binding_overrides: None,
-            metadata: None,
+            metadata: AuditableModel::default(),
         }
     }
 }
@@ -141,7 +141,7 @@ pub struct ClientUpdateModel {
     pub configs: Option<AttributesMap>,
     pub service_account_enabled: Option<bool>,
     pub auth_flow_binding_overrides: Option<AttributesMap>,
-    pub metadata: Option<AuditableModel>,
+    pub metadata: AuditableModel,
 }
 
 impl Into<ClientModel> for ClientUpdateModel {
@@ -175,7 +175,7 @@ impl Into<ClientModel> for ClientUpdateModel {
             configs: self.configs,
             service_account_enabled: self.service_account_enabled,
             auth_flow_binding_overrides: self.auth_flow_binding_overrides,
-            metadata: None,
+            metadata: AuditableModel::default(),
         }
     }
 }
@@ -191,7 +191,7 @@ pub struct ClientScopeModel {
     pub protocol_mappers: Option<Vec<ProtocolMapperModel>>,
     pub default_scope: Option<bool>,
     pub configs: Option<HashMap<String, Option<String>>>,
-    pub metadata: Option<AuditableModel>,
+    pub metadata: AuditableModel,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -215,7 +215,7 @@ impl Into<ClientScopeModel> for ClientScopeMutationModel {
             protocol_mappers: None,
             default_scope: self.default_scope,
             configs: self.configs,
-            metadata: None,
+            metadata: AuditableModel::default(),
         }
     }
 }
@@ -228,7 +228,7 @@ pub struct ProtocolMapperModel {
     pub protocol: ProtocolEnum,
     pub mapper_type: String,
     pub configs: Option<AttributesMap>,
-    pub metadata: Option<AuditableModel>,
+    pub metadata: AuditableModel,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -248,7 +248,7 @@ impl Into<ProtocolMapperModel> for ProtocolMapperMutationModel {
             protocol: self.protocol,
             mapper_type: self.mapper_type,
             configs: self.configs,
-            metadata: None,
+            metadata: AuditableModel::default(),
         }
     }
 }

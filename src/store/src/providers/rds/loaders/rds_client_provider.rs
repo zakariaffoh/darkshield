@@ -41,14 +41,14 @@ impl RdsProtocolMapperProvider {
             mapper_type: row.get("mapper_type"),
             protocol: row.get("protocol"),
             configs: configs,
-            metadata: Some(AuditableModel {
+            metadata: AuditableModel {
                 tenant: row.get("tenant"),
                 created_by: row.get("created_by"),
                 updated_by: row.get("updated_by"),
                 created_at: row.get("created_at"),
                 updated_at: row.get("updated_at"),
                 version: row.get("version"),
-            }),
+            },
         }
     }
 }
@@ -73,22 +73,21 @@ impl IProtocolMapperProvider for RdsProtocolMapperProvider {
             .prepare_cached(&create_protocol_mapper_sql)
             .await
             .unwrap();
-        let metadata = mapper.metadata.as_ref().unwrap();
 
         let response = client
             .execute(
                 &create_protocol_mapper_stmt,
                 &[
-                    &metadata.tenant,
+                    &mapper.metadata.tenant,
                     &mapper.realm_id,
                     &mapper.mapper_id,
                     &mapper.name,
                     &mapper.protocol,
                     &mapper.mapper_type,
                     &json!(mapper.configs),
-                    &metadata.created_by,
-                    &metadata.created_at,
-                    &metadata.version,
+                    &mapper.metadata.created_by,
+                    &mapper.metadata.created_at,
+                    &mapper.metadata.version,
                 ],
             )
             .await;
@@ -124,7 +123,6 @@ impl IProtocolMapperProvider for RdsProtocolMapperProvider {
             .prepare_cached(&update_protocol_mapper_sql)
             .await
             .unwrap();
-        let metadata = mapper.metadata.as_ref().unwrap();
 
         let response = client
             .execute(
@@ -134,9 +132,9 @@ impl IProtocolMapperProvider for RdsProtocolMapperProvider {
                     &mapper.protocol,
                     &mapper.mapper_type,
                     &json!(mapper.configs),
-                    &metadata.updated_by,
-                    &metadata.updated_at,
-                    &metadata.tenant,
+                    &mapper.metadata.updated_by,
+                    &mapper.metadata.updated_at,
+                    &mapper.metadata.tenant,
                     &mapper.realm_id,
                     &mapper.mapper_id,
                 ],
@@ -428,14 +426,14 @@ impl RdsClientScopeProvider {
             roles: Some(roles),
             protocol_mappers: Some(mappers),
             configs: configs,
-            metadata: Some(AuditableModel {
+            metadata: AuditableModel {
                 tenant: row.get("tenant"),
                 created_by: row.get("created_by"),
                 updated_by: row.get("updated_by"),
                 created_at: row.get("created_at"),
                 updated_at: row.get("updated_at"),
                 version: row.get("version"),
-            }),
+            },
         }
     }
 
@@ -532,13 +530,11 @@ impl IClientScopeProvider for RdsClientScopeProvider {
             .await
             .unwrap();
 
-        let metadata = client_scope.metadata.as_ref().unwrap();
-
         let response = client
             .execute(
                 &create_client_scope_stmt,
                 &[
-                    &metadata.tenant,
+                    &client_scope.metadata.tenant,
                     &client_scope.realm_id,
                     &client_scope.client_scope_id,
                     &client_scope.name,
@@ -546,9 +542,9 @@ impl IClientScopeProvider for RdsClientScopeProvider {
                     &client_scope.protocol,
                     &client_scope.default_scope,
                     &json!(client_scope.configs),
-                    &metadata.created_by,
-                    &metadata.created_at,
-                    &metadata.version,
+                    &client_scope.metadata.created_by,
+                    &client_scope.metadata.created_at,
+                    &client_scope.metadata.version,
                 ],
             )
             .await;
@@ -584,7 +580,6 @@ impl IClientScopeProvider for RdsClientScopeProvider {
             .prepare_cached(&update_client_scope_sql)
             .await
             .unwrap();
-        let metadata = client_scope.metadata.as_ref().unwrap();
 
         let response = client
             .execute(
@@ -595,9 +590,9 @@ impl IClientScopeProvider for RdsClientScopeProvider {
                     &client_scope.protocol,
                     &client_scope.default_scope,
                     &json!(client_scope.configs),
-                    &metadata.updated_by,
-                    &metadata.updated_at,
-                    &metadata.tenant,
+                    &client_scope.metadata.updated_by,
+                    &client_scope.metadata.updated_at,
+                    &client_scope.metadata.tenant,
                     &client_scope.realm_id,
                     &client_scope.client_scope_id,
                 ],
@@ -1061,14 +1056,14 @@ impl RdsClientProvider {
             client_authenticator_type: row.get("client_authenticator_type"),
             service_account_enabled: row.get("service_account_enabled"),
             auth_flow_binding_overrides: auth_flow_overrides,
-            metadata: Some(AuditableModel {
+            metadata: AuditableModel {
                 tenant: row.get("tenant"),
                 created_by: row.get("created_by"),
                 updated_by: row.get("updated_by"),
                 created_at: row.get("created_at"),
                 updated_at: row.get("updated_at"),
                 version: row.get("version"),
-            }),
+            },
         }
     }
 }
@@ -1090,21 +1085,20 @@ impl IClientProvider for RdsClientProvider {
         let db_client = db_client.unwrap();
         let create_client_stmt = db_client.prepare_cached(&create_client_sql).await.unwrap();
 
-        let metadata = client_model.metadata.as_ref().unwrap();
         let response = db_client
             .execute(
                 &create_client_stmt,
                 &[
-                    &metadata.tenant,
+                    &client_model.metadata.tenant,
                     &client_model.client_id,
                     &client_model.realm_id,
                     &client_model.name,
                     &client_model.display_name,
                     &client_model.description,
                     &client_model.enabled,
-                    &metadata.created_by,
-                    &metadata.created_at,
-                    &metadata.version,
+                    &client_model.metadata.created_by,
+                    &client_model.metadata.created_at,
+                    &client_model.metadata.version,
                 ],
             )
             .await;
@@ -1137,7 +1131,6 @@ impl IClientProvider for RdsClientProvider {
 
         let db_client = db_client.unwrap();
         let update_client_stmt = db_client.prepare_cached(&update_client_sql).await.unwrap();
-        let metadata = client.metadata.as_ref().unwrap();
 
         let response = db_client
             .execute(
@@ -1168,9 +1161,9 @@ impl IClientProvider for RdsClientProvider {
                     &client.client_authenticator_type,
                     &client.service_account_enabled,
                     &json!(client.auth_flow_binding_overrides),
-                    &metadata.updated_by,
-                    &metadata.updated_at,
-                    &metadata.tenant,
+                    &client.metadata.updated_by,
+                    &client.metadata.updated_at,
+                    &client.metadata.tenant,
                     &client.realm_id,
                     &client.client_id,
                 ],

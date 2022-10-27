@@ -44,7 +44,10 @@ impl AuthenticationModelApi {
         }
         let mut execution = execution;
         execution.execution_id = uuid::Uuid::new_v4().to_string();
-        execution.metadata = AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
+        execution.metadata = AuditableModel::from_creator(
+            context.authenticated_user().metadata.tenant.to_owned(),
+            context.authenticated_user().user_id.to_owned(),
+        );
         let created_execution = authentication_execution_service
             .create_authentication_execution(&execution)
             .await;
@@ -75,7 +78,10 @@ impl AuthenticationModelApi {
             }
         }
         let mut execution = execution;
-        execution.metadata = AuditableModel::from_updator("tenant".to_owned(), "zaffoh".to_owned());
+        execution.metadata = AuditableModel::from_updator(
+            context.authenticated_user().metadata.tenant.to_owned(),
+            context.authenticated_user().user_id.to_owned(),
+        );
         let updated_execution = authentication_execution_service
             .update_authentication_execution(&execution)
             .await;

@@ -1,12 +1,12 @@
 mod api;
 mod context;
 mod metrics;
-mod services;
 use ::services::catalog::DarkshieldServices;
 use actix_web::{middleware, web::Data, App, HttpServer};
 use context::{DarkShieldContext, EnvironmentConfig};
 use deadpool_postgres::{tokio_postgres, Runtime};
 use dotenv::dotenv;
+use models::entities::user::UserModel;
 use store::providers::rds::client::postgres_client::{DataBaseManager, DataBaseManagerParameters};
 
 #[actix_web::main]
@@ -26,7 +26,7 @@ async fn main() -> std::io::Result<()> {
         })
         .build();
 
-    let darkshield_context = DarkShieldContext::new(darkshield_services);
+    let darkshield_context = DarkShieldContext::new(darkshield_services, UserModel::default());
     let context = Data::new(darkshield_context);
     env_logger::init_from_env(env_logger::Env::default().default_filter_or("debug"));
 

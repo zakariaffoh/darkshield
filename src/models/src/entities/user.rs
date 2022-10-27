@@ -29,7 +29,27 @@ pub struct UserModel {
     pub attributes: Option<AttributesMap>,
     pub is_service_account: Option<bool>,
     pub service_account_client_link: Option<String>,
-    pub metadata: Option<AuditableModel>,
+    pub metadata: AuditableModel,
+}
+
+impl Default for UserModel {
+    fn default() -> Self {
+        Self {
+            user_id: Default::default(),
+            realm_id: Default::default(),
+            user_name: Default::default(),
+            enabled: Default::default(),
+            email: Default::default(),
+            email_verified: Default::default(),
+            required_actions: Default::default(),
+            not_before: Default::default(),
+            user_storage: Default::default(),
+            attributes: Default::default(),
+            is_service_account: Default::default(),
+            service_account_client_link: Default::default(),
+            metadata: Default::default(),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -64,7 +84,7 @@ impl Into<UserModel> for UserCreateModel {
             attributes: self.attributes,
             is_service_account: self.is_service_account,
             service_account_client_link: self.service_account_client_link,
-            metadata: None,
+            metadata: AuditableModel::default(),
         }
     }
 }
@@ -97,7 +117,7 @@ impl Into<UserModel> for UserUpdateModel {
             attributes: self.attributes,
             is_service_account: self.is_service_account,
             service_account_client_link: self.service_account_client_link,
-            metadata: None,
+            metadata: AuditableModel::default(),
         }
     }
 }

@@ -88,7 +88,7 @@ pub struct RealmModel {
     pub admin_events_enabled: Option<bool>,
     pub not_before: Option<i32>,
     pub attributes: Option<AttributesMap>,
-    pub metadata: Option<AuditableModel>,
+    pub metadata: AuditableModel,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -130,7 +130,7 @@ impl Into<RealmModel> for RealmCreateModel {
             admin_events_enabled: None,
             not_before: None,
             attributes: None,
-            metadata: None,
+            metadata: AuditableModel::default(),
         }
     }
 }
@@ -193,7 +193,7 @@ impl Into<RealmModel> for RealmUpdateModel {
             admin_events_enabled: self.admin_events_enabled,
             not_before: self.not_before,
             attributes: self.attributes,
-            metadata: None,
+            metadata: AuditableModel::default(),
         }
     }
 }

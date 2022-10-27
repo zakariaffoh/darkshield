@@ -38,7 +38,7 @@ pub struct RequiredActionModel {
     pub default_action: Option<bool>,
     pub on_time_action: Option<bool>,
     pub priority: Option<u32>,
-    pub metadata: Option<AuditableModel>,
+    pub metadata: AuditableModel,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -69,7 +69,7 @@ impl Into<RequiredActionModel> for RequiredActionMutationModel {
             default_action: self.default_action,
             on_time_action: self.on_time_action,
             priority: self.priority,
-            metadata: None,
+            metadata: AuditableModel::default(),
         }
     }
 }
@@ -83,7 +83,7 @@ pub struct AuthenticationFlowModel {
     pub description: String,
     pub top_level: Option<bool>,
     pub built_in: Option<bool>,
-    pub metadata: Option<AuditableModel>,
+    pub metadata: AuditableModel,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -105,7 +105,7 @@ impl Into<AuthenticationFlowModel> for AuthenticationFlowMutationModel {
             description: self.description,
             top_level: self.top_level,
             built_in: self.built_in,
-            metadata: None,
+            metadata: AuditableModel::default(),
         }
     }
 }
@@ -143,7 +143,7 @@ pub struct AuthenticationExecutionModel {
     pub authenticator_flow: Option<bool>,
     pub authenticator_config: Option<String>,
     pub requirement: AuthenticatorRequirementEnum,
-    pub metadata: Option<AuditableModel>,
+    pub metadata: AuditableModel,
 }
 
 impl AuthenticationExecutionModel {
@@ -193,7 +193,7 @@ impl Into<AuthenticationExecutionModel> for AuthenticationExecutionMutationModel
             authenticator_flow: self.authenticator_flow,
             authenticator_config: self.authenticator_config,
             requirement: self.requirement,
-            metadata: None,
+            metadata: AuditableModel::default(),
         }
     }
 }
@@ -204,7 +204,7 @@ pub struct AuthenticatorConfigModel {
     pub realm_id: String,
     pub alias: String,
     pub configs: Option<AttributesMap>,
-    pub metadata: Option<AuditableModel>,
+    pub metadata: AuditableModel,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -220,7 +220,7 @@ impl Into<AuthenticatorConfigModel> for AuthenticatorConfigMutationModel {
             realm_id: String::new(),
             alias: self.alias,
             configs: self.configs,
-            metadata: None,
+            metadata: AuditableModel::default(),
         }
     }
 }

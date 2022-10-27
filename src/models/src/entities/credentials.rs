@@ -45,7 +45,7 @@ pub struct CredentialModel {
     pub secret_data: Option<CredentialFieldsMap>,
     pub credential_data: Option<CredentialFieldsMap>,
     pub priority: i64,
-    pub metadata: Option<AuditableModel>,
+    pub metadata: AuditableModel,
 }
 
 impl CredentialModel {
@@ -59,7 +59,7 @@ impl CredentialModel {
             secret_data: None,
             credential_data: credential_data,
             priority: Default::default(),
-            metadata: None,
+            metadata: AuditableModel::default(),
         }
     }
     pub fn secret_data(secret_data: Option<CredentialFieldsMap>) -> Self {
@@ -72,7 +72,7 @@ impl CredentialModel {
             secret_data: secret_data,
             credential_data: None,
             priority: Default::default(),
-            metadata: None,
+            metadata: AuditableModel::default(),
         }
     }
 }
@@ -527,7 +527,7 @@ impl PasswordCredentialModel {
         self.set_credential_type(PasswordCredentialModel::PASSWORD_CREDENTIAL_TYPE.to_owned());
     }
 
-    fn set_metadata(&mut self, metadata: Option<AuditableModel>) {
+    fn set_metadata(&mut self, metadata: AuditableModel) {
         self.model.metadata = metadata;
     }
 
