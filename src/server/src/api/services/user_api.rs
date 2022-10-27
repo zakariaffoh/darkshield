@@ -19,6 +19,7 @@ use services::services::{
 };
 use shaku::HasComponent;
 
+#[allow(dead_code)]
 pub struct UserApi;
 
 impl UserApi {
@@ -81,7 +82,7 @@ impl UserApi {
             }
         }
 
-        let mut required_actions_list = required_action_service
+        let required_actions_list = required_action_service
             .load_required_action_by_realm_id(&user.realm_id)
             .await;
         match required_actions_list {

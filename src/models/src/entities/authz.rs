@@ -308,27 +308,27 @@ pub enum DecisionLogicEnum {
 
 #[derive(Serialize, Deserialize)]
 pub struct PolicyModel {
-    policy_type: PolicyTypeEnum,
-    policy_id: String,
-    server_id: String,
-    realm_id: String,
-    name: String,
-    description: String,
-    decision: DecisionStrategyEnum,
-    logic: DecisionLogicEnum,
-    policy_owner: String,
-    configs: Option<BTreeMap<String, String>>,
-    policies: Option<Vec<PolicyModel>>,
-    resources: Option<Vec<ResourceModel>>,
-    scopes: Option<Vec<ScopeModel>>,
-    roles: Option<Vec<RoleModel>>,
-    groups: Option<GroupPolicyConfig>,
-    regex: Option<RegexConfig>,
-    time: Option<TimePolicyConfig>,
-    users: Option<Vec<UserModel>>,
-    script: Option<String>,
-    client_scopes: Option<Vec<ClientScopeModel>>,
-    resource_type: Option<String>,
+    pub policy_type: PolicyTypeEnum,
+    pub policy_id: String,
+    pub server_id: String,
+    pub realm_id: String,
+    pub name: String,
+    pub description: String,
+    pub decision: DecisionStrategyEnum,
+    pub logic: DecisionLogicEnum,
+    pub policy_owner: String,
+    pub configs: Option<BTreeMap<String, String>>,
+    pub policies: Option<Vec<PolicyModel>>,
+    pub resources: Option<Vec<ResourceModel>>,
+    pub scopes: Option<Vec<ScopeModel>>,
+    pub roles: Option<Vec<RoleModel>>,
+    pub groups: Option<GroupPolicyConfig>,
+    pub regex: Option<RegexConfig>,
+    pub time: Option<TimePolicyConfig>,
+    pub users: Option<Vec<UserModel>>,
+    pub script: Option<String>,
+    pub client_scopes: Option<Vec<ClientScopeModel>>,
+    pub resource_type: Option<String>,
 }
 
 impl PartialEq for PolicyModel {
@@ -348,28 +348,220 @@ impl PartialEq for PolicyModel {
 
 #[derive(Serialize, Deserialize)]
 pub struct RegexConfig {
-    target_claim: String,
-    target_regex: String,
+    pub target_claim: String,
+    pub target_regex: String,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct TimePolicyConfig {
-    not_before_time: Option<u64>,
-    not_on_or_after_time: Option<u64>,
-    year: Option<u64>,
-    year_end: Option<u64>,
-    month: Option<u64>,
-    month_end: Option<u64>,
-    day_of_month: Option<u64>,
-    day_of_month_end: Option<u64>,
-    hour: Option<u64>,
-    hour_end: Option<u64>,
-    minute: Option<u64>,
-    minute_end: Option<u64>,
+    pub not_before_time: Option<u64>,
+    pub not_on_or_after_time: Option<u64>,
+    pub year: Option<u64>,
+    pub year_end: Option<u64>,
+    pub month: Option<u64>,
+    pub month_end: Option<u64>,
+    pub day_of_month: Option<u64>,
+    pub day_of_month_end: Option<u64>,
+    pub hour: Option<u64>,
+    pub hour_end: Option<u64>,
+    pub minute: Option<u64>,
+    pub minute_end: Option<u64>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GroupPolicyConfig {
-    group_claim: Option<String>,
-    groups: Option<Vec<GroupModel>>,
+    pub group_claim: Option<String>,
+    pub groups: Option<Vec<GroupModel>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GroupPolicyRepresentation {
+    pub name: String,
+    pub description: String,
+    pub decision: DecisionStrategyEnum,
+    pub logic: DecisionLogicEnum,
+    pub policy_owner: String,
+    pub configs: Option<BTreeMap<String, String>>,
+    pub policies: Option<Vec<String>>,
+    pub resources: Option<Vec<String>>,
+    pub scopes: Option<Vec<String>>,
+    pub group_claim: String,
+    pub groups: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RolePolicyRepresentation {
+    pub name: String,
+    pub description: String,
+    pub decision: DecisionStrategyEnum,
+    pub logic: DecisionLogicEnum,
+    pub policy_owner: String,
+    pub configs: Option<BTreeMap<String, String>>,
+    pub policies: Option<Vec<String>>,
+    pub resources: Option<Vec<String>>,
+    pub scopes: Option<Vec<String>>,
+    pub roles: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UserPolicyRepresentation {
+    pub name: String,
+    pub description: String,
+    pub decision: DecisionStrategyEnum,
+    pub logic: DecisionLogicEnum,
+    pub policy_owner: String,
+    pub configs: Option<BTreeMap<String, String>>,
+    pub policies: Option<Vec<String>>,
+    pub resources: Option<Vec<String>>,
+    pub scopes: Option<Vec<String>>,
+    pub users: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PyPolicyRepresentation {
+    pub name: String,
+    pub description: String,
+    pub decision: DecisionStrategyEnum,
+    pub logic: DecisionLogicEnum,
+    pub policy_owner: String,
+    pub configs: Option<BTreeMap<String, String>>,
+    pub policies: Option<Vec<String>>,
+    pub resources: Option<Vec<String>>,
+    pub scopes: Option<Vec<String>>,
+    pub script: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TimePolicyRepresentation {
+    pub name: String,
+    pub description: String,
+    pub decision: DecisionStrategyEnum,
+    pub logic: DecisionLogicEnum,
+    pub policy_owner: String,
+    pub configs: Option<BTreeMap<String, String>>,
+    pub policies: Option<Vec<String>>,
+    pub resources: Option<Vec<String>>,
+    pub scopes: Option<Vec<String>>,
+    pub not_before_time: Option<u64>,
+    pub not_on_or_after_time: Option<u64>,
+    pub year: Option<u64>,
+    pub year_end: Option<u64>,
+    pub month: Option<u64>,
+    pub month_end: Option<u64>,
+    pub day_of_month: Option<u64>,
+    pub day_of_month_end: Option<u64>,
+    pub hour: Option<u64>,
+    pub hour_end: Option<u64>,
+    pub minute: Option<u64>,
+    pub minute_end: Option<u64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RegexPolicyRepresentation {
+    pub name: String,
+    pub description: String,
+    pub decision: DecisionStrategyEnum,
+    pub logic: DecisionLogicEnum,
+    pub policy_owner: String,
+    pub configs: Option<BTreeMap<String, String>>,
+    pub policies: Option<Vec<String>>,
+    pub resources: Option<Vec<String>>,
+    pub scopes: Option<Vec<String>>,
+    pub target_claim: String,
+    pub target_regex: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AggregatedPoliciesRepresentation {
+    pub name: String,
+    pub description: String,
+    pub decision: DecisionStrategyEnum,
+    pub logic: DecisionLogicEnum,
+    pub policy_owner: String,
+    pub configs: Option<BTreeMap<String, String>>,
+    pub policies: Option<Vec<String>>,
+    pub resources: Option<Vec<String>>,
+    pub scopes: Option<Vec<String>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ClientPolicyRepresentation {
+    pub name: String,
+    pub description: String,
+    pub decision: DecisionStrategyEnum,
+    pub logic: DecisionLogicEnum,
+    pub policy_owner: String,
+    pub configs: Option<BTreeMap<String, String>>,
+    pub policies: Option<Vec<String>>,
+    pub resources: Option<Vec<String>>,
+    pub scopes: Option<Vec<String>>,
+    pub clients: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ClientScopePolicyRepresentation {
+    pub name: String,
+    pub description: String,
+    pub decision: DecisionStrategyEnum,
+    pub logic: DecisionLogicEnum,
+    pub policy_owner: String,
+    pub configs: Option<BTreeMap<String, String>>,
+    pub policies: Option<Vec<String>>,
+    pub resources: Option<Vec<String>>,
+    pub scopes: Option<Vec<String>>,
+    pub client_scopes: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ScopePermissionPolicyRepresentation {
+    pub name: String,
+    pub description: String,
+    pub decision: DecisionStrategyEnum,
+    pub logic: DecisionLogicEnum,
+    pub policy_owner: String,
+    pub configs: Option<BTreeMap<String, String>>,
+    pub policies: Option<Vec<String>>,
+    pub resources: Option<Vec<String>>,
+    pub scopes: Option<Vec<String>>,
+    pub resource_type: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ResourcePermissionPolicyRepresentation {
+    pub name: String,
+    pub description: String,
+    pub decision: DecisionStrategyEnum,
+    pub logic: DecisionLogicEnum,
+    pub policy_owner: String,
+    pub configs: Option<BTreeMap<String, String>>,
+    pub policies: Option<Vec<String>>,
+    pub resources: Option<Vec<String>>,
+    pub scopes: Option<Vec<String>>,
+    pub resource_type: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum PolicyRepresentation {
+    #[serde(rename = "group_policy")]
+    GroupPolicy(GroupPolicyRepresentation),
+    #[serde(rename = "role_policy")]
+    RolePolicy(RolePolicyRepresentation),
+    #[serde(rename = "user_policy")]
+    UserPolicy(UserPolicyRepresentation),
+    #[serde(rename = "py_policy")]
+    PyPolicy(PyPolicyRepresentation),
+    #[serde(rename = "time_policy")]
+    TimePolicy(TimePolicyRepresentation),
+    #[serde(rename = "regex_policy")]
+    RegexPolicy(RegexPolicyRepresentation),
+    #[serde(rename = "aggregated_policy")]
+    AggregatedPolicy(AggregatedPoliciesRepresentation),
+    #[serde(rename = "client_policy")]
+    ClientPolicy(ClientPolicyRepresentation),
+    #[serde(rename = "client_scope_policy")]
+    ClientScopePolicy(ClientScopePolicyRepresentation),
+    #[serde(rename = "scope_permission_policy")]
+    ScopePermissionPolicy(ScopePermissionPolicyRepresentation),
+    #[serde(rename = "resource_permission_policy")]
+    ResourcePermissionPolicy(ResourcePermissionPolicyRepresentation),
 }

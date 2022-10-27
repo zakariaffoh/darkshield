@@ -9,8 +9,8 @@ use shaku::HasComponent;
 use crate::{api::services::authz_api::AuthorizationModelApi, context::DarkShieldContext};
 use models::entities::authz::{
     GroupModel, GroupMutationModel, IdentityProviderModel, IdentityProviderMutationModel,
-    ResourceModel, ResourceMutationModel, ResourceServerModel, ResourceServerMutationModel,
-    RoleModel, RoleMutationModel, ScopeModel, ScopeMutationModel,
+    PolicyRepresentation, ResourceModel, ResourceMutationModel, ResourceServerModel,
+    ResourceServerMutationModel, RoleModel, RoleMutationModel, ScopeModel, ScopeMutationModel,
 };
 
 #[post("/realm/{realm_id}/role/create")]
@@ -273,7 +273,7 @@ pub async fn delete_identity_provider(
     AuthorizationModelApi::delete_identity_provider(&context, &realm_id, &internal_id).await
 }
 
-#[post("/realm/{realm_id}/resource_server/create")]
+#[post("/realm/{realm_id}/resource-server/create")]
 pub async fn create_resource_server(
     realm_id: web::Path<String>,
     resource_server: web::Json<ResourceServerMutationModel>,
@@ -289,7 +289,7 @@ pub async fn create_resource_server(
     AuthorizationModelApi::create_resource_server(&context, resource_server_model).await
 }
 
-#[put("/realm/{realm_id}/resource_server/{server_id}")]
+#[put("/realm/{realm_id}/resource-server/{server_id}")]
 pub async fn update_resource_server(
     params: web::Path<(String, String)>,
     resource_server: web::Json<ResourceServerMutationModel>,
@@ -308,7 +308,7 @@ pub async fn update_resource_server(
     AuthorizationModelApi::udpate_resource_server(&context, resource_server_model).await
 }
 
-#[get("/realm/{realm_id}/resource_server/{server_id}")]
+#[get("/realm/{realm_id}/resource-server/{server_id}")]
 pub async fn load_resource_server(
     params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
@@ -332,7 +332,7 @@ pub async fn load_resource_servers_by_realms(
     AuthorizationModelApi::load_resource_servers_by_realm(&context, &realm_id).await
 }
 
-#[delete("/realm/{realm_id}/resource_server/{server_id}")]
+#[delete("/realm/{realm_id}/resource-server/{server_id}")]
 pub async fn delete_resource_server_by_id(
     params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
@@ -346,7 +346,7 @@ pub async fn delete_resource_server_by_id(
     AuthorizationModelApi::delete_resource_server_by_id(&context, &realm_id, &server_id).await
 }
 
-#[post("/realm/{realm_id}/resource_server/{server_id}/resource/create")]
+#[post("/realm/{realm_id}/resource-server/{server_id}/resource/create")]
 pub async fn create_resource(
     params: web::Path<(String, String)>,
     resource: web::Json<ResourceMutationModel>,
@@ -366,7 +366,7 @@ pub async fn create_resource(
     AuthorizationModelApi::create_resource(&context, resource_model).await
 }
 
-#[put("/realm/{realm_id}/resource_server/{server_id}/resource/{resource_id}")]
+#[put("/realm/{realm_id}/resource-server/{server_id}/resource/{resource_id}")]
 pub async fn update_resource(
     params: web::Path<(String, String, String)>,
     resource: web::Json<ResourceMutationModel>,
@@ -386,7 +386,7 @@ pub async fn update_resource(
     AuthorizationModelApi::udpate_resource(&context, resource_model).await
 }
 
-#[get("/realm/{realm_id}/resource_server/{server_id}/resource/{resource_id}")]
+#[get("/realm/{realm_id}/resource-server/{server_id}/resource/{resource_id}")]
 pub async fn load_resource(
     params: web::Path<(String, String, String)>,
     context: web::Data<DarkShieldContext>,
@@ -401,7 +401,7 @@ pub async fn load_resource(
     AuthorizationModelApi::load_resource_by_id(&context, &realm_id, &server_id, &resource_id).await
 }
 
-#[get("/realm/{realm_id}/resource_server/{server_id}/resources/load_all")]
+#[get("/realm/{realm_id}/resource-server/{server_id}/resources/load_all")]
 pub async fn load_resources_by_server(
     params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
@@ -415,7 +415,7 @@ pub async fn load_resources_by_server(
     AuthorizationModelApi::load_resources_by_server(&context, &realm_id, &server_id).await
 }
 
-#[delete("/realm/{realm_id}/resource_server/{server_id}/resource/{resource_id}")]
+#[delete("/realm/{realm_id}/resource-server/{server_id}/resource/{resource_id}")]
 pub async fn delete_resource_by_id(
     params: web::Path<(String, String, String)>,
     context: web::Data<DarkShieldContext>,
@@ -431,7 +431,7 @@ pub async fn delete_resource_by_id(
         .await
 }
 
-#[post("/realm/{realm_id}/resource_server/{server_id}/resource/{resource_id}/scope/{scope_id}")]
+#[post("/realm/{realm_id}/resource-server/{server_id}/resource/{resource_id}/scope/{scope_id}")]
 pub async fn add_scope_to_resource(
     params: web::Path<(String, String, String, String)>,
     context: web::Data<DarkShieldContext>,
@@ -454,7 +454,7 @@ pub async fn add_scope_to_resource(
     .await
 }
 
-#[put("/realm/{realm_id}/resource_server/{server_id}/resource/{resource_id}/scope/{scope_id}")]
+#[put("/realm/{realm_id}/resource-server/{server_id}/resource/{resource_id}/scope/{scope_id}")]
 pub async fn remove_resource_scope(
     params: web::Path<(String, String, String, String)>,
     context: web::Data<DarkShieldContext>,
@@ -477,7 +477,7 @@ pub async fn remove_resource_scope(
     .await
 }
 
-#[post("/realm/{realm_id}/resource_server/{server_id}/scope/create")]
+#[post("/realm/{realm_id}/resource-server/{server_id}/scope/create")]
 pub async fn create_scope(
     params: web::Path<(String, String)>,
     scope: web::Json<ScopeMutationModel>,
@@ -497,7 +497,7 @@ pub async fn create_scope(
     AuthorizationModelApi::create_scope(&context, scope_model).await
 }
 
-#[put("/realm/{realm_id}/resource_server/{server_id}/scope/{scope_id}")]
+#[put("/realm/{realm_id}/resource-server/{server_id}/scope/{scope_id}")]
 pub async fn update_scope(
     params: web::Path<(String, String, String)>,
     scope: web::Json<ScopeMutationModel>,
@@ -518,7 +518,7 @@ pub async fn update_scope(
     AuthorizationModelApi::udpate_scope(&context, scope_model).await
 }
 
-#[get("/realm/{realm_id}/resource_server/{server_id}/scope/{scope_id}")]
+#[get("/realm/{realm_id}/resource-server/{server_id}/scope/{scope_id}")]
 pub async fn load_scope_by_id(
     params: web::Path<(String, String, String)>,
     context: web::Data<DarkShieldContext>,
@@ -533,7 +533,7 @@ pub async fn load_scope_by_id(
     AuthorizationModelApi::load_scope_by_id(&context, &realm_id, &server_id, &scope_id).await
 }
 
-#[get("/realm/{realm_id}/resource_server/{server_id}/scopes/load_all")]
+#[get("/realm/{realm_id}/resource-server/{server_id}/scopes/load_all")]
 pub async fn load_scope_by_realm_and_server(
     params: web::Path<(String, String)>,
     context: web::Data<DarkShieldContext>,
@@ -547,7 +547,7 @@ pub async fn load_scope_by_realm_and_server(
     AuthorizationModelApi::load_scopes_by_realm(&context, &realm_id, &server_id).await
 }
 
-#[delete("/realm/{realm_id}/resource_server/{server_id}/scope/{scope_id}")]
+#[delete("/realm/{realm_id}/resource-server/{server_id}/scope/{scope_id}")]
 pub async fn delete_scope_by_id(
     params: web::Path<(String, String, String)>,
     context: web::Data<DarkShieldContext>,
@@ -561,4 +561,168 @@ pub async fn delete_scope_by_id(
     );
 
     AuthorizationModelApi::delete_scope_by_id(&context, &realm_id, &server_id, &scope_id).await
+}
+
+#[post("/realm/{realm_id}/resource-server/{server_id}/policy/create")]
+pub async fn create_policy(
+    params: web::Path<(String, String)>,
+    policy: web::Json<PolicyRepresentation>,
+    context: web::Data<DarkShieldContext>,
+) -> impl Responder {
+    let (realm_id, server_id) = params.into_inner();
+    let policy_model: PolicyRepresentation = policy.0;
+    log::info!(
+        "Creating new policy, realm: {}, server: {}",
+        &realm_id,
+        &server_id
+    );
+    AuthorizationModelApi::create_policy(&context, &realm_id, &server_id, &policy_model).await
+}
+
+#[put("/realm/{realm_id}/resource-server/{server_id}/policy/{policy_id}")]
+pub async fn update_policy(
+    params: web::Path<(String, String, String)>,
+    policy: web::Json<PolicyRepresentation>,
+    context: web::Data<DarkShieldContext>,
+) -> impl Responder {
+    let (realm_id, server_id, policy_id) = params.into_inner();
+    let policy_model: PolicyRepresentation = policy.0;
+    log::info!(
+        "Updating policy: {}, realm: {}, server: {}",
+        &policy_id,
+        &realm_id,
+        &server_id
+    );
+    AuthorizationModelApi::update_policy(&context, &realm_id, &server_id, &policy_id, &policy_model)
+        .await
+}
+
+#[get("/realm/{realm_id}/resource-server/{server_id}/policy/{policy_id}")]
+pub async fn load_policy_by_id(
+    params: web::Path<(String, String, String)>,
+    context: web::Data<DarkShieldContext>,
+) -> impl Responder {
+    let (realm_id, server_id, policy_id) = params.into_inner();
+    log::info!(
+        "loading policy: {}, realm: {}, server: {}",
+        &policy_id,
+        &realm_id,
+        &server_id
+    );
+    AuthorizationModelApi::load_policy_by_id(&context, &realm_id, &server_id, &policy_id).await
+}
+
+#[get("/realm/{realm_id}/resource-server/{server_id}/policy/{policy_id}/scopes")]
+pub async fn load_policy_scopes_by_policy_id(
+    params: web::Path<(String, String, String)>,
+    context: web::Data<DarkShieldContext>,
+) -> impl Responder {
+    let (realm_id, server_id, policy_id) = params.into_inner();
+    log::info!(
+        "loading policy: {}, realm: {}, server: {} scopes",
+        &policy_id,
+        &realm_id,
+        &server_id
+    );
+    AuthorizationModelApi::load_policy_scopes_by_policy_id(
+        &context, &realm_id, &server_id, &policy_id,
+    )
+    .await
+}
+
+#[get("/realm/{realm_id}/resource-server/{server_id}/policy/{policy_id}/resources")]
+pub async fn load_policy_resources_by_policy_id(
+    params: web::Path<(String, String, String)>,
+    context: web::Data<DarkShieldContext>,
+) -> impl Responder {
+    let (realm_id, server_id, policy_id) = params.into_inner();
+    log::info!(
+        "loading policy: {}, realm: {}, server: {} scopes",
+        &policy_id,
+        &realm_id,
+        &server_id
+    );
+    AuthorizationModelApi::load_policy_resources_by_policy_id(
+        &context, &realm_id, &server_id, &policy_id,
+    )
+    .await
+}
+
+#[get("/realm/{realm_id}/resource-server/{server_id}/policy/{policy_id}/associated-policies")]
+pub async fn load_associates_policies_by_policy_id(
+    params: web::Path<(String, String, String)>,
+    context: web::Data<DarkShieldContext>,
+) -> impl Responder {
+    let (realm_id, server_id, policy_id) = params.into_inner();
+    log::info!(
+        "loading associated policies for policy: {}, realm: {}, server: {} scopes",
+        &policy_id,
+        &realm_id,
+        &server_id
+    );
+    AuthorizationModelApi::load_associates_policies_by_policy_id(
+        &context, &realm_id, &server_id, &policy_id,
+    )
+    .await
+}
+
+#[get("/realm/{realm_id}/resource-server/{server_id}/policies/all")]
+pub async fn load_policies_by_server_id(
+    params: web::Path<(String, String)>,
+    context: web::Data<DarkShieldContext>,
+) -> impl Responder {
+    let (realm_id, server_id) = params.into_inner();
+    log::info!(
+        "loading policies for realm: {}, server: {}",
+        &realm_id,
+        &server_id
+    );
+    AuthorizationModelApi::load_policies_by_server_id(&context, &realm_id, &server_id).await
+}
+
+#[get("/realm/{realm_id}/resource-server/{server_id}/policies/count")]
+pub async fn count_policies_by_query(
+    params: web::Path<String>,
+    query: web::Query<String>,
+    context: web::Data<DarkShieldContext>,
+) -> impl Responder {
+    let realm_id = params.into_inner();
+    let count_query = query.into_inner();
+    log::info!(
+        "counting policies for realm: {}, query: {}",
+        &realm_id,
+        &count_query
+    );
+    AuthorizationModelApi::count_policies_by_query(&context, &realm_id, &count_query).await
+}
+
+#[get("/realm/{realm_id}/resource-server/{server_id}/policies/search")]
+pub async fn search_policies_by_query(
+    params: web::Path<String>,
+    query: web::Query<String>,
+    context: web::Data<DarkShieldContext>,
+) -> impl Responder {
+    let realm_id = params.into_inner();
+    let search_query = query.into_inner();
+    log::info!(
+        "Searching policies for realm: {}, query: {}",
+        &realm_id,
+        &search_query
+    );
+    AuthorizationModelApi::search_policies_by_query(&context, &realm_id, &search_query).await
+}
+
+#[delete("/realm/{realm_id}/resource-server/{server_id}/policy/{policy_id}")]
+pub async fn delete_policy_by_id(
+    params: web::Path<(String, String, String)>,
+    context: web::Data<DarkShieldContext>,
+) -> impl Responder {
+    let (realm_id, server_id, policy_id) = params.into_inner();
+    log::info!(
+        "deleting policy: {}, realm: {}, server: {}",
+        &policy_id,
+        &realm_id,
+        &server_id
+    );
+    AuthorizationModelApi::delete_policy_by_id(&context, &realm_id, &server_id, &policy_id).await
 }
