@@ -41,14 +41,14 @@ impl RdsCredentialProvider {
             credential_data: credential_data,
             secret_data: secret_data,
             priority: row.get("priority"),
-            metadata: Some(AuditableModel {
+            metadata: AuditableModel {
                 tenant: row.get("tenant"),
                 created_by: row.get("created_by"),
                 updated_by: row.get("updated_by"),
                 created_at: row.get("created_at"),
                 updated_at: row.get("updated_at"),
                 version: row.get("version"),
-            }),
+            },
         }
     }
 }
@@ -79,13 +79,12 @@ impl ICredentialProvider for RdsCredentialProvider {
 
         let client = client.unwrap();
         let create_credential_stmt = client.prepare_cached(&create_credential_sql).await.unwrap();
-        let metadata = credential.metadata.as_ref().unwrap();
 
         let response = client
             .execute(
                 &create_credential_stmt,
                 &[
-                    &metadata.tenant,
+                    &credential.metadata.tenant,
                     &credential.credential_id,
                     &realm_id,
                     &user_id,
@@ -94,9 +93,9 @@ impl ICredentialProvider for RdsCredentialProvider {
                     &json!(credential.secret_data),
                     &json!(credential.credential_data),
                     &credential.priority,
-                    &metadata.created_by,
-                    &metadata.created_at,
-                    &metadata.version,
+                    &credential.metadata.created_by,
+                    &credential.metadata.created_at,
+                    &credential.metadata.version,
                 ],
             )
             .await;
@@ -139,7 +138,6 @@ impl ICredentialProvider for RdsCredentialProvider {
 
         let client = client.unwrap();
         let update_credential_stmt = client.prepare_cached(&update_credential_sql).await.unwrap();
-        let metadata = credential.metadata.as_ref().unwrap();
 
         let response = client
             .execute(
@@ -150,8 +148,8 @@ impl ICredentialProvider for RdsCredentialProvider {
                     &json!(credential.secret_data),
                     &json!(credential.credential_data),
                     &credential.priority,
-                    &metadata.updated_by,
-                    &metadata.updated_at,
+                    &credential.metadata.updated_by,
+                    &credential.metadata.updated_at,
                     &realm_id,
                     &user_id,
                     &credential.credential_id,
@@ -322,7 +320,6 @@ impl ICredentialProvider for RdsCredentialProvider {
             .unwrap();
 
         let mut client = client.unwrap();
-        let metadata = credential.metadata.as_ref().unwrap();
 
         let transaction = client.transaction().await;
         match transaction {
@@ -349,7 +346,7 @@ impl ICredentialProvider for RdsCredentialProvider {
                 trx.execute(
                     &create_credential_sql,
                     &[
-                        &metadata.tenant,
+                        &credential.metadata.tenant,
                         &credential.credential_id,
                         &realm_id,
                         &user_id,
@@ -358,9 +355,9 @@ impl ICredentialProvider for RdsCredentialProvider {
                         &json!(credential.secret_data),
                         &json!(credential.credential_data),
                         &credential.priority,
-                        &metadata.created_by,
-                        &metadata.created_at,
-                        &metadata.version,
+                        &credential.metadata.created_by,
+                        &credential.metadata.created_at,
+                        &credential.metadata.version,
                     ],
                 )
                 .await

@@ -4,8 +4,8 @@ use crate::services::{
         RequiredActionService,
     },
     authz_services::{
-        GroupService, IdentityProviderService, ResourceServerService, ResourceService, RoleService,
-        ScopeService,
+        GroupService, IdentityProviderService, PolicyService, ResourceServerService,
+        ResourceService, RoleService, ScopeService,
     },
     client_services::{ClientScopeService, ClientService, ProtocolMapperService},
     credentials_services::{UserCredentialService, UserCredentialStore},
@@ -22,8 +22,8 @@ use store::providers::rds::{
     loaders::{
         rds_auth_providers::*,
         rds_authz_providers::{
-            RdsGroupProvider, RdsIdentityProvider, RdsResourceProvider, RdsResourceServerProvider,
-            RdsRoleProvider, RdsScopeProvider,
+            RdsGroupProvider, RdsIdentityProvider, RdsPolicyProvider, RdsResourceProvider,
+            RdsResourceServerProvider, RdsRoleProvider, RdsScopeProvider,
         },
         rds_client_provider::{
             RdsClientProvider, RdsClientScopeProvider, RdsProtocolMapperProvider,
@@ -68,6 +68,7 @@ module! {
             RdsRootAuthenticationSessionProvider,
             RdsUserSessionProvider,
             RdsCredentialProvider,
+            RdsPolicyProvider,
             HealthCheckService,
             RealmService,
             RoleService,
@@ -90,7 +91,8 @@ module! {
             UserService,
             UserImpersonationService,
             UserCredentialService,
-            UserCredentialStore
+            UserCredentialStore,
+            PolicyService,
         ],
         providers = [],
     }

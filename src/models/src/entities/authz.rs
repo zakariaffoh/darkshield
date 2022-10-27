@@ -32,7 +32,7 @@ pub struct RoleModel {
     pub description: String,
     pub is_client_role: bool,
     pub display_name: String,
-    pub metadata: Option<AuditableModel>,
+    pub metadata: AuditableModel,
 }
 
 #[derive(Debug, Deserialize)]
@@ -52,7 +52,7 @@ impl Into<RoleModel> for RoleMutationModel {
             description: self.description,
             is_client_role: self.is_client_role,
             display_name: self.display_name,
-            metadata: None,
+            metadata: AuditableModel::default(),
         }
     }
 }
@@ -66,7 +66,7 @@ pub struct GroupModel {
     pub display_name: String,
     pub description: String,
     pub is_default: bool,
-    pub metadata: Option<AuditableModel>,
+    pub metadata: AuditableModel,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -87,7 +87,7 @@ impl Into<GroupModel> for GroupMutationModel {
             roles: None,
             display_name: self.display_name,
             is_default: self.is_default,
-            metadata: None,
+            metadata: AuditableModel::default(),
         }
     }
 }
@@ -111,7 +111,7 @@ pub struct IdentityProviderModel {
     pub enabled: Option<bool>,
     pub trust_email: Option<bool>,
     pub configs: Option<AttributesMap>,
-    pub metadata: Option<AuditableModel>,
+    pub metadata: AuditableModel,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -137,7 +137,7 @@ impl Into<IdentityProviderModel> for IdentityProviderMutationModel {
             enabled: self.enabled,
             trust_email: self.trust_email,
             configs: self.configs,
-            metadata: None,
+            metadata: AuditableModel::default(),
         }
     }
 }
@@ -170,7 +170,7 @@ pub struct ResourceServerModel {
     pub remote_resource_management: Option<bool>,
     pub user_managed_access_enabled: Option<bool>,
     pub configs: Option<AttributesMap>,
-    pub metadata: Option<AuditableModel>,
+    pub metadata: AuditableModel,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -198,7 +198,7 @@ impl Into<ResourceServerModel> for ResourceServerMutationModel {
             remote_resource_management: self.remote_resource_management,
             user_managed_access_enabled: self.user_managed_access_enabled,
             configs: self.configs,
-            metadata: None,
+            metadata: AuditableModel::default(),
         }
     }
 }
@@ -216,7 +216,7 @@ pub struct ResourceModel {
     pub resource_owner: String,
     pub user_managed_access_enabled: Option<bool>,
     pub configs: Option<AttributesMap>,
-    pub metadata: Option<AuditableModel>,
+    pub metadata: AuditableModel,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -245,7 +245,7 @@ impl Into<ResourceModel> for ResourceMutationModel {
             resource_owner: self.resource_owner,
             user_managed_access_enabled: self.user_managed_access_enabled,
             configs: self.configs,
-            metadata: None,
+            metadata: AuditableModel::default(),
         }
     }
 }
@@ -258,7 +258,7 @@ pub struct ScopeModel {
     pub name: String,
     pub display_name: String,
     pub description: String,
-    pub metadata: Option<AuditableModel>,
+    pub metadata: AuditableModel,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -277,7 +277,7 @@ impl Into<ScopeModel> for ScopeMutationModel {
             name: self.name,
             display_name: self.display_name,
             description: self.description,
-            metadata: None,
+            metadata: AuditableModel::default(),
         }
     }
 }
@@ -329,6 +329,7 @@ pub struct PolicyModel {
     pub script: Option<String>,
     pub client_scopes: Option<Vec<ClientScopeModel>>,
     pub resource_type: Option<String>,
+    pub metadata: AuditableModel,
 }
 
 impl PartialEq for PolicyModel {
@@ -564,4 +565,10 @@ pub enum PolicyRepresentation {
     ScopePermissionPolicy(ScopePermissionPolicyRepresentation),
     #[serde(rename = "resource_permission_policy")]
     ResourcePermissionPolicy(ResourcePermissionPolicyRepresentation),
+}
+
+impl PolicyRepresentation {
+    pub fn name(&self) -> &str {
+        todo!()
+    }
 }

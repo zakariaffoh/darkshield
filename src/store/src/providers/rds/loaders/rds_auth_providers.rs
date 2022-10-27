@@ -35,14 +35,14 @@ impl RdsRequiredActionProvider {
             enabled: row.get("enabled"),
             on_time_action: row.get("on_time_action"),
             priority: row.get("priority"),
-            metadata: Some(AuditableModel {
+            metadata: AuditableModel {
                 tenant: row.get("tenant"),
                 created_by: row.get("created_by"),
                 updated_by: row.get("updated_by"),
                 created_at: row.get("created_at"),
                 updated_at: row.get("updated_at"),
                 version: row.get("version"),
-            }),
+            },
         }
     }
 }
@@ -66,7 +66,6 @@ impl IRequiredActionProvider for RdsRequiredActionProvider {
             .prepare_cached(&create_required_action_sql)
             .await
             .unwrap();
-        let metadata = action.metadata.as_ref().unwrap();
         let response = client
             .execute(
                 &create_required_action_stmt,
@@ -81,10 +80,10 @@ impl IRequiredActionProvider for RdsRequiredActionProvider {
                     &action.enabled,
                     &action.on_time_action,
                     &action.priority,
-                    &metadata.tenant,
-                    &metadata.created_by,
-                    &metadata.created_at,
-                    &metadata.version,
+                    &action.metadata.tenant,
+                    &action.metadata.created_by,
+                    &action.metadata.created_at,
+                    &action.metadata.version,
                 ],
             )
             .await;
@@ -120,7 +119,6 @@ impl IRequiredActionProvider for RdsRequiredActionProvider {
             .prepare_cached(&create_required_action_sql)
             .await
             .unwrap();
-        let metadata = action.metadata.as_ref().unwrap();
         let response = client
             .execute(
                 &update_required_action_stmt,
@@ -134,9 +132,9 @@ impl IRequiredActionProvider for RdsRequiredActionProvider {
                     &action.enabled,
                     &action.on_time_action,
                     &action.priority,
-                    &metadata.updated_by,
-                    &metadata.updated_at,
-                    &metadata.tenant,
+                    &action.metadata.updated_by,
+                    &action.metadata.updated_at,
+                    &action.metadata.tenant,
                     &action.realm_id,
                     &action.action_id,
                 ],
@@ -378,14 +376,14 @@ impl RdsAuthenticationFlowProvider {
             description: row.get("description"),
             top_level: row.get("top_level"),
             built_in: row.get("built_in"),
-            metadata: Some(AuditableModel {
+            metadata: AuditableModel {
                 tenant: row.get("tenant"),
                 created_by: row.get("created_by"),
                 updated_by: row.get("updated_by"),
                 created_at: row.get("created_at"),
                 updated_at: row.get("updated_at"),
                 version: row.get("version"),
-            }),
+            },
         }
     }
 }
@@ -409,12 +407,11 @@ impl IAuthenticationFlowProvider for RdsAuthenticationFlowProvider {
 
         let client = client.unwrap();
         let create_flow_stmt = client.prepare_cached(&create_flow_sql).await.unwrap();
-        let metadata = flow.metadata.as_ref().unwrap();
         let response = client
             .execute(
                 &create_flow_stmt,
                 &[
-                    &metadata.tenant,
+                    &flow.metadata.tenant,
                     &flow.flow_id,
                     &flow.realm_id,
                     &flow.alias,
@@ -422,9 +419,9 @@ impl IAuthenticationFlowProvider for RdsAuthenticationFlowProvider {
                     &flow.description,
                     &flow.top_level,
                     &flow.built_in,
-                    &metadata.created_by,
-                    &metadata.created_at,
-                    &metadata.version,
+                    &flow.metadata.created_by,
+                    &flow.metadata.created_at,
+                    &flow.metadata.version,
                 ],
             )
             .await;
@@ -459,7 +456,6 @@ impl IAuthenticationFlowProvider for RdsAuthenticationFlowProvider {
 
         let client = client.unwrap();
         let update_flow_stmt = client.prepare_cached(&update_flow_sql).await.unwrap();
-        let metadata = flow.metadata.as_ref().unwrap();
 
         let response = client
             .execute(
@@ -470,9 +466,9 @@ impl IAuthenticationFlowProvider for RdsAuthenticationFlowProvider {
                     &flow.description,
                     &flow.top_level,
                     &flow.built_in,
-                    &metadata.updated_by,
-                    &metadata.updated_at,
-                    &metadata.tenant,
+                    &flow.metadata.updated_by,
+                    &flow.metadata.updated_at,
+                    &flow.metadata.tenant,
                     &flow.realm_id,
                     &flow.flow_id,
                 ],
@@ -634,14 +630,14 @@ impl RdsAuthenticationExecutionProvider {
             authenticator_flow: row.get("authenticator_flow"),
             authenticator_config: row.get("authenticator_config_id"),
             requirement: row.get("requirement"),
-            metadata: Some(AuditableModel {
+            metadata: AuditableModel {
                 tenant: row.get("tenant"),
                 created_by: row.get("created_by"),
                 updated_by: row.get("updated_by"),
                 created_at: row.get("created_at"),
                 updated_at: row.get("updated_at"),
                 version: row.get("version"),
-            }),
+            },
         }
     }
 }
@@ -673,12 +669,11 @@ impl IAuthenticationExecutionProvider for RdsAuthenticationExecutionProvider {
 
         let client = client.unwrap();
         let create_execution_stmt = client.prepare_cached(&create_execution_sql).await.unwrap();
-        let metadata = execution.metadata.as_ref().unwrap();
         let response = client
             .execute(
                 &create_execution_stmt,
                 &[
-                    &metadata.tenant,
+                    &execution.metadata.tenant,
                     &execution.execution_id,
                     &execution.realm_id,
                     &execution.alias,
@@ -689,9 +684,9 @@ impl IAuthenticationExecutionProvider for RdsAuthenticationExecutionProvider {
                     &execution.authenticator_flow,
                     &execution.authenticator_config,
                     &execution.requirement,
-                    &metadata.created_by,
-                    &metadata.created_at,
-                    &metadata.version,
+                    &execution.metadata.created_by,
+                    &execution.metadata.created_at,
+                    &execution.metadata.version,
                 ],
             )
             .await;
@@ -739,7 +734,6 @@ impl IAuthenticationExecutionProvider for RdsAuthenticationExecutionProvider {
 
         let client = client.unwrap();
         let update_execution_stmt = client.prepare_cached(&update_execution_sql).await.unwrap();
-        let metadata = execution.metadata.as_ref().unwrap();
         let response = client
             .execute(
                 &update_execution_stmt,
@@ -752,9 +746,9 @@ impl IAuthenticationExecutionProvider for RdsAuthenticationExecutionProvider {
                     &execution.authenticator_flow,
                     &execution.authenticator_config,
                     &execution.requirement,
-                    &metadata.updated_by,
-                    &metadata.updated_at,
-                    &metadata.tenant,
+                    &execution.metadata.updated_by,
+                    &execution.metadata.updated_at,
+                    &execution.metadata.tenant,
                     &execution.realm_id,
                     &execution.execution_id,
                 ],
@@ -928,14 +922,14 @@ impl RdsAuthenticatorConfigProvider {
             realm_id: row.get("realm_id"),
             alias: row.get("alias"),
             configs: configs,
-            metadata: Some(AuditableModel {
+            metadata: AuditableModel {
                 tenant: row.get("tenant"),
                 created_by: row.get("created_by"),
                 updated_by: row.get("updated_by"),
                 created_at: row.get("created_at"),
                 updated_at: row.get("updated_at"),
                 version: row.get("version"),
-            }),
+            },
         }
     }
 }
@@ -963,19 +957,18 @@ impl IAuthenticatorConfigProvider for RdsAuthenticatorConfigProvider {
 
         let client = client.unwrap();
         let create_config_stmt = client.prepare_cached(&create_config_sql).await.unwrap();
-        let metadata = config.metadata.as_ref().unwrap();
         let response = client
             .execute(
                 &create_config_stmt,
                 &[
-                    &metadata.tenant,
+                    &config.metadata.tenant,
                     &config.config_id,
                     &config.realm_id,
                     &config.alias,
                     &json!(config.configs),
-                    &metadata.created_by,
-                    &metadata.created_at,
-                    &metadata.version,
+                    &config.metadata.created_by,
+                    &config.metadata.created_at,
+                    &config.metadata.version,
                 ],
             )
             .await;
@@ -1016,16 +1009,15 @@ impl IAuthenticatorConfigProvider for RdsAuthenticatorConfigProvider {
 
         let client = client.unwrap();
         let update_config_stmt = client.prepare_cached(&update_config_sql).await.unwrap();
-        let metadata = config.metadata.as_ref().unwrap();
         let response = client
             .execute(
                 &update_config_stmt,
                 &[
                     &config.alias,
                     &json!(config.configs),
-                    &metadata.updated_by,
-                    &metadata.updated_at,
-                    &metadata.tenant,
+                    &config.metadata.updated_by,
+                    &config.metadata.updated_at,
+                    &config.metadata.tenant,
                     &config.realm_id,
                     &config.config_id,
                 ],

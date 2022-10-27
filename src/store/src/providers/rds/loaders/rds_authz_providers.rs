@@ -35,14 +35,14 @@ impl RdsRoleProvider {
             description: row.get("description"),
             is_client_role: row.get("client_role"),
             display_name: row.get("display_name"),
-            metadata: Some(AuditableModel {
+            metadata: AuditableModel {
                 tenant: row.get("tenant"),
                 created_by: row.get("created_by"),
                 updated_by: row.get("updated_by"),
                 created_at: row.get("created_at"),
                 updated_at: row.get("updated_at"),
                 version: row.get("version"),
-            }),
+            },
         }
     }
 }
@@ -65,22 +65,21 @@ impl IRoleProvider for RdsRoleProvider {
 
         let client = client.unwrap();
         let create_role_stmt = client.prepare_cached(&create_role_sql).await.unwrap();
-        let metadata = role_model.metadata.as_ref().unwrap();
 
         let response = client
             .execute(
                 &create_role_stmt,
                 &[
-                    &metadata.tenant,
+                    &role_model.metadata.tenant,
                     &role_model.role_id,
                     &role_model.realm_id,
                     &role_model.name,
                     &role_model.display_name,
                     &role_model.description,
                     &role_model.is_client_role,
-                    &metadata.created_by,
-                    &metadata.created_at,
-                    &metadata.version,
+                    &role_model.metadata.created_by,
+                    &role_model.metadata.created_at,
+                    &role_model.metadata.version,
                 ],
             )
             .await;
@@ -114,7 +113,6 @@ impl IRoleProvider for RdsRoleProvider {
 
         let client = client.unwrap();
         let update_role_stmt = client.prepare_cached(&update_role_sql).await.unwrap();
-        let metadata = role_model.metadata.as_ref().unwrap();
 
         let response = client
             .execute(
@@ -124,9 +122,9 @@ impl IRoleProvider for RdsRoleProvider {
                     &role_model.display_name,
                     &role_model.description,
                     &role_model.is_client_role,
-                    &metadata.updated_by,
-                    &metadata.updated_at,
-                    &metadata.tenant,
+                    &role_model.metadata.updated_by,
+                    &role_model.metadata.updated_at,
+                    &role_model.metadata.tenant,
                     &role_model.realm_id,
                     &role_model.role_id,
                 ],
@@ -490,14 +488,14 @@ impl RdsGroupProvider {
             is_default: row.get("is_default"),
             display_name: row.get("display_name"),
             roles: Some(roles),
-            metadata: Some(AuditableModel {
+            metadata: AuditableModel {
                 tenant: row.get("tenant"),
                 created_by: row.get("created_by"),
                 updated_by: row.get("updated_by"),
                 created_at: row.get("created_at"),
                 updated_at: row.get("updated_at"),
                 version: row.get("version"),
-            }),
+            },
         }
     }
 
@@ -548,22 +546,21 @@ impl IGroupProvider for RdsGroupProvider {
 
         let client = client.unwrap();
         let create_group_stmt = client.prepare_cached(&create_group_sql).await.unwrap();
-        let metadata = group_model.metadata.as_ref().unwrap();
 
         let response = client
             .execute(
                 &create_group_stmt,
                 &[
-                    &metadata.tenant,
+                    &group_model.metadata.tenant,
                     &group_model.group_id,
                     &group_model.realm_id,
                     &group_model.name,
                     &group_model.display_name,
                     &group_model.description,
                     &group_model.is_default,
-                    &metadata.created_by,
-                    &metadata.created_at,
-                    &metadata.version,
+                    &group_model.metadata.created_by,
+                    &group_model.metadata.created_at,
+                    &group_model.metadata.version,
                 ],
             )
             .await;
@@ -592,7 +589,6 @@ impl IGroupProvider for RdsGroupProvider {
 
         let client = client.unwrap();
         let update_group_stmt = client.prepare_cached(&update_group_sql).await.unwrap();
-        let metadata = group_model.metadata.as_ref().unwrap();
 
         let response = client
             .execute(
@@ -602,8 +598,8 @@ impl IGroupProvider for RdsGroupProvider {
                     &group_model.description,
                     &group_model.display_name,
                     &group_model.is_default,
-                    &metadata.updated_by,
-                    &metadata.updated_at,
+                    &group_model.metadata.updated_by,
+                    &group_model.metadata.updated_at,
                     &group_model.realm_id,
                     &group_model.group_id,
                 ],
@@ -1018,14 +1014,14 @@ impl RdsIdentityProvider {
             trust_email: row.get("trust_email"),
             enabled: row.get("enabled"),
             configs: configs,
-            metadata: Some(AuditableModel {
+            metadata: AuditableModel {
                 tenant: row.get("tenant"),
                 created_by: row.get("created_by"),
                 updated_by: row.get("updated_by"),
                 created_at: row.get("created_at"),
                 updated_at: row.get("updated_at"),
                 version: row.get("version"),
-            }),
+            },
         }
     }
 }
@@ -1051,13 +1047,11 @@ impl IIdentityProvider for RdsIdentityProvider {
         let client = client.unwrap();
         let create_idp_stmt = client.prepare_cached(&create_idp_sql).await.unwrap();
 
-        let metadata = idp.metadata.as_ref().unwrap();
-
         let response = client
             .execute(
                 &create_idp_stmt,
                 &[
-                    &metadata.tenant,
+                    &idp.metadata.tenant,
                     &idp.internal_id,
                     &idp.provider_id,
                     &idp.realm_id,
@@ -1067,9 +1061,9 @@ impl IIdentityProvider for RdsIdentityProvider {
                     &idp.trust_email,
                     &idp.enabled,
                     &json!(&idp.configs),
-                    &metadata.created_by,
-                    &metadata.created_at,
-                    &metadata.version,
+                    &idp.metadata.created_by,
+                    &idp.metadata.created_at,
+                    &idp.metadata.version,
                 ],
             )
             .await;
@@ -1103,7 +1097,6 @@ impl IIdentityProvider for RdsIdentityProvider {
 
         let client = client.unwrap();
         let update_idp_stmt = client.prepare_cached(&update_idp_sql).await.unwrap();
-        let metadata = idp.metadata.as_ref().unwrap();
         let response = client
             .execute(
                 &update_idp_stmt,
@@ -1115,9 +1108,9 @@ impl IIdentityProvider for RdsIdentityProvider {
                     &idp.trust_email,
                     &idp.enabled,
                     &json!(idp.configs),
-                    &metadata.updated_by,
-                    &metadata.updated_at,
-                    &metadata.tenant,
+                    &idp.metadata.updated_by,
+                    &idp.metadata.updated_at,
+                    &idp.metadata.tenant,
                     &idp.realm_id,
                     &idp.internal_id,
                 ],
@@ -1280,14 +1273,14 @@ impl RdsResourceServerProvider {
             remote_resource_management: row.get("remote_resource_management"),
             user_managed_access_enabled: row.get("user_managed_access_enabled"),
             configs: configs,
-            metadata: Some(AuditableModel {
+            metadata: AuditableModel {
                 tenant: row.get("tenant"),
                 created_by: row.get("created_by"),
                 updated_by: row.get("updated_by"),
                 created_at: row.get("created_at"),
                 updated_at: row.get("updated_at"),
                 version: row.get("version"),
-            }),
+            },
         }
     }
 }
@@ -1311,13 +1304,12 @@ impl IResourceServerProvider for RdsResourceServerProvider {
             .prepare_cached(&create_resource_server_sql)
             .await
             .unwrap();
-        let metadata = server.metadata.as_ref().unwrap();
 
         let response = client
             .execute(
                 &create_resource_server_stmt,
                 &[
-                    &metadata.tenant,
+                    &server.metadata.tenant,
                     &server.server_id,
                     &server.realm_id,
                     &server.name,
@@ -1328,9 +1320,9 @@ impl IResourceServerProvider for RdsResourceServerProvider {
                     &server.remote_resource_management,
                     &server.user_managed_access_enabled,
                     &json!(server.configs),
-                    &metadata.created_by,
-                    &metadata.created_at,
-                    &metadata.version,
+                    &server.metadata.created_by,
+                    &server.metadata.created_at,
+                    &server.metadata.version,
                 ],
             )
             .await;
@@ -1362,7 +1354,6 @@ impl IResourceServerProvider for RdsResourceServerProvider {
             .prepare_cached(&update_resource_server_sql)
             .await
             .unwrap();
-        let metadata = server.metadata.as_ref().unwrap();
 
         let response = client
             .execute(
@@ -1375,8 +1366,8 @@ impl IResourceServerProvider for RdsResourceServerProvider {
                     &server.decision_strategy,
                     &server.remote_resource_management,
                     &server.user_managed_access_enabled,
-                    &metadata.updated_by,
-                    &metadata.updated_at,
+                    &server.metadata.updated_by,
+                    &server.metadata.updated_at,
                     &server.realm_id,
                     &server.server_id,
                 ],
@@ -1588,14 +1579,14 @@ impl RdsResourceProvider {
             resource_owner: row.get("resource_owner"),
             user_managed_access_enabled: row.get("user_managed_access_enabled"),
             configs: configs,
-            metadata: Some(AuditableModel {
+            metadata: AuditableModel {
                 tenant: row.get("tenant"),
                 created_by: row.get("created_by"),
                 updated_by: row.get("updated_by"),
                 created_at: row.get("created_at"),
                 updated_at: row.get("updated_at"),
                 version: row.get("version"),
-            }),
+            },
         }
     }
 }
@@ -1616,13 +1607,12 @@ impl IResourceProvider for RdsResourceProvider {
 
         let client = client.unwrap();
         let create_resource_stmt = client.prepare_cached(&create_resource_sql).await.unwrap();
-        let metadata = resource.metadata.as_ref().unwrap();
 
         let response = client
             .execute(
                 &create_resource_stmt,
                 &[
-                    &metadata.tenant,
+                    &resource.metadata.tenant,
                     &resource.realm_id,
                     &resource.server_id,
                     &resource.resource_id,
@@ -1634,9 +1624,9 @@ impl IResourceProvider for RdsResourceProvider {
                     &resource.resource_owner,
                     &resource.user_managed_access_enabled,
                     &json!(resource.configs),
-                    &metadata.created_by,
-                    &metadata.created_at,
-                    &metadata.version,
+                    &resource.metadata.created_by,
+                    &resource.metadata.created_at,
+                    &resource.metadata.version,
                 ],
             )
             .await;
@@ -1666,7 +1656,6 @@ impl IResourceProvider for RdsResourceProvider {
 
         let client = client.unwrap();
         let update_resource_stmt = client.prepare_cached(&update_resource_sql).await.unwrap();
-        let metadata = resource.metadata.as_ref().unwrap();
         let response = client
             .execute(
                 &update_resource_stmt,
@@ -1679,8 +1668,8 @@ impl IResourceProvider for RdsResourceProvider {
                     &resource.resource_owner,
                     &resource.user_managed_access_enabled,
                     &json!(resource.configs),
-                    &metadata.updated_by,
-                    &metadata.updated_at,
+                    &resource.metadata.updated_by,
+                    &resource.metadata.updated_at,
                     &resource.realm_id,
                     &resource.server_id,
                     &resource.resource_id,
@@ -1996,14 +1985,14 @@ impl RdsScopeProvider {
             name: row.get("name"),
             display_name: row.get("display_name"),
             description: row.get("description"),
-            metadata: Some(AuditableModel {
+            metadata: AuditableModel {
                 tenant: row.get("tenant"),
                 created_by: row.get("created_by"),
                 updated_by: row.get("updated_by"),
                 created_at: row.get("created_at"),
                 updated_at: row.get("updated_at"),
                 version: row.get("version"),
-            }),
+            },
         }
     }
 }
@@ -2024,21 +2013,20 @@ impl IScopeProvider for RdsScopeProvider {
 
         let client = client.unwrap();
         let create_scope_stmt = client.prepare_cached(&create_scope_sql).await.unwrap();
-        let metadata = scope.metadata.as_ref().unwrap();
         let response = client
             .execute(
                 &create_scope_stmt,
                 &[
-                    &metadata.tenant,
+                    &scope.metadata.tenant,
                     &scope.scope_id,
                     &scope.server_id,
                     &scope.realm_id,
                     &scope.name,
                     &scope.display_name,
                     &scope.description,
-                    &metadata.created_by,
-                    &metadata.created_at,
-                    &metadata.version,
+                    &scope.metadata.created_by,
+                    &scope.metadata.created_at,
+                    &scope.metadata.version,
                 ],
             )
             .await;
@@ -2068,7 +2056,6 @@ impl IScopeProvider for RdsScopeProvider {
 
         let client = client.unwrap();
         let update_scope_stmt = client.prepare_cached(&update_scope_sql).await.unwrap();
-        let metadata = scope.metadata.as_ref().unwrap();
 
         let response = client
             .execute(
@@ -2077,8 +2064,8 @@ impl IScopeProvider for RdsScopeProvider {
                     &scope.name,
                     &scope.display_name,
                     &scope.description,
-                    &metadata.updated_by,
-                    &metadata.updated_at,
+                    &scope.metadata.updated_by,
+                    &scope.metadata.updated_at,
                     &scope.realm_id,
                     &scope.server_id,
                     &scope.scope_id,
@@ -2284,5 +2271,96 @@ impl IScopeProvider for RdsScopeProvider {
             Ok(row) => Ok(row.get::<usize, i64>(0) > 0),
             Err(error) => Err(error.to_string()),
         }
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Component)]
+#[shaku(interface = IPolicyProvider)]
+pub struct RdsPolicyProvider {
+    #[shaku(inject)]
+    pub database_manager: Arc<dyn IDataBaseManager>,
+}
+
+impl RdsPolicyProvider {
+    pub fn read_record(&self, row: &Row) -> PolicyModel {
+        todo!()
+    }
+}
+
+#[async_trait]
+impl IPolicyProvider for RdsPolicyProvider {
+    async fn create_policy(&self, policy: &PolicyModel) -> Result<(), String> {
+        todo!()
+    }
+
+    async fn udpate_policy(&self, policy: &PolicyModel) -> Result<(), String> {
+        todo!()
+    }
+
+    async fn load_policy_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        policy_id: &str,
+    ) -> Result<Option<PolicyModel>, String> {
+        todo!()
+    }
+
+    async fn load_policy_scopes_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        policy_id: &str,
+    ) -> Result<Vec<PolicyModel>, String> {
+        todo!()
+    }
+
+    async fn load_policy_resources_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        policy_id: &str,
+    ) -> Result<Vec<PolicyModel>, String> {
+        todo!()
+    }
+
+    async fn load_associated_policies_by_policy_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        scope_id: &str,
+    ) -> Result<Vec<PolicyModel>, String> {
+        todo!()
+    }
+
+    async fn load_policies_by_server_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        name: &str,
+    ) -> Result<Vec<PolicyModel>, String> {
+        todo!()
+    }
+
+    async fn count_policies(&self, realm_id: &str, server_id: &str) -> Result<u64, String> {
+        todo!()
+    }
+
+    async fn search_policies(
+        &self,
+        realm_id: &str,
+        search_query: &str,
+    ) -> Result<Vec<PolicyModel>, String> {
+        todo!()
+    }
+
+    async fn delete_policy_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        policy_id: &str,
+    ) -> Result<bool, String> {
+        todo!()
     }
 }

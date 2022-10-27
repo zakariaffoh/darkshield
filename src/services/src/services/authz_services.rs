@@ -5,6 +5,7 @@ use shaku::Interface;
 use std::sync::Arc;
 use store::providers::interfaces::authz_provider::IGroupProvider;
 use store::providers::interfaces::authz_provider::IIdentityProvider;
+use store::providers::interfaces::authz_provider::IPolicyProvider;
 use store::providers::interfaces::authz_provider::IResourceProvider;
 use store::providers::interfaces::authz_provider::IResourceServerProvider;
 use store::providers::interfaces::authz_provider::IRoleProvider;
@@ -775,5 +776,180 @@ impl IScopeService for ScopeService {
         self.scope_provider
             .load_scopes_by_realm_and_server(&realm_id, &server_id)
             .await
+    }
+}
+
+#[async_trait]
+pub trait IPolicyService: Interface {
+    async fn create_policy(&self, policy: &PolicyModel) -> Result<(), String>;
+
+    async fn udpate_policy(&self, policy: &PolicyModel) -> Result<(), String>;
+
+    async fn load_policy_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        policy_id: &str,
+    ) -> Result<Option<PolicyModel>, String>;
+
+    async fn load_policy_scopes_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        policy_id: &str,
+    ) -> Result<Vec<ScopeModel>, String>;
+
+    async fn load_policy_resources_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        policy_id: &str,
+    ) -> Result<Vec<ResourceModel>, String>;
+
+    async fn load_associated_policies_by_policy_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        scope_id: &str,
+    ) -> Result<Vec<PolicyModel>, String>;
+
+    async fn load_policies_by_server_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+    ) -> Result<Vec<PolicyModel>, String>;
+
+    async fn count_policies(&self, realm_id: &str, server_id: &str) -> Result<u64, String>;
+
+    async fn search_policies(
+        &self,
+        realm_id: &str,
+        search_query: &str,
+    ) -> Result<Vec<PolicyModel>, String>;
+
+    async fn delete_policy_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        policy_id: &str,
+    ) -> Result<(), String>;
+
+    async fn policy_exists_by_name(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        name: &str,
+    ) -> Result<bool, String>;
+
+    async fn policy_exists_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        policy_id: &str,
+    ) -> Result<bool, String>;
+}
+
+#[allow(dead_code)]
+#[derive(Component)]
+#[shaku(interface = IPolicyService)]
+pub struct PolicyService {
+    #[shaku(inject)]
+    resource_server_provider: Arc<dyn IResourceServerProvider>,
+
+    #[shaku(inject)]
+    policy_provider: Arc<dyn IPolicyProvider>,
+}
+
+#[async_trait]
+impl IPolicyService for PolicyService {
+    async fn create_policy(&self, policy: &PolicyModel) -> Result<(), String> {
+        todo!()
+    }
+
+    async fn udpate_policy(&self, policy: &PolicyModel) -> Result<(), String> {
+        todo!()
+    }
+
+    async fn load_policy_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        policy_id: &str,
+    ) -> Result<Option<PolicyModel>, String> {
+        todo!()
+    }
+
+    async fn load_policy_scopes_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        policy_id: &str,
+    ) -> Result<Vec<ScopeModel>, String> {
+        todo!()
+    }
+
+    async fn load_policy_resources_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        policy_id: &str,
+    ) -> Result<Vec<ResourceModel>, String> {
+        todo!()
+    }
+
+    async fn load_associated_policies_by_policy_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        scope_id: &str,
+    ) -> Result<Vec<PolicyModel>, String> {
+        todo!()
+    }
+
+    async fn load_policies_by_server_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+    ) -> Result<Vec<PolicyModel>, String> {
+        todo!()
+    }
+
+    async fn count_policies(&self, realm_id: &str, server_id: &str) -> Result<u64, String> {
+        todo!()
+    }
+
+    async fn search_policies(
+        &self,
+        realm_id: &str,
+        search_query: &str,
+    ) -> Result<Vec<PolicyModel>, String> {
+        todo!()
+    }
+
+    async fn delete_policy_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        policy_id: &str,
+    ) -> Result<(), String> {
+        todo!()
+    }
+
+    async fn policy_exists_by_name(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        name: &str,
+    ) -> Result<bool, String> {
+        todo!()
+    }
+
+    async fn policy_exists_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        policy_id: &str,
+    ) -> Result<bool, String> {
+        todo!()
     }
 }

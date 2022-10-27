@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use models::entities::authz::{
-    GroupModel, GroupPagingResult, IdentityProviderModel, ResourceModel, ResourceServerModel,
-    RoleModel, ScopeModel,
+    GroupModel, GroupPagingResult, IdentityProviderModel, PolicyModel, ResourceModel,
+    ResourceServerModel, RoleModel, ScopeModel,
 };
 use shaku::Interface;
 
@@ -261,5 +261,62 @@ pub trait IScopeProvider: Interface {
         realm_id: &str,
         server_id: &str,
         scope_id: &str,
+    ) -> Result<bool, String>;
+}
+
+#[async_trait]
+pub trait IPolicyProvider: Interface {
+    async fn create_policy(&self, policy: &PolicyModel) -> Result<(), String>;
+
+    async fn udpate_policy(&self, policy: &PolicyModel) -> Result<(), String>;
+
+    async fn load_policy_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        policy_id: &str,
+    ) -> Result<Option<PolicyModel>, String>;
+
+    async fn load_policy_scopes_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        policy_id: &str,
+    ) -> Result<Vec<PolicyModel>, String>;
+
+    async fn load_policy_resources_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        policy_id: &str,
+    ) -> Result<Vec<PolicyModel>, String>;
+
+    async fn load_associated_policies_by_policy_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        scope_id: &str,
+    ) -> Result<Vec<PolicyModel>, String>;
+
+    async fn load_policies_by_server_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        name: &str,
+    ) -> Result<Vec<PolicyModel>, String>;
+
+    async fn count_policies(&self, realm_id: &str, server_id: &str) -> Result<u64, String>;
+
+    async fn search_policies(
+        &self,
+        realm_id: &str,
+        search_query: &str,
+    ) -> Result<Vec<PolicyModel>, String>;
+
+    async fn delete_policy_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        policy_id: &str,
     ) -> Result<bool, String>;
 }

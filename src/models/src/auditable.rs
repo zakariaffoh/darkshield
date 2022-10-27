@@ -25,25 +25,38 @@ impl Clone for AuditableModel {
 }
 
 impl AuditableModel {
-    pub fn from_creator(tenant: String, created_by: String) -> Option<Self> {
-        Some(Self {
+    pub fn from_creator(tenant: String, created_by: String) -> Self {
+        Self {
             tenant: tenant,
             created_by: Some(created_by),
             updated_by: None,
             created_at: Some(Utc::now()),
             updated_at: None,
             version: 1,
-        })
+        }
     }
 
-    pub fn from_updator(tenant: String, updated_by: String) -> Option<Self> {
-        Some(Self {
+    pub fn from_updator(tenant: String, updated_by: String) -> Self {
+        Self {
             tenant: tenant,
             created_by: None,
             updated_by: Some(updated_by),
             created_at: None,
             updated_at: Some(Utc::now()),
             version: 1,
-        })
+        }
+    }
+}
+
+impl Default for AuditableModel {
+    fn default() -> Self {
+        Self {
+            tenant: Default::default(),
+            created_by: Default::default(),
+            created_at: Default::default(),
+            updated_by: Default::default(),
+            updated_at: Default::default(),
+            version: Default::default(),
+        }
     }
 }

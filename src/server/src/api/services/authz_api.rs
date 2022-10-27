@@ -11,8 +11,8 @@ use models::{
     },
 };
 use services::services::authz_services::{
-    IGroupService, IIdentityProviderService, IResourceServerService, IResourceService,
-    IRoleService, IScopeService,
+    IGroupService, IIdentityProviderService, IPolicyService, IResourceServerService,
+    IResourceService, IRoleService, IScopeService,
 };
 use shaku::HasComponent;
 pub struct AuthorizationModelApi;
@@ -981,11 +981,11 @@ impl AuthorizationModelApi {
                 return ApiResult::from_error(404, "404", "resource not found");
             }
         }
-        let updated_resource = resource_service
+        let deleted_resource = resource_service
             .delete_resource_by_id(&realm_id, &server_id, &resource_id)
             .await;
 
-        match updated_resource {
+        match deleted_resource {
             Err(err) => {
                 log::error!(
                     "Failed to update resource: {}, server: {}, realm: {}. Error: {}",
@@ -1309,6 +1309,83 @@ impl AuthorizationModelApi {
         server_id: &str,
         policy: &PolicyRepresentation,
     ) -> ApiResult<PolicyModel> {
+        let resource_server_server: &dyn IResourceServerService = context.services().resolve_ref();
+        let existing_resource_server = resource_server_server
+            .resource_server_exists_by_id(&realm_id, &server_id)
+            .await;
+        if let Ok(response) = existing_resource_server {
+            if !response {
+                log::error!(
+                    "Resource server: {} does not  exists in realm: {}",
+                    &server_id,
+                    &realm_id
+                );
+                return ApiResult::from_error(409, "500", "Resource server does not exists");
+            }
+        }
+
+        let policy_service: &dyn IPolicyService = context.services().resolve_ref();
+        let existing_policy = policy_service
+            .policy_exists_by_name(&realm_id, &server_id, policy.name())
+            .await;
+        if let Ok(response) = existing_resource_server {
+            if response {
+                log::error!(
+                    "Policy: {} does already exists in realm: {}, server: {}",
+                    policy.name(),
+                    &realm_id,
+                    &server_id
+                );
+                return ApiResult::from_error(
+                    409,
+                    "500",
+                    format!("Policy: {0} already exists", policy.name()).as_str(),
+                );
+            }
+        }
+
+        let policy_id = uuid::Uuid::new_v4().to_string();
+
+        let parsed_policy_model = AuthorizationModelApi::policy_model_from_representation(
+            context, realm_id, server_id, &policy_id,
+        )
+        .await;
+        match parsed_policy_model {
+            Ok(policy_model) => {
+                let mut policy_model = policy_model;
+                policy_model.metadata =
+                    AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
+                let res = policy_service.create_policy(&policy_model).await;
+                match res {
+                    Ok(_) => ApiResult::Data(policy_model),
+                    Err(err) => {
+                        log::error!(
+                            "Failed to create policy: {}, realm: {}. Error: {}",
+                            &policy.name(),
+                            &realm_id,
+                            err
+                        );
+                        ApiResult::from_error(500, "500", "failed to create role")
+                    }
+                }
+            }
+            Err(err) => {
+                log::error!(
+                    "Failed to create policy model: {} from representation. Error: {}",
+                    &policy.name(),
+                    err
+                );
+                ApiResult::from_error(400, "500", &err)
+            }
+        }
+    }
+
+    async fn policy_model_from_representation(
+        context: &DarkShieldContext,
+        realm_id: &str,
+        server_id: &str,
+        policy_id: &str,
+    ) -> Result<PolicyModel, String> {
         todo!()
     }
 
@@ -1319,7 +1396,73 @@ impl AuthorizationModelApi {
         policy_id: &str,
         policy: &PolicyRepresentation,
     ) -> ApiResult<PolicyModel> {
-        todo!()
+        let resource_server_server: &dyn IResourceServerService = context.services().resolve_ref();
+        let existing_resource_server = resource_server_server
+            .resource_server_exists_by_id(&realm_id, &server_id)
+            .await;
+        if let Ok(response) = existing_resource_server {
+            if !response {
+                log::error!(
+                    "Resource server: {} does not  exists in realm: {}",
+                    &policy.name(),
+                    &realm_id
+                );
+                return ApiResult::from_error(409, "500", "Resource server does not exists");
+            }
+        }
+
+        let policy_service: &dyn IPolicyService = context.services().resolve_ref();
+        let existing_policy = policy_service
+            .policy_exists_by_id(&realm_id, &server_id, &policy_id)
+            .await;
+        if let Ok(response) = existing_resource_server {
+            if !response {
+                log::error!(
+                    "Policy: {} does not exists in realm: {}, server: {}",
+                    &policy_id,
+                    &realm_id,
+                    &server_id
+                );
+                return ApiResult::from_error(
+                    409,
+                    "500",
+                    format!("Policy: {0} does not exists", policy.name()).as_str(),
+                );
+            }
+        }
+
+        let parsed_policy_model = AuthorizationModelApi::policy_model_from_representation(
+            context, realm_id, server_id, &policy_id,
+        )
+        .await;
+        match parsed_policy_model {
+            Ok(policy_model) => {
+                let mut policy_model = policy_model;
+                policy_model.metadata =
+                    AuditableModel::from_updator("tenant".to_owned(), "zaffoh".to_owned());
+                let res = policy_service.udpate_policy(&policy_model).await;
+                match res {
+                    Ok(_) => ApiResult::no_content(),
+                    Err(err) => {
+                        log::error!(
+                            "Failed to update policy: {} realm: {}. Error: {}",
+                            &policy.name(),
+                            &realm_id,
+                            err
+                        );
+                        ApiResult::from_error(500, "500", "failed to update role")
+                    }
+                }
+            }
+            Err(err) => {
+                log::error!(
+                    "Failed to update policy model: {} from representation. Error: {}",
+                    &policy.name(),
+                    err
+                );
+                ApiResult::from_error(400, "500", &err)
+            }
+        }
     }
 
     pub async fn load_policy_by_id(
@@ -1328,7 +1471,16 @@ impl AuthorizationModelApi {
         server_id: &str,
         policy_id: &str,
     ) -> ApiResult<PolicyModel> {
-        todo!()
+        let policy_service: &dyn IPolicyService = context.services().resolve_ref();
+
+        let loaded_policy = policy_service
+            .load_policy_by_id(&realm_id, &server_id, &policy_id)
+            .await;
+
+        match loaded_policy {
+            Ok(policy) => ApiResult::<PolicyModel>::from_option(policy),
+            Err(err) => ApiResult::from_error(500, "500", &err),
+        }
     }
 
     pub async fn load_policy_scopes_by_policy_id(
@@ -1336,8 +1488,37 @@ impl AuthorizationModelApi {
         realm_id: &str,
         server_id: &str,
         policy_id: &str,
-    ) -> ApiResult<Vec<PolicyModel>> {
-        todo!()
+    ) -> ApiResult<Vec<ScopeModel>> {
+        let policy_service: &dyn IPolicyService = context.services().resolve_ref();
+        let loaded_policy_scopes = policy_service
+            .load_policy_scopes_by_id(&realm_id, &server_id, &policy_id)
+            .await;
+
+        match loaded_policy_scopes {
+            Ok(scopes) => {
+                log::info!(
+                    "[{}] scopes loaded for policy: {} ,server: {} realm: {}",
+                    scopes.len(),
+                    &policy_id,
+                    &server_id,
+                    &realm_id
+                );
+                if scopes.is_empty() {
+                    ApiResult::no_content()
+                } else {
+                    ApiResult::from_data(scopes)
+                }
+            }
+            Err(err) => {
+                log::error!(
+                    "Failed to load scopes for policy: {} ,server: {} realm: {}",
+                    &policy_id,
+                    &server_id,
+                    &realm_id
+                );
+                ApiResult::from_error(500, "500", &err)
+            }
+        }
     }
 
     pub async fn load_policy_resources_by_policy_id(
@@ -1345,8 +1526,37 @@ impl AuthorizationModelApi {
         realm_id: &str,
         server_id: &str,
         policy_id: &str,
-    ) -> ApiResult<Vec<PolicyModel>> {
-        todo!()
+    ) -> ApiResult<Vec<ResourceModel>> {
+        let policy_service: &dyn IPolicyService = context.services().resolve_ref();
+        let loaded_resources = policy_service
+            .load_policy_resources_by_id(&realm_id, &server_id, &policy_id)
+            .await;
+
+        match loaded_resources {
+            Ok(resources) => {
+                log::info!(
+                    "[{}] resources loaded for policy: {} server: {} realm: {}",
+                    resources.len(),
+                    &policy_id,
+                    &server_id,
+                    &realm_id
+                );
+                if resources.is_empty() {
+                    ApiResult::no_content()
+                } else {
+                    ApiResult::from_data(resources)
+                }
+            }
+            Err(err) => {
+                log::error!(
+                    "Failed to load resources for policy: {} server: {} realm: {}",
+                    &policy_id,
+                    &server_id,
+                    &realm_id
+                );
+                ApiResult::from_error(500, "500", &err)
+            }
+        }
     }
 
     pub async fn load_associates_policies_by_policy_id(
@@ -1355,7 +1565,36 @@ impl AuthorizationModelApi {
         server_id: &str,
         policy_id: &str,
     ) -> ApiResult<Vec<PolicyModel>> {
-        todo!()
+        let policy_service: &dyn IPolicyService = context.services().resolve_ref();
+        let loaded_associated_policies = policy_service
+            .load_associated_policies_by_policy_id(&realm_id, &server_id, &policy_id)
+            .await;
+
+        match loaded_associated_policies {
+            Ok(resources) => {
+                log::info!(
+                    "[{}] associated policies loaded for policy: {} server: {} realm: {}",
+                    resources.len(),
+                    &policy_id,
+                    &server_id,
+                    &realm_id
+                );
+                if resources.is_empty() {
+                    ApiResult::no_content()
+                } else {
+                    ApiResult::from_data(resources)
+                }
+            }
+            Err(err) => {
+                log::error!(
+                    "Failed to load associated policies for policy: {} server: {} realm: {}",
+                    &policy_id,
+                    &server_id,
+                    &realm_id
+                );
+                ApiResult::from_error(500, "500", &err)
+            }
+        }
     }
 
     pub async fn load_policies_by_server_id(
@@ -1363,7 +1602,34 @@ impl AuthorizationModelApi {
         realm_id: &str,
         server_id: &str,
     ) -> ApiResult<Vec<PolicyModel>> {
-        todo!()
+        let policy_service: &dyn IPolicyService = context.services().resolve_ref();
+        let loaded_policies = policy_service
+            .load_policies_by_server_id(&realm_id, &server_id)
+            .await;
+
+        match loaded_policies {
+            Ok(resources) => {
+                log::info!(
+                    "[{}] policies loaded for  server: {} realm: {}",
+                    resources.len(),
+                    &server_id,
+                    &realm_id
+                );
+                if resources.is_empty() {
+                    ApiResult::no_content()
+                } else {
+                    ApiResult::from_data(resources)
+                }
+            }
+            Err(err) => {
+                log::error!(
+                    "Failed to load policies for server: {} realm: {}",
+                    &server_id,
+                    &realm_id
+                );
+                ApiResult::from_error(500, "500", &err)
+            }
+        }
     }
 
     pub async fn count_policies_by_query(
@@ -1371,7 +1637,13 @@ impl AuthorizationModelApi {
         realm_id: &str,
         count_query: &str,
     ) -> ApiResult<u64> {
-        todo!()
+        let policy_service: &dyn IPolicyService = context.services().resolve_ref();
+        let count_policies_result = policy_service.count_policies(&realm_id, &count_query).await;
+
+        match count_policies_result {
+            Ok(res) => ApiResult::<u64>::from_data(res),
+            Err(err) => ApiResult::from_error(500, "500", &err),
+        }
     }
 
     pub async fn search_policies_by_query(
@@ -1379,7 +1651,33 @@ impl AuthorizationModelApi {
         realm_id: &str,
         search_query: &str,
     ) -> ApiResult<Vec<PolicyModel>> {
-        todo!()
+        let policy_service: &dyn IPolicyService = context.services().resolve_ref();
+        let loaded_policies = policy_service
+            .search_policies(&realm_id, &search_query)
+            .await;
+
+        match loaded_policies {
+            Ok(resources) => {
+                log::info!(
+                    "[{}] policies loaded for realm: {}",
+                    resources.len(),
+                    &realm_id
+                );
+                if resources.is_empty() {
+                    ApiResult::no_content()
+                } else {
+                    ApiResult::from_data(resources)
+                }
+            }
+            Err(err) => {
+                log::error!(
+                    "Failed to load policies for realm: {} and query: {}",
+                    &realm_id,
+                    &search_query,
+                );
+                ApiResult::from_error(500, "500", &err)
+            }
+        }
     }
 
     pub async fn delete_policy_by_id(
@@ -1387,7 +1685,48 @@ impl AuthorizationModelApi {
         realm_id: &str,
         server_id: &str,
         policy_id: &str,
-    ) -> ApiResult<Vec<PolicyModel>> {
-        todo!()
+    ) -> ApiResult {
+        let resource_server_server: &dyn IResourceServerService = context.services().resolve_ref();
+        let existing_resource_server = resource_server_server
+            .resource_server_exists_by_id(&realm_id, &server_id)
+            .await;
+        if let Ok(response) = existing_resource_server {
+            if !response {
+                log::error!(
+                    "Resource server: {} does not  exists in realm: {}",
+                    &policy_id,
+                    &realm_id
+                );
+                return ApiResult::from_error(409, "500", "Resource server does not exists");
+            }
+        }
+
+        let policy_service: &dyn IPolicyService = context.services().resolve_ref();
+        let existing_policy = policy_service
+            .policy_exists_by_id(&realm_id, &server_id, &policy_id)
+            .await;
+        if let Ok(response) = existing_resource_server {
+            if !response {
+                log::error!(
+                    "Policy: {} does not exists in realm: {}, server: {}",
+                    &policy_id,
+                    &realm_id,
+                    &server_id
+                );
+                return ApiResult::from_error(
+                    404,
+                    "500",
+                    format!("Policy: {0} does not exists", policy_id).as_str(),
+                );
+            }
+        }
+
+        let deleted_policy = policy_service
+            .delete_policy_by_id(&realm_id, &server_id, &policy_id)
+            .await;
+        match deleted_policy {
+            Ok(_) => ApiResult::no_content(),
+            Err(err) => ApiResult::from_error(404, "500", &err),
+        }
     }
 }

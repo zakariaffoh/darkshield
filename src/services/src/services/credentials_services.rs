@@ -210,33 +210,16 @@ impl IUserCredentialStore for UserCredentialStore {
             credential.credential_id = uuid::Uuid::new_v4().to_string();
         }
 
-        let mut credential_metadata = credential.metadata.as_ref().clone();
-        match &mut credential_metadata {
-            Some(res) => {
-                let mut metadata = AuditableModel {
-                    tenant: res.tenant.clone(),
-                    created_by: None,
-                    created_at: None,
-                    updated_by: None,
-                    updated_at: None,
-                    version: res.version,
-                };
+        if credential.metadata.tenant.is_empty() {
+            credential.metadata.tenant = user.metadata.tenant.clone();
+        }
 
-                if res.created_by.is_none() {
-                    metadata.created_by = Some(user.user_name.clone());
-                }
+        if credential.metadata.created_by.is_none() {
+            credential.metadata.created_by = Some(user.user_name.clone());
+        }
 
-                if res.created_at.is_none() {
-                    metadata.created_at = Some(Utc::now());
-                }
-                credential.metadata = Some(metadata);
-            }
-            None => {
-                credential.metadata = AuditableModel::from_creator(
-                    user.metadata.as_ref().unwrap().tenant.clone(),
-                    user.user_name.clone(),
-                )
-            }
+        if credential.metadata.created_at.is_none() {
+            credential.metadata.created_at = Some(Utc::now());
         }
         self.credential_provider
             .create_credential(&realm.realm_id, &user.user_id, credential)
@@ -268,18 +251,8 @@ impl IUserCredentialStore for UserCredentialStore {
         credential.user_label = cred.user_label.clone();
         credential.secret_data = cred.secret_data.clone();
 
-        match &mut credential.metadata {
-            Some(data) => {
-                data.updated_by = Some(user.user_name.to_string());
-                data.updated_at = Some(Utc::now());
-            }
-            None => {
-                credential.metadata = AuditableModel::from_updator(
-                    user.metadata.as_ref().unwrap().tenant.clone(),
-                    user.user_name.to_string(),
-                )
-            }
-        }
+        credential.metadata.updated_by = Some(user.user_name.to_string());
+        credential.metadata.updated_at = Some(Utc::now());
         self.credential_provider
             .update_credential(&realm.realm_id, &user.user_id, &credential)
             .await
@@ -1235,13 +1208,7 @@ impl PasswordHistoryPolicyProvider {
         limit: Option<usize>,
     ) -> Result<bool, String> {
         let mut password_history = password_history;
-        password_history.sort_by(|x, y| {
-            x.metadata
-                .as_ref()
-                .unwrap()
-                .created_at
-                .cmp(&y.metadata.as_ref().unwrap().created_at)
-        });
+        password_history.sort_by(|x, y| x.metadata.created_at.cmp(&y.metadata.created_at));
 
         let mut credentials_to_check: Vec<CredentialModel> = Vec::new();
         if limit.is_some() {

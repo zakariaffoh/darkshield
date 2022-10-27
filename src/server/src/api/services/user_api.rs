@@ -1,15 +1,18 @@
 use crate::context::DarkShieldContext;
 use ::services::services::credentials_services::IUserCredentialService;
 use commons::{validation::EmailValidator, ApiResult};
-use models::entities::{
-    auth::{RequiredActionEnum, RequiredActionModel},
-    authz::{GroupModel, GroupPagingResult, RoleModel},
-    credentials::{
-        CredentialRepresentation, CredentialTypeEnum, CredentialViewRepresentation,
-        PasswordCredentialModel, UserCredentialModel,
+use models::{
+    auditable::AuditableModel,
+    entities::{
+        auth::{RequiredActionEnum, RequiredActionModel},
+        authz::{GroupModel, GroupPagingResult, RoleModel},
+        credentials::{
+            CredentialRepresentation, CredentialTypeEnum, CredentialViewRepresentation,
+            PasswordCredentialModel, UserCredentialModel,
+        },
+        realm::{RealmModel, HASH_ALGORITHM_DEFAULT},
+        user::{UserCreateModel, UserModel, UserProfileHelper, UserStorageEnum},
     },
-    realm::{RealmModel, HASH_ALGORITHM_DEFAULT},
-    user::{UserCreateModel, UserModel, UserProfileHelper, UserStorageEnum},
 };
 use services::services::{
     auth_services::IRequiredActionService,
@@ -188,7 +191,7 @@ impl UserApi {
             attributes: user_create.attributes.clone(),
             is_service_account: user_create.is_service_account,
             service_account_client_link: user_create.service_account_client_link.clone(),
-            metadata: None,
+            metadata: AuditableModel::default(),
         };
 
         if let Err(err) = UserProfileHelper::validate_user_profile_and_attributes(&realm, &user) {

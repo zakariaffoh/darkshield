@@ -47,14 +47,14 @@ impl RdsUserProvider {
             attributes: attributes,
             is_service_account: row.get("is_service_account"),
             service_account_client_link: row.get("service_account_client_link"),
-            metadata: Some(AuditableModel {
+            metadata: AuditableModel {
                 tenant: row.get("tenant"),
                 created_by: row.get("created_by"),
                 updated_by: row.get("updated_by"),
                 created_at: row.get("created_at"),
                 updated_at: row.get("updated_at"),
                 version: row.get("version"),
-            }),
+            },
         }
     }
 }
@@ -74,7 +74,7 @@ impl IUserProvider for RdsUserProvider {
             .unwrap();
 
         let client = client.unwrap();
-        let metadata = user.metadata.as_ref().unwrap();
+        let metadata = user.metadata.unwrap();
         let response = client
             .execute(
                 &create_user_sql,
@@ -117,7 +117,7 @@ impl IUserProvider for RdsUserProvider {
             .unwrap();
 
         let client = client.unwrap();
-        let metadata = user.metadata.as_ref().unwrap();
+        let metadata = user.metadata.unwrap();
 
         let response = client
             .execute(
