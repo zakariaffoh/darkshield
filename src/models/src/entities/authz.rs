@@ -4,7 +4,11 @@ use crate::auditable::AuditableModel;
 use postgres_types::{FromSql, ToSql};
 use serde::{Deserialize, Serialize};
 
-use super::{attributes::AttributesMap, client::ClientScopeModel, user::UserModel};
+use super::{
+    attributes::AttributesMap,
+    client::{ClientModel, ClientScopeModel},
+    user::UserModel,
+};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Permission {
@@ -308,10 +312,10 @@ pub enum DecisionLogicEnum {
 
 #[derive(Serialize, Deserialize)]
 pub struct PolicyModel {
-    pub policy_type: PolicyTypeEnum,
     pub policy_id: String,
     pub server_id: String,
     pub realm_id: String,
+    pub policy_type: PolicyTypeEnum,
     pub name: String,
     pub description: String,
     pub decision: DecisionStrategyEnum,
@@ -328,6 +332,7 @@ pub struct PolicyModel {
     pub users: Option<Vec<UserModel>>,
     pub script: Option<String>,
     pub client_scopes: Option<Vec<ClientScopeModel>>,
+    pub clients: Option<Vec<ClientModel>>,
     pub resource_type: Option<String>,
     pub metadata: AuditableModel,
 }
@@ -371,8 +376,8 @@ pub struct TimePolicyConfig {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GroupPolicyConfig {
-    pub group_claim: Option<String>,
-    pub groups: Option<Vec<GroupModel>>,
+    pub group_claim: String,
+    pub groups: Vec<GroupModel>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

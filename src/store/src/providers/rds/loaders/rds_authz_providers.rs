@@ -7,16 +7,22 @@ use crate::providers::{
     },
 };
 use async_trait::async_trait;
-use deadpool_postgres::Object;
+use deadpool_postgres::{Object, Transaction};
 use log;
 use models::{
     auditable::AuditableModel,
     entities::{attributes::AttributesMap, authz::*},
 };
-use serde_json::json;
+use postgres_types::ToSql;
+use serde_json::{json, Map, Value};
 use shaku::Component;
-use std::sync::Arc;
+use std::{collections::BTreeMap, sync::Arc};
 use tokio_postgres::Row;
+
+use super::{
+    rds_client_provider::{RdsClientProvider, RdsClientScopeProvider},
+    rds_user_provider::RdsUserProvider,
+};
 
 #[allow(dead_code)]
 #[derive(Component)]
@@ -27,7 +33,7 @@ pub struct RdsRoleProvider {
 }
 
 impl RdsRoleProvider {
-    pub fn read_record(&self, row: &Row) -> RoleModel {
+    pub fn read_record(row: &Row) -> RoleModel {
         RoleModel {
             role_id: row.get("role_id"),
             realm_id: row.get("realm_id"),
@@ -43,6 +49,22 @@ impl RdsRoleProvider {
                 updated_at: row.get("updated_at"),
                 version: row.get("version"),
             },
+        }
+    }
+
+    pub async fn load_roles_by_query(
+        client: &Object,
+        query: &str,
+        params: &[&(dyn ToSql + Sync)],
+    ) -> Result<Vec<RoleModel>, String> {
+        let load_roles_stmt = client.prepare_cached(query).await.unwrap();
+        let result = client.query(&load_roles_stmt, params).await;
+        match result {
+            Ok(rows) => Ok(rows
+                .iter()
+                .map(|row| RdsRoleProvider::read_record(&row))
+                .collect()),
+            Err(err) => Err(err.to_string()),
         }
     }
 }
@@ -166,7 +188,10 @@ impl IRoleProvider for RdsRoleProvider {
             .query(&load_roles_stmt, &[&realm_id, &roles_ids])
             .await;
         match result {
-            Ok(rows) => Ok(rows.iter().map(|row| self.read_record(&row)).collect()),
+            Ok(rows) => Ok(rows
+                .iter()
+                .map(|row| RdsRoleProvider::read_record(&row))
+                .collect()),
             Err(err) => Err(err.to_string()),
         }
     }
@@ -186,7 +211,10 @@ impl IRoleProvider for RdsRoleProvider {
         let load_roles_stmt = client.prepare_cached(&load_roles_sql).await.unwrap();
         let result = client.query(&load_roles_stmt, &[&realm_id]).await;
         match result {
-            Ok(rows) => Ok(rows.iter().map(|row| self.read_record(&row)).collect()),
+            Ok(rows) => Ok(rows
+                .iter()
+                .map(|row| RdsRoleProvider::read_record(&row))
+                .collect()),
             Err(err) => Err(err.to_string()),
         }
     }
@@ -216,7 +244,7 @@ impl IRoleProvider for RdsRoleProvider {
         match &result {
             Ok(row) => {
                 if let Some(r) = row {
-                    Ok(Some(self.read_record(r)))
+                    Ok(Some(RdsRoleProvider::read_record(r)))
                 } else {
                     Ok(None)
                 }
@@ -283,7 +311,7 @@ impl IRoleProvider for RdsRoleProvider {
         match &result {
             Ok(row) => {
                 if let Some(r) = row {
-                    Ok(Some(self.read_record(r)))
+                    Ok(Some(RdsRoleProvider::read_record(r)))
                 } else {
                     Ok(None)
                 }
@@ -317,7 +345,7 @@ impl IRoleProvider for RdsRoleProvider {
         match &result {
             Ok(row) => {
                 if let Some(r) = row {
-                    Ok(Some(self.read_record(r)))
+                    Ok(Some(RdsRoleProvider::read_record(r)))
                 } else {
                     Ok(None)
                 }
@@ -444,7 +472,10 @@ impl IRoleProvider for RdsRoleProvider {
             .query(&load_roles_stmt, &[&realm_id, &client_id])
             .await;
         match result {
-            Ok(rows) => Ok(rows.iter().map(|row| self.read_record(&row)).collect()),
+            Ok(rows) => Ok(rows
+                .iter()
+                .map(|row| RdsRoleProvider::read_record(&row))
+                .collect()),
             Err(err) => Err(err.to_string()),
         }
     }
@@ -465,7 +496,10 @@ impl IRoleProvider for RdsRoleProvider {
             .unwrap();
         let result = client.query(&load_roles_stmt, &[&realm_id, &user_id]).await;
         match result {
-            Ok(rows) => Ok(rows.iter().map(|row| self.read_record(&row)).collect()),
+            Ok(rows) => Ok(rows
+                .iter()
+                .map(|row| RdsRoleProvider::read_record(&row))
+                .collect()),
             Err(err) => Err(err.to_string()),
         }
     }
@@ -479,7 +513,7 @@ pub struct RdsGroupProvider {
 }
 
 impl RdsGroupProvider {
-    fn read_record(&self, row: Row, roles: Vec<RoleModel>) -> GroupModel {
+    fn read_record(row: Row, roles: Vec<RoleModel>) -> GroupModel {
         GroupModel {
             group_id: row.get("group_id"),
             realm_id: row.get("realm_id"),
@@ -500,7 +534,6 @@ impl RdsGroupProvider {
     }
 
     async fn read_group_roles(
-        &self,
         client: &Object,
         realm_id: &str,
         group_id: &str,
@@ -515,15 +548,41 @@ impl RdsGroupProvider {
 
         match &roles_rows {
             Ok(rs) => {
-                let role_mapper = RdsRoleProvider {
-                    database_manager: self.database_manager.clone(),
-                };
                 let roles: Vec<RoleModel> = roles_rows
                     .unwrap()
                     .iter()
-                    .map(|r| role_mapper.read_record(&r))
+                    .map(|r| RdsRoleProvider::read_record(&r))
                     .collect();
                 Ok(roles)
+            }
+            Err(err) => Err(err.to_string()),
+        }
+    }
+
+    async fn load_group_by_query(
+        client: &Object,
+        query: &str,
+        params: &[&(dyn ToSql + Sync)],
+    ) -> Result<Vec<GroupModel>, String> {
+        let load_groups_stmt = client.prepare_cached(query).await.unwrap();
+        let result = client.query(&load_groups_stmt, params).await;
+        match result {
+            Ok(rows) => {
+                let mut groups = Vec::new();
+                for r in rows {
+                    let roles_records = RdsGroupProvider::read_group_roles(
+                        &client,
+                        &r.get::<&str, &str>("realm_id"),
+                        &r.get::<&str, &str>("group_id"),
+                    )
+                    .await;
+                    if roles_records.is_ok() {
+                        groups.push(RdsGroupProvider::read_record(r, roles_records.unwrap()));
+                    } else {
+                        return Err(roles_records.err().unwrap());
+                    }
+                }
+                Ok(groups)
             }
             Err(err) => Err(err.to_string()),
         }
@@ -673,9 +732,10 @@ impl IGroupProvider for RdsGroupProvider {
             Ok(row) => {
                 if let Some(r) = row {
                     let group_id = r.get::<&str, String>("group_id");
-                    let roles_records = self.read_group_roles(&client, realm_id, &group_id).await;
+                    let roles_records =
+                        RdsGroupProvider::read_group_roles(&client, realm_id, &group_id).await;
                     match roles_records {
-                        Ok(roles) => Ok(Some(self.read_record(r, roles))),
+                        Ok(roles) => Ok(Some(RdsGroupProvider::read_record(r, roles))),
                         Err(err) => Err(err),
                     }
                 } else {
@@ -712,9 +772,10 @@ impl IGroupProvider for RdsGroupProvider {
             Ok(row) => {
                 if let Some(r) = row {
                     let group_id = r.get::<&str, String>("group_id");
-                    let roles_records = self.read_group_roles(&client, realm_id, &group_id).await;
+                    let roles_records =
+                        RdsGroupProvider::read_group_roles(&client, realm_id, &group_id).await;
                     match roles_records {
-                        Ok(roles) => Ok(Some(self.read_record(r, roles))),
+                        Ok(roles) => Ok(Some(RdsGroupProvider::read_record(r, roles))),
                         Err(err) => Err(err),
                     }
                 } else {
@@ -763,11 +824,14 @@ impl IGroupProvider for RdsGroupProvider {
             Ok(rows) => {
                 let mut groups = Vec::new();
                 for r in rows {
-                    let roles_records = self
-                        .read_group_roles(&client, realm_id, &r.get::<&str, &str>("group_id"))
-                        .await;
+                    let roles_records = RdsGroupProvider::read_group_roles(
+                        &client,
+                        realm_id,
+                        &r.get::<&str, &str>("group_id"),
+                    )
+                    .await;
                     if roles_records.is_ok() {
-                        groups.push(self.read_record(r, roles_records.unwrap()));
+                        groups.push(RdsGroupProvider::read_record(r, roles_records.unwrap()));
                     } else {
                         return Err(roles_records.err().unwrap());
                     }
@@ -896,11 +960,14 @@ impl IGroupProvider for RdsGroupProvider {
             Ok(rows) => {
                 let mut groups = Vec::new();
                 for r in rows {
-                    let roles_records = self
-                        .read_group_roles(&client, realm_id, &r.get::<&str, &str>("group_id"))
-                        .await;
+                    let roles_records = RdsGroupProvider::read_group_roles(
+                        &client,
+                        realm_id,
+                        &r.get::<&str, &str>("group_id"),
+                    )
+                    .await;
                     if roles_records.is_ok() {
-                        groups.push(self.read_record(r, roles_records.unwrap()));
+                        groups.push(RdsGroupProvider::read_record(r, roles_records.unwrap()));
                     } else {
                         return Err(roles_records.err().unwrap());
                     }
@@ -950,11 +1017,14 @@ impl IGroupProvider for RdsGroupProvider {
             Ok(rows) => {
                 let mut groups = Vec::new();
                 for r in rows {
-                    let roles_records = self
-                        .read_group_roles(&client, realm_id, &r.get::<&str, &str>("group_id"))
-                        .await;
+                    let roles_records = RdsGroupProvider::read_group_roles(
+                        &client,
+                        realm_id,
+                        &r.get::<&str, &str>("group_id"),
+                    )
+                    .await;
                     if roles_records.is_ok() {
-                        groups.push(self.read_record(r, roles_records.unwrap()));
+                        groups.push(RdsGroupProvider::read_record(r, roles_records.unwrap()));
                     } else {
                         return Err(roles_records.err().unwrap());
                     }
@@ -1562,7 +1632,7 @@ pub struct RdsResourceProvider {
 }
 
 impl RdsResourceProvider {
-    fn read_record(&self, row: &Row) -> ResourceModel {
+    fn read_record(row: &Row) -> ResourceModel {
         let configs =
             serde_json::from_value::<AttributesMap>(row.get::<&str, serde_json::Value>("configs"))
                 .map_or_else(|_| None, |p| Some(p));
@@ -1587,6 +1657,22 @@ impl RdsResourceProvider {
                 updated_at: row.get("updated_at"),
                 version: row.get("version"),
             },
+        }
+    }
+
+    async fn load_resources_by_query(
+        client: &Object,
+        query: &str,
+        params: &[&(dyn ToSql + Sync)],
+    ) -> Result<Vec<ResourceModel>, String> {
+        let load_resources_stmt = client.prepare_cached(&query).await.unwrap();
+        let result = client.query(&load_resources_stmt, params).await;
+        match result {
+            Ok(rows) => Ok(rows
+                .iter()
+                .map(|row| RdsResourceProvider::read_record(&row))
+                .collect()),
+            Err(err) => Err(err.to_string()),
         }
     }
 }
@@ -1718,7 +1804,7 @@ impl IResourceProvider for RdsResourceProvider {
         match &result {
             Ok(row) => {
                 if let Some(r) = row {
-                    Ok(Some(self.read_record(r)))
+                    Ok(Some(RdsResourceProvider::read_record(r)))
                 } else {
                     Ok(None)
                 }
@@ -1804,7 +1890,10 @@ impl IResourceProvider for RdsResourceProvider {
         let load_resources_stmt = client.prepare_cached(&load_resources_sql).await.unwrap();
         let result = client.query(&load_resources_stmt, &[&realm_id]).await;
         match result {
-            Ok(rows) => Ok(rows.iter().map(|row| self.read_record(&row)).collect()),
+            Ok(rows) => Ok(rows
+                .iter()
+                .map(|row| RdsResourceProvider::read_record(&row))
+                .collect()),
             Err(err) => Err(err.to_string()),
         }
     }
@@ -1833,7 +1922,10 @@ impl IResourceProvider for RdsResourceProvider {
             .query(&load_resources_stmt, &[&realm_id, &server_id])
             .await;
         match result {
-            Ok(rows) => Ok(rows.iter().map(|row| self.read_record(&row)).collect()),
+            Ok(rows) => Ok(rows
+                .iter()
+                .map(|row| RdsResourceProvider::read_record(&row))
+                .collect()),
             Err(err) => Err(err.to_string()),
         }
     }
@@ -1977,7 +2069,7 @@ pub struct RdsScopeProvider {
 }
 
 impl RdsScopeProvider {
-    fn read_record(&self, row: &Row) -> ScopeModel {
+    fn read_record(row: &Row) -> ScopeModel {
         ScopeModel {
             scope_id: row.get("scope_id"),
             server_id: row.get("server_id"),
@@ -1993,6 +2085,23 @@ impl RdsScopeProvider {
                 updated_at: row.get("updated_at"),
                 version: row.get("version"),
             },
+        }
+    }
+
+    async fn load_scope_by_query(
+        client: &Object,
+        query: &str,
+        params: &[&(dyn ToSql + Sync)],
+    ) -> Result<Vec<ScopeModel>, String> {
+        let load_scopes_stmt = client.prepare_cached(&query).await.unwrap();
+        let result = client.query(&load_scopes_stmt, params).await;
+
+        match result {
+            Ok(rows) => Ok(rows
+                .iter()
+                .map(|row| RdsScopeProvider::read_record(&row))
+                .collect()),
+            Err(err) => Err(err.to_string()),
         }
     }
 }
@@ -2114,7 +2223,7 @@ impl IScopeProvider for RdsScopeProvider {
         match &result {
             Ok(row) => {
                 if let Some(r) = row {
-                    Ok(Some(self.read_record(r)))
+                    Ok(Some(RdsScopeProvider::read_record(r)))
                 } else {
                     Ok(None)
                 }
@@ -2139,7 +2248,10 @@ impl IScopeProvider for RdsScopeProvider {
         let result = client.query(&load_scopes_stmt, &[&realm_id]).await;
 
         match result {
-            Ok(rows) => Ok(rows.iter().map(|row| self.read_record(&row)).collect()),
+            Ok(rows) => Ok(rows
+                .iter()
+                .map(|row| RdsScopeProvider::read_record(&row))
+                .collect()),
             Err(err) => Err(err.to_string()),
         }
     }
@@ -2169,7 +2281,10 @@ impl IScopeProvider for RdsScopeProvider {
             .await;
 
         match result {
-            Ok(rows) => Ok(rows.iter().map(|row| self.read_record(&row)).collect()),
+            Ok(rows) => Ok(rows
+                .iter()
+                .map(|row| RdsScopeProvider::read_record(&row))
+                .collect()),
             Err(err) => Err(err.to_string()),
         }
     }
@@ -2279,23 +2394,124 @@ impl IScopeProvider for RdsScopeProvider {
 #[shaku(interface = IPolicyProvider)]
 pub struct RdsPolicyProvider {
     #[shaku(inject)]
-    pub database_manager: Arc<dyn IDataBaseManager>,
-}
-
-impl RdsPolicyProvider {
-    pub fn read_record(&self, row: &Row) -> PolicyModel {
-        todo!()
-    }
+    database_manager: Arc<dyn IDataBaseManager>,
 }
 
 #[async_trait]
 impl IPolicyProvider for RdsPolicyProvider {
     async fn create_policy(&self, policy: &PolicyModel) -> Result<(), String> {
-        todo!()
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+
+        let create_policy_sql = InsertRequestBuilder::new()
+            .table_name(authz_tables::POLICIES_TABLE.table_name.clone())
+            .columns(authz_tables::POLICIES_TABLE.insert_columns.clone())
+            .resolve_conflict(false)
+            .sql_query()
+            .unwrap();
+
+        let mut client = client.unwrap();
+
+        let transaction = client.transaction().await;
+
+        let mut attributes_maps: Map<String, Value> = Map::new();
+
+        match transaction {
+            Ok(trx) => {
+                self.associated_attributes_map(&policy, &mut attributes_maps);
+                trx.execute(
+                    &create_policy_sql,
+                    &[
+                        &policy.metadata.tenant,
+                        &policy.policy_id,
+                        &policy.realm_id,
+                        &policy.server_id,
+                        &policy.name,
+                        &policy.description,
+                        &policy.policy_type,
+                        &policy.decision,
+                        &policy.logic,
+                        &policy.policy_owner,
+                        &json!(policy.configs),
+                        &json!(attributes_maps),
+                        &policy.metadata.created_by,
+                        &policy.metadata.created_at,
+                        &policy.metadata.version,
+                    ],
+                )
+                .await
+                .unwrap();
+
+                match self.save_policies_associated_entities(&trx, &policy).await {
+                    Ok(_) => {}
+                    Err(err) => return Err(err.to_string()),
+                }
+
+                trx.commit().await.unwrap();
+                Ok(())
+            }
+            Err(err) => Err(err.to_string()),
+        }
     }
 
     async fn udpate_policy(&self, policy: &PolicyModel) -> Result<(), String> {
-        todo!()
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+
+        let udpate_policy_sql = UpdateRequestBuilder::new()
+            .table_name(authz_tables::POLICIES_TABLE.table_name.clone())
+            .columns(authz_tables::POLICIES_TABLE.update_columns.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("server_id".to_string()),
+                SqlCriteriaBuilder::is_equals("policy_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let mut client = client.unwrap();
+
+        let transaction = client.transaction().await;
+
+        let mut attributes_maps: Map<String, Value> = Map::new();
+
+        match transaction {
+            Ok(trx) => {
+                self.associated_attributes_map(&policy, &mut attributes_maps);
+                trx.execute(
+                    &udpate_policy_sql,
+                    &[
+                        &policy.name,
+                        &policy.description,
+                        &policy.policy_type,
+                        &policy.decision,
+                        &policy.logic,
+                        &policy.policy_owner,
+                        &json!(policy.configs),
+                        &json!(attributes_maps),
+                        &policy.metadata.updated_by,
+                        &policy.metadata.updated_at,
+                        &policy.realm_id,
+                        &policy.server_id,
+                        &policy.policy_id,
+                    ],
+                )
+                .await
+                .unwrap();
+
+                match self.save_policies_associated_entities(&trx, &policy).await {
+                    Ok(_) => {}
+                    Err(err) => return Err(err.to_string()),
+                }
+                trx.commit().await.unwrap();
+                Ok(())
+            }
+            Err(err) => Err(err.to_string()),
+        }
     }
 
     async fn load_policy_by_id(
@@ -2304,7 +2520,53 @@ impl IPolicyProvider for RdsPolicyProvider {
         server_id: &str,
         policy_id: &str,
     ) -> Result<Option<PolicyModel>, String> {
-        todo!()
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let load_policy_sql = SelectRequestBuilder::new()
+            .table_name(authz_tables::POLICIES_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("server_id".to_string()),
+                SqlCriteriaBuilder::is_equals("policy_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let client = client.unwrap();
+        let load_policy_stmt = client.prepare_cached(&load_policy_sql).await.unwrap();
+        let result = client
+            .query_opt(&load_policy_stmt, &[&realm_id, &server_id, &policy_id])
+            .await;
+
+        match result {
+            Ok(result_row) => match result_row {
+                Some(row) => {
+                    let mut policy = self.read_record(&row);
+                    let attributes_map: Map<String, Value> =
+                        serde_json::from_value(row.get::<&str, Value>("attributes")).unwrap();
+
+                    if let Err(err) = self
+                        .load_policy_associated_entities(
+                            &client,
+                            &realm_id,
+                            &server_id,
+                            &policy_id,
+                            &mut policy,
+                            attributes_map,
+                        )
+                        .await
+                    {
+                        Err(err)
+                    } else {
+                        return Ok(Some(policy));
+                    }
+                }
+                _ => Ok(None),
+            },
+            Err(err) => Err(err.to_string()),
+        }
     }
 
     async fn load_policy_scopes_by_id(
@@ -2312,8 +2574,17 @@ impl IPolicyProvider for RdsPolicyProvider {
         realm_id: &str,
         server_id: &str,
         policy_id: &str,
-    ) -> Result<Vec<PolicyModel>, String> {
-        todo!()
+    ) -> Result<Vec<ScopeModel>, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        RdsScopeProvider::load_scope_by_query(
+            &client.unwrap(),
+            &authz_tables::SELECT_SCOPES_BY_POLICY_ID,
+            &[&realm_id, &server_id, &policy_id],
+        )
+        .await
     }
 
     async fn load_policy_resources_by_id(
@@ -2321,36 +2592,95 @@ impl IPolicyProvider for RdsPolicyProvider {
         realm_id: &str,
         server_id: &str,
         policy_id: &str,
-    ) -> Result<Vec<PolicyModel>, String> {
-        todo!()
+    ) -> Result<Vec<ResourceModel>, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        RdsResourceProvider::load_resources_by_query(
+            &client.unwrap(),
+            &authz_tables::SELECT_RESOURCES_BY_POLICY_ID,
+            &[&realm_id, &server_id, &policy_id],
+        )
+        .await
     }
 
     async fn load_associated_policies_by_policy_id(
         &self,
         realm_id: &str,
         server_id: &str,
-        scope_id: &str,
+        policy_id: &str,
     ) -> Result<Vec<PolicyModel>, String> {
-        todo!()
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        self.load_associated_policies(&client.unwrap(), &realm_id, &server_id, &policy_id)
+            .await
     }
 
     async fn load_policies_by_server_id(
         &self,
         realm_id: &str,
         server_id: &str,
-        name: &str,
     ) -> Result<Vec<PolicyModel>, String> {
-        todo!()
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let load_policies_sql = SelectRequestBuilder::new()
+            .table_name(authz_tables::POLICIES_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("server_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let client = client.unwrap();
+        let load_policies_stmt = client.prepare_cached(&load_policies_sql).await.unwrap();
+        let results = client
+            .query(&load_policies_stmt, &[&realm_id, &server_id])
+            .await;
+
+        match results {
+            Ok(result_rows) => {
+                let mut policies = Vec::new();
+                for row in result_rows {
+                    let mut policy = self.read_record(&row);
+                    let attributes_map: Map<String, Value> =
+                        serde_json::from_value(row.get::<&str, Value>("attributes")).unwrap();
+
+                    if let Err(err) = self
+                        .load_policy_associated_entities(
+                            &client,
+                            &realm_id,
+                            &server_id,
+                            &policy.policy_id.to_owned(),
+                            &mut policy,
+                            attributes_map,
+                        )
+                        .await
+                    {
+                        return Err(err);
+                    } else {
+                        policies.push(policy);
+                    }
+                }
+                return Ok(policies);
+            }
+            Err(err) => Err(err.to_string()),
+        }
     }
 
-    async fn count_policies(&self, realm_id: &str, server_id: &str) -> Result<u64, String> {
+    async fn count_policies(&self, _realm_id: &str, _server_id: &str) -> Result<u64, String> {
         todo!()
     }
 
     async fn search_policies(
         &self,
-        realm_id: &str,
-        search_query: &str,
+        _realm_id: &str,
+        _search_query: &str,
     ) -> Result<Vec<PolicyModel>, String> {
         todo!()
     }
@@ -2361,6 +2691,789 @@ impl IPolicyProvider for RdsPolicyProvider {
         server_id: &str,
         policy_id: &str,
     ) -> Result<bool, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let mut client = client.unwrap();
+
+        let remove_policy_sql = DeleteQueryBuilder::new()
+            .table_name(authz_tables::POLICIES_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("server_id".to_string()),
+                SqlCriteriaBuilder::is_equals("policy_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let remove_policy_roles_sql = DeleteQueryBuilder::new()
+            .table_name(authz_tables::ROLES_POLICIES_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("server_id".to_string()),
+                SqlCriteriaBuilder::is_equals("policy_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let remove_policy_groups_sql = DeleteQueryBuilder::new()
+            .table_name(authz_tables::GROUPS_POLICIES_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("server_id".to_string()),
+                SqlCriteriaBuilder::is_equals("policy_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let remove_policy_clients_sql = DeleteQueryBuilder::new()
+            .table_name(authz_tables::CLIENTS_POLICIES_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("server_id".to_string()),
+                SqlCriteriaBuilder::is_equals("policy_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let remove_policy_scopes_sql = DeleteQueryBuilder::new()
+            .table_name(authz_tables::SCOPES_POLICIES_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("server_id".to_string()),
+                SqlCriteriaBuilder::is_equals("policy_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let remove_policy_resources_sql = DeleteQueryBuilder::new()
+            .table_name(authz_tables::RESOURCES_POLICIES_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("server_id".to_string()),
+                SqlCriteriaBuilder::is_equals("policy_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let remove_policy_clients_scopes_sql = DeleteQueryBuilder::new()
+            .table_name(
+                authz_tables::CLIENTS_SCOPES_POLICIES_TABLE
+                    .table_name
+                    .clone(),
+            )
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("server_id".to_string()),
+                SqlCriteriaBuilder::is_equals("policy_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let remove_policy_users_sql = DeleteQueryBuilder::new()
+            .table_name(authz_tables::USERS_POLICIES_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("server_id".to_string()),
+                SqlCriteriaBuilder::is_equals("policy_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let remove_associated_policy_sql = DeleteQueryBuilder::new()
+            .table_name(authz_tables::POLICIES_POLICIES_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("server_id".to_string()),
+                SqlCriteriaBuilder::is_equals("policy_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let transaction = client.transaction().await;
+        match transaction {
+            Ok(trx) => {
+                trx.execute(
+                    &remove_policy_users_sql,
+                    &[&realm_id, &server_id, &policy_id],
+                )
+                .await
+                .unwrap();
+
+                trx.execute(
+                    &remove_policy_scopes_sql,
+                    &[&realm_id, &server_id, &policy_id],
+                )
+                .await
+                .unwrap();
+
+                trx.execute(
+                    &remove_policy_resources_sql,
+                    &[&realm_id, &server_id, &policy_id],
+                )
+                .await
+                .unwrap();
+
+                trx.execute(
+                    &remove_policy_roles_sql,
+                    &[&realm_id, &server_id, &policy_id],
+                )
+                .await
+                .unwrap();
+
+                trx.execute(
+                    &remove_policy_groups_sql,
+                    &[&realm_id, &server_id, &policy_id],
+                )
+                .await
+                .unwrap();
+
+                trx.execute(
+                    &remove_policy_clients_sql,
+                    &[&realm_id, &server_id, &policy_id],
+                )
+                .await
+                .unwrap();
+
+                trx.execute(
+                    &remove_policy_clients_scopes_sql,
+                    &[&realm_id, &server_id, &policy_id],
+                )
+                .await
+                .unwrap();
+
+                trx.execute(
+                    &remove_associated_policy_sql,
+                    &[&realm_id, &server_id, &policy_id],
+                )
+                .await
+                .unwrap();
+
+                trx.execute(&remove_policy_sql, &[&realm_id, &server_id, &policy_id])
+                    .await
+                    .unwrap();
+
+                return Ok(true);
+            }
+            Err(err) => Err(err.to_string()),
+        }
+    }
+}
+
+impl RdsPolicyProvider {
+    pub fn read_record(&self, row: &Row) -> PolicyModel {
+        let configs = serde_json::from_value::<BTreeMap<String, String>>(
+            row.get::<&str, serde_json::Value>("configs"),
+        )
+        .map_or_else(|_| None, |p| Some(p));
+
+        PolicyModel {
+            policy_id: row.get("policy_id"),
+            server_id: row.get("server_id"),
+            realm_id: row.get("realm_id"),
+            policy_type: row.get("policy_type"),
+            name: row.get("name"),
+            description: row.get("description"),
+            decision: row.get("decision"),
+            logic: row.get("logic"),
+            policy_owner: row.get("policy_owner"),
+            configs: configs,
+            policies: None,
+            resources: None,
+            scopes: None,
+            roles: None,
+            groups: None,
+            regex: None,
+            time: None,
+            users: None,
+            script: None,
+            client_scopes: None,
+            clients: None,
+            resource_type: None,
+            metadata: AuditableModel {
+                tenant: row.get("tenant"),
+                created_by: row.get("created_by"),
+                updated_by: row.get("updated_by"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+                version: row.get("version"),
+            },
+        }
+    }
+
+    fn associated_attributes_map(
+        &self,
+        policy: &PolicyModel,
+        attributes_maps: &mut Map<String, Value>,
+    ) {
+        if let Some(groups) = &policy.groups {
+            attributes_maps.insert(
+                "group_claim".to_owned(),
+                Value::String(groups.group_claim.clone()),
+            );
+        }
+
+        if let Some(regex) = &policy.regex {
+            attributes_maps.insert(
+                "target_regex".to_owned(),
+                Value::String(regex.target_regex.clone()),
+            );
+            attributes_maps.insert(
+                "target_claim".to_owned(),
+                Value::String(regex.target_claim.clone()),
+            );
+        }
+
+        if let Some(script) = &policy.script {
+            attributes_maps.insert("script".to_owned(), Value::String(script.clone()));
+        }
+
+        if let Some(resource_type) = &policy.resource_type {
+            attributes_maps.insert(
+                "resource_type".to_owned(),
+                Value::String(resource_type.to_owned()),
+            );
+        }
+        if let Some(time) = &policy.time {
+            attributes_maps.insert(
+                "policy_time".to_owned(),
+                serde_json::to_value(time).unwrap(),
+            );
+        }
+    }
+
+    async fn save_policies_associated_entities(
+        &self,
+        trx: &Transaction<'_>,
+        policy: &PolicyModel,
+    ) -> Result<(), String> {
+        let delete_client_policies_sql = DeleteQueryBuilder::new()
+            .table_name(authz_tables::CLIENTS_POLICIES_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("policy_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        trx.execute(
+            &delete_client_policies_sql,
+            &[&policy.realm_id, &policy.policy_id],
+        )
+        .await
+        .unwrap();
+
+        if let Some(clients) = &policy.clients {
+            if !clients.is_empty() {
+                let create_client_policies_sql = InsertRequestBuilder::new()
+                    .table_name(authz_tables::CLIENTS_POLICIES_TABLE.table_name.clone())
+                    .columns(authz_tables::CLIENTS_POLICIES_TABLE.insert_columns.clone())
+                    .resolve_conflict(false)
+                    .sql_query()
+                    .unwrap();
+                for client in clients {
+                    trx.execute(
+                        &create_client_policies_sql,
+                        &[&policy.realm_id, &client.client_id, &policy.policy_id],
+                    )
+                    .await
+                    .unwrap();
+                }
+            }
+        }
+
+        let delete_users_policies_sql = DeleteQueryBuilder::new()
+            .table_name(authz_tables::USERS_POLICIES_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("policy_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        trx.execute(
+            &delete_users_policies_sql,
+            &[&policy.realm_id, &policy.policy_id],
+        )
+        .await
+        .unwrap();
+
+        if let Some(users) = &policy.users {
+            if !users.is_empty() {
+                let create_users_policies_sql = InsertRequestBuilder::new()
+                    .table_name(authz_tables::USERS_POLICIES_TABLE.table_name.clone())
+                    .columns(authz_tables::USERS_POLICIES_TABLE.insert_columns.clone())
+                    .resolve_conflict(false)
+                    .sql_query()
+                    .unwrap();
+
+                for user in users {
+                    trx.execute(
+                        &create_users_policies_sql,
+                        &[&policy.realm_id, &user.user_id, &policy.policy_id],
+                    )
+                    .await
+                    .unwrap();
+                }
+            }
+        }
+
+        let delete_roles_policies_sql = DeleteQueryBuilder::new()
+            .table_name(authz_tables::ROLES_POLICIES_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("policy_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        trx.execute(
+            &delete_roles_policies_sql,
+            &[&policy.realm_id, &policy.policy_id],
+        )
+        .await
+        .unwrap();
+
+        if let Some(roles) = &policy.roles {
+            if !roles.is_empty() {
+                let create_roles_policies_sql = InsertRequestBuilder::new()
+                    .table_name(authz_tables::ROLES_POLICIES_TABLE.table_name.clone())
+                    .columns(authz_tables::ROLES_POLICIES_TABLE.insert_columns.clone())
+                    .resolve_conflict(false)
+                    .sql_query()
+                    .unwrap();
+
+                for role in roles {
+                    trx.execute(
+                        &create_roles_policies_sql,
+                        &[&policy.realm_id, &role.role_id, &policy.policy_id],
+                    )
+                    .await
+                    .unwrap();
+                }
+            }
+        }
+
+        let delete_groups_policies_sql = DeleteQueryBuilder::new()
+            .table_name(authz_tables::GROUPS_POLICIES_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("policy_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        trx.execute(
+            &delete_groups_policies_sql,
+            &[&policy.realm_id, &policy.policy_id],
+        )
+        .await
+        .unwrap();
+
+        if let Some(groups) = &policy.groups {
+            if !groups.groups.is_empty() {
+                let create_groups_policies_sql = InsertRequestBuilder::new()
+                    .table_name(authz_tables::GROUPS_POLICIES_TABLE.table_name.clone())
+                    .columns(authz_tables::GROUPS_POLICIES_TABLE.insert_columns.clone())
+                    .resolve_conflict(false)
+                    .sql_query()
+                    .unwrap();
+
+                for group in &groups.groups {
+                    trx.execute(
+                        &create_groups_policies_sql,
+                        &[&policy.realm_id, &group.group_id, &policy.policy_id],
+                    )
+                    .await
+                    .unwrap();
+                }
+            }
+        }
+
+        let delete_associated_policies_sql = DeleteQueryBuilder::new()
+            .table_name(authz_tables::POLICIES_POLICIES_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("policy_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        trx.execute(
+            &delete_associated_policies_sql,
+            &[&policy.realm_id, &policy.policy_id],
+        )
+        .await
+        .unwrap();
+
+        if let Some(policies) = &policy.policies {
+            if !policies.is_empty() {
+                let create_associated_policies_sql = InsertRequestBuilder::new()
+                    .table_name(authz_tables::GROUPS_POLICIES_TABLE.table_name.clone())
+                    .columns(authz_tables::GROUPS_POLICIES_TABLE.insert_columns.clone())
+                    .resolve_conflict(false)
+                    .sql_query()
+                    .unwrap();
+
+                for associated_policy in policies {
+                    trx.execute(
+                        &create_associated_policies_sql,
+                        &[
+                            &policy.realm_id,
+                            &policy.policy_id,
+                            &associated_policy.policy_id,
+                        ],
+                    )
+                    .await
+                    .unwrap();
+                }
+            }
+        }
+
+        let delete_resources_policies_sql = DeleteQueryBuilder::new()
+            .table_name(authz_tables::RESOURCES_POLICIES_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("policy_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        trx.execute(
+            &delete_resources_policies_sql,
+            &[&policy.realm_id, &policy.policy_id],
+        )
+        .await
+        .unwrap();
+
+        if let Some(resources) = &policy.resources {
+            if !resources.is_empty() {
+                let create_resources_policies_sql = InsertRequestBuilder::new()
+                    .table_name(authz_tables::RESOURCES_POLICIES_TABLE.table_name.clone())
+                    .columns(
+                        authz_tables::RESOURCES_POLICIES_TABLE
+                            .insert_columns
+                            .clone(),
+                    )
+                    .resolve_conflict(false)
+                    .sql_query()
+                    .unwrap();
+
+                for resource in resources {
+                    trx.execute(
+                        &create_resources_policies_sql,
+                        &[&policy.realm_id, &resource.resource_id, &policy.policy_id],
+                    )
+                    .await
+                    .unwrap();
+                }
+            }
+        }
+
+        let delete_scopes_policies_sql = DeleteQueryBuilder::new()
+            .table_name(authz_tables::SCOPES_POLICIES_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("policy_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        trx.execute(
+            &delete_scopes_policies_sql,
+            &[&policy.realm_id, &policy.policy_id],
+        )
+        .await
+        .unwrap();
+
+        if let Some(scopes) = &policy.scopes {
+            if !scopes.is_empty() {
+                let create_scope_policies_sql = InsertRequestBuilder::new()
+                    .table_name(authz_tables::SCOPES_POLICIES_TABLE.table_name.clone())
+                    .columns(authz_tables::SCOPES_POLICIES_TABLE.insert_columns.clone())
+                    .resolve_conflict(false)
+                    .sql_query()
+                    .unwrap();
+
+                for scope in scopes {
+                    trx.execute(
+                        &create_scope_policies_sql,
+                        &[&policy.realm_id, &scope.scope_id, &policy.policy_id],
+                    )
+                    .await
+                    .unwrap();
+                }
+            }
+        }
+
+        let delete_clients_scopes_policies_sql = DeleteQueryBuilder::new()
+            .table_name(
+                authz_tables::CLIENTS_SCOPES_POLICIES_TABLE
+                    .table_name
+                    .clone(),
+            )
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("policy_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        trx.execute(
+            &delete_clients_scopes_policies_sql,
+            &[&policy.realm_id, &policy.policy_id],
+        )
+        .await
+        .unwrap();
+
+        if let Some(client_scopes) = &policy.client_scopes {
+            if !client_scopes.is_empty() {
+                let create_clients_scopes_policies_sql = InsertRequestBuilder::new()
+                    .table_name(
+                        authz_tables::CLIENTS_SCOPES_POLICIES_TABLE
+                            .table_name
+                            .clone(),
+                    )
+                    .columns(
+                        authz_tables::CLIENTS_SCOPES_POLICIES_TABLE
+                            .insert_columns
+                            .clone(),
+                    )
+                    .resolve_conflict(false)
+                    .sql_query()
+                    .unwrap();
+
+                for client_scope in client_scopes {
+                    trx.execute(
+                        &create_clients_scopes_policies_sql,
+                        &[
+                            &policy.realm_id,
+                            &client_scope.client_scope_id,
+                            &policy.policy_id,
+                        ],
+                    )
+                    .await
+                    .unwrap();
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn load_policy_associated_entities(
+        &self,
+        client: &Object,
+        realm_id: &str,
+        server_id: &str,
+        policy_id: &str,
+        policy: &mut PolicyModel,
+        attributes_values: Map<String, Value>,
+    ) -> Result<(), String> {
+        let policy_type = &policy.policy_type;
+
+        let loaded_associated_policies = self
+            .load_associated_policies(&client, &realm_id, &server_id, &policy_id)
+            .await;
+
+        match loaded_associated_policies {
+            Ok(policies) => {
+                policy.policies = Some(policies);
+            }
+            Err(err) => return Err(err.to_string()),
+        }
+
+        match policy_type {
+            PolicyTypeEnum::RolePolicy => {
+                let loaded_roles = RdsRoleProvider::load_roles_by_query(
+                    client,
+                    &authz_tables::SELECT_GROUPS_BY_POLICY_ID,
+                    &[&realm_id, &server_id, &policy_id],
+                )
+                .await;
+                match loaded_roles {
+                    Ok(roles) => {
+                        policy.roles = Some(roles);
+                    }
+                    Err(err) => return Err(err.to_string()),
+                }
+            }
+            PolicyTypeEnum::GroupPolicy => {
+                let group_claim: String;
+                match attributes_values.get("group_claim") {
+                    Some(Value::String(claim_value)) => group_claim = claim_value.to_owned(),
+                    _ => {
+                        return Err(
+                            "failed to read group policy, missing group claim field".to_owned()
+                        )
+                    }
+                }
+
+                let loaded_groups = RdsGroupProvider::load_group_by_query(
+                    client,
+                    &authz_tables::SELECT_GROUPS_BY_POLICY_ID,
+                    &[&realm_id, &server_id, &policy_id],
+                )
+                .await;
+                match loaded_groups {
+                    Ok(grps) => {
+                        policy.groups = Some(GroupPolicyConfig {
+                            group_claim: group_claim,
+                            groups: grps,
+                        });
+                    }
+                    Err(err) => return Err(err.to_string()),
+                }
+            }
+            PolicyTypeEnum::ScopePermission => {
+                match attributes_values.get("resource_type") {
+                    Some(Value::String(rsctype)) => {
+                        policy.resource_type = Some(rsctype.to_owned());
+                    }
+                    _ => {
+                        return Err(
+                            "failed to read scope permission policy, missing resource_type field"
+                                .to_owned(),
+                        )
+                    }
+                }
+
+                let loaded_scopes = RdsScopeProvider::load_scope_by_query(
+                    client,
+                    &authz_tables::SELECT_SCOPES_BY_POLICY_ID,
+                    &[&realm_id, &server_id, &policy_id],
+                )
+                .await;
+                match loaded_scopes {
+                    Ok(scps) => policy.scopes = Some(scps),
+                    Err(err) => return Err(err.to_string()),
+                }
+            }
+            PolicyTypeEnum::ResourcePermission => {
+                match attributes_values.get("resource_type") {
+                    Some(Value::String(rsctype)) => {
+                        policy.resource_type = Some(rsctype.to_owned());
+                    }
+                    _ => return Err(
+                        "failed to read resource permission policy, missing resource_type field"
+                            .to_owned(),
+                    ),
+                }
+
+                let loaded_resources = RdsResourceProvider::load_resources_by_query(
+                    client,
+                    &authz_tables::SELECT_RESOURCES_BY_POLICY_ID,
+                    &[&realm_id, &server_id, &policy_id],
+                )
+                .await;
+                match loaded_resources {
+                    Ok(rscs) => policy.resources = Some(rscs),
+                    Err(err) => return Err(err.to_string()),
+                }
+            }
+            PolicyTypeEnum::UserPolicy => {
+                let loaded_users = RdsUserProvider::load_users_by_query(
+                    client,
+                    &authz_tables::SELECT_USERS_BY_POLICY_ID,
+                    &[&realm_id, &server_id, &policy_id],
+                )
+                .await;
+                match loaded_users {
+                    Ok(usrs) => policy.users = Some(usrs),
+                    Err(err) => return Err(err.to_string()),
+                }
+            }
+            PolicyTypeEnum::ClientPolicy => {
+                let loaded_clients = RdsClientProvider::load_clients_by_query(
+                    client,
+                    &authz_tables::SELECT_CLIENTS_BY_POLICY_ID,
+                    &[&realm_id, &server_id, &policy_id],
+                )
+                .await;
+                match loaded_clients {
+                    Ok(cls) => policy.clients = Some(cls),
+                    Err(err) => return Err(err.to_string()),
+                }
+            }
+            PolicyTypeEnum::TimePolicy => match attributes_values.get("policy_time") {
+                Some(time) => match serde_json::from_value::<TimePolicyConfig>(time.clone()) {
+                    Ok(cf) => policy.time = Some(cf),
+                    Err(err) => return Err(err.to_string()),
+                },
+                _ => return Err("failed to read regex policy".to_owned()),
+            },
+            PolicyTypeEnum::RegexPolicy => {
+                let target_regex;
+                let target_claim;
+                match attributes_values.get("target_regex") {
+                    Some(Value::String(t_regex)) => {
+                        target_regex = t_regex;
+                    }
+                    _ => return Err("failed to read regex policy".to_owned()),
+                }
+                match attributes_values.get("target_claim") {
+                    Some(Value::String(t_claim)) => {
+                        target_claim = t_claim;
+                    }
+                    _ => return Err("failed to read regex policy".to_owned()),
+                }
+
+                policy.regex = Some(RegexConfig {
+                    target_claim: target_claim.to_owned(),
+                    target_regex: target_regex.to_owned(),
+                })
+            }
+            PolicyTypeEnum::ClientScopePolicy => {
+                let loaded_clients_scopes = RdsClientScopeProvider::load_clients_scopes_by_query(
+                    client,
+                    &authz_tables::SELECT_CLIENTS_SCOPES_BY_POLICY_ID,
+                    &[&realm_id, &server_id, &policy_id],
+                )
+                .await;
+                match loaded_clients_scopes {
+                    Ok(cls) => policy.client_scopes = Some(cls),
+                    Err(err) => return Err(err.to_string()),
+                }
+            }
+            PolicyTypeEnum::PyPolicy => match attributes_values.get("script") {
+                Some(Value::String(script_value)) => {
+                    policy.script = Some(script_value.to_owned());
+                }
+                _ => return Err("failed to read py policy, missing script field".to_owned()),
+            },
+            PolicyTypeEnum::AggregatedPolicy => {}
+        }
+        Ok(())
+    }
+
+    async fn load_associated_policies(
+        &self,
+        client: &Object,
+        realm_id: &str,
+        server_id: &str,
+        policy_id: &str,
+    ) -> Result<Vec<PolicyModel>, String> {
+        /*
+        let associated_policies: Option<Vec<PolicyModel>> = None;
+        let associated_policy_select_stmt = client
+            .prepare_cached(&authz_tables::SELECT_ASSOCIATED_POLICIES_BY_POLICY_ID)
+            .await
+            .unwrap();
+
+        let associated_polciy_records = client
+            .query(&associated_policy_select_stmt, &[&realm_id, &policy_id])
+            .await;
+        match associated_polciy_records {
+            Ok(rows) => {
+                let associated_policy_ids: Vec<String> = rows
+                    .iter()
+                    .map(|r| r.get::<&str, String>("associated_policy_id"))
+                    .collect();
+            }
+            Err(err) => return Err(err.to_string()),
+        }
+        */
         todo!()
     }
 }
