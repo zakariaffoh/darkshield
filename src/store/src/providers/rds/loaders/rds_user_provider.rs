@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use deadpool_postgres::Object;
 use models::auditable::AuditableModel;
 use models::entities::attributes::AttributesMap;
 use models::entities::user::UserModel;
@@ -29,7 +30,7 @@ pub struct RdsUserProvider {
 }
 
 impl RdsUserProvider {
-    fn read_user_record(&self, row: Row) -> UserModel {
+    fn read_record(row: &Row) -> UserModel {
         let attributes = serde_json::from_value::<AttributesMap>(
             row.get::<&str, serde_json::Value>("attributes"),
         )
@@ -60,10 +61,19 @@ impl RdsUserProvider {
     }
 
     pub async fn load_users_by_query(
+        client: &Object,
         query: &str,
         params: &[&(dyn ToSql + Sync)],
     ) -> Result<Vec<UserModel>, String> {
-        todo!()
+        let load_users_stmt = client.prepare_cached(&query).await.unwrap();
+        let result = client.query(&load_users_stmt, params).await;
+        match result {
+            Ok(rows) => Ok(rows
+                .iter()
+                .map(|row| RdsUserProvider::read_record(&row))
+                .collect()),
+            Err(err) => Err(err.to_string()),
+        }
     }
 }
 

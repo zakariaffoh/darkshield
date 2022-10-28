@@ -30,7 +30,7 @@ pub struct RdsProtocolMapperProvider {
 }
 
 impl RdsProtocolMapperProvider {
-    pub fn read_record(&self, row: Row) -> ProtocolMapperModel {
+    pub fn read_record(row: Row) -> ProtocolMapperModel {
         let configs =
             serde_json::from_value::<AttributesMap>(row.get::<&str, serde_json::Value>("configs"))
                 .map_or_else(|_| None, |p| Some(p));
@@ -50,6 +50,22 @@ impl RdsProtocolMapperProvider {
                 updated_at: row.get("updated_at"),
                 version: row.get("version"),
             },
+        }
+    }
+
+    pub async fn load_protocol_mapper_by_query(
+        client: &Object,
+        query: &str,
+        params: &[&(dyn ToSql + Sync)],
+    ) -> Result<Vec<ProtocolMapperModel>, String> {
+        let load_protocol_mapper_stmt = client.prepare_cached(&query).await.unwrap();
+        let result = client.query(&load_protocol_mapper_stmt, params).await;
+        match result {
+            Ok(rows) => Ok(rows
+                .into_iter()
+                .map(|row| RdsProtocolMapperProvider::read_record(row))
+                .collect()),
+            Err(err) => Err(err.to_string()),
         }
     }
 }
@@ -182,7 +198,7 @@ impl IProtocolMapperProvider for RdsProtocolMapperProvider {
         match result {
             Ok(row) => {
                 if let Some(r) = row {
-                    Ok(Some(self.read_record(r)))
+                    Ok(Some(RdsProtocolMapperProvider::read_record(r)))
                 } else {
                     Ok(None)
                 }
@@ -277,7 +293,10 @@ impl IProtocolMapperProvider for RdsProtocolMapperProvider {
             .query(&load_protocol_mapper_stmt, &[&realm_id, &client_scope_id])
             .await;
         match result {
-            Ok(rows) => Ok(rows.into_iter().map(|row| self.read_record(row)).collect()),
+            Ok(rows) => Ok(rows
+                .into_iter()
+                .map(|row| RdsProtocolMapperProvider::read_record(row))
+                .collect()),
             Err(err) => Err(err.to_string()),
         }
     }
@@ -302,7 +321,10 @@ impl IProtocolMapperProvider for RdsProtocolMapperProvider {
             .query(&load_protocol_mapper_stmt, &[&realm_id, &client_id])
             .await;
         match result {
-            Ok(rows) => Ok(rows.into_iter().map(|row| self.read_record(row)).collect()),
+            Ok(rows) => Ok(rows
+                .into_iter()
+                .map(|row| RdsProtocolMapperProvider::read_record(row))
+                .collect()),
             Err(err) => Err(err.to_string()),
         }
     }
@@ -334,7 +356,10 @@ impl IProtocolMapperProvider for RdsProtocolMapperProvider {
             .query(&load_protocol_mapper_stmt, &[&realm_id, &protocol])
             .await;
         match result {
-            Ok(rows) => Ok(rows.into_iter().map(|row| self.read_record(row)).collect()),
+            Ok(rows) => Ok(rows
+                .into_iter()
+                .map(|row| RdsProtocolMapperProvider::read_record(row))
+                .collect()),
             Err(err) => Err(err.to_string()),
         }
     }
@@ -392,7 +417,10 @@ impl IProtocolMapperProvider for RdsProtocolMapperProvider {
             .unwrap();
         let result = client.query(&load_protocol_mapper_stmt, &[&realm_id]).await;
         match result {
-            Ok(rows) => Ok(rows.into_iter().map(|row| self.read_record(row)).collect()),
+            Ok(rows) => Ok(rows
+                .into_iter()
+                .map(|row| RdsProtocolMapperProvider::read_record(row))
+                .collect()),
             Err(err) => Err(err.to_string()),
         }
     }
@@ -408,7 +436,6 @@ pub struct RdsClientScopeProvider {
 
 impl RdsClientScopeProvider {
     fn read_record(
-        &self,
         row: &Row,
         roles: Vec<RoleModel>,
         mappers: Vec<ProtocolMapperModel>,
@@ -439,7 +466,6 @@ impl RdsClientScopeProvider {
     }
 
     async fn read_client_scope(
-        &self,
         client: &Object,
         realm_id: &str,
         client_scope_id: &str,
@@ -460,47 +486,39 @@ impl RdsClientScopeProvider {
         match result {
             Ok(res) => {
                 if let Some(row) = res {
-                    let scope_roles_stmt = client
-                        .prepare_cached(
-                            &client_tables::CLIENT_SCOPE_TABLE_SELECT_CLIENT_SCOPE_ROLES,
-                        )
-                        .await
-                        .unwrap();
-                    let roles_rows = client
-                        .query(&scope_roles_stmt, &[&realm_id, &client_scope_id])
-                        .await
-                        .unwrap();
+                    let roles;
+                    let loaded_roles = RdsRoleProvider::load_roles_by_query(
+                        client,
+                        &client_tables::CLIENT_SCOPE_TABLE_SELECT_CLIENT_SCOPE_ROLES,
+                        &[&realm_id, &client_scope_id],
+                    )
+                    .await;
+                    match loaded_roles {
+                        Ok(rs) => {
+                            roles = rs;
+                        }
+                        Err(err) => return Err(err.to_string()),
+                    }
 
-                    let role_reader = RdsRoleProvider {
-                        database_manager: self.database_manager.clone(),
-                    };
-
-                    let roles = roles_rows
-                        .iter()
-                        .map(|row| role_reader.read_record(&row))
-                        .collect();
-
-                    let protocol_mapper_stmt = client
-                        .prepare_cached(
+                    let protocol_mappers;
+                    let loaded_protocol_mappers =
+                        RdsProtocolMapperProvider::load_protocol_mapper_by_query(
+                            client,
                             &client_tables::CLIENT_SCOPE_TABLE_SELECT_CLIENT_SCOPE_PROTOCOL_MAPPERS,
+                            &[&realm_id, &client_scope_id],
                         )
-                        .await
-                        .unwrap();
-                    let protocol_mapper_rows = client
-                        .query(&protocol_mapper_stmt, &[&realm_id, &client_scope_id])
-                        .await
-                        .unwrap();
-
-                    let protocol_mapper_reader = RdsProtocolMapperProvider {
-                        database_manager: self.database_manager.clone(),
-                    };
-
-                    let protocol_mappers = protocol_mapper_rows
-                        .into_iter()
-                        .map(|row| protocol_mapper_reader.read_record(row))
-                        .collect();
-
-                    Ok(Some(self.read_record(&row, roles, protocol_mappers)))
+                        .await;
+                    match loaded_protocol_mappers {
+                        Ok(pm) => {
+                            protocol_mappers = pm;
+                        }
+                        Err(err) => return Err(err.to_string()),
+                    }
+                    Ok(Some(RdsClientScopeProvider::read_record(
+                        &row,
+                        roles,
+                        protocol_mappers,
+                    )))
                 } else {
                     Ok(None)
                 }
@@ -510,10 +528,38 @@ impl RdsClientScopeProvider {
     }
 
     pub async fn load_clients_scopes_by_query(
+        client: &Object,
         query: &str,
         params: &[&(dyn ToSql + Sync)],
     ) -> Result<Vec<ClientScopeModel>, String> {
-        todo!()
+        let load_client_scope_stmt = client.prepare_cached(&query).await.unwrap();
+        let result = client.query(&load_client_scope_stmt, params).await;
+        match result {
+            Ok(rows) => {
+                let mut clients_scopes = Vec::new();
+                for row in rows {
+                    let realm_id = row.get("realm_id");
+                    let client_scope_id = row.get("client_scope_id");
+                    let cs = RdsClientScopeProvider::read_client_scope(
+                        &client,
+                        realm_id,
+                        client_scope_id,
+                    )
+                    .await;
+                    match cs {
+                        Ok(Some(res)) => clients_scopes.push(res),
+                        _ => {
+                            return Err(format!(
+                                "failed to read client scope {}, realm_id: {}",
+                                client_scope_id, realm_id
+                            ));
+                        }
+                    }
+                }
+                return Ok(clients_scopes);
+            }
+            Err(err) => return Err(err.to_string()),
+        }
     }
 }
 
@@ -626,8 +672,7 @@ impl IClientScopeProvider for RdsClientScopeProvider {
             return Err(err);
         }
         let client = client.unwrap();
-        self.read_client_scope(&client, &realm_id, &client_scope_id)
-            .await
+        RdsClientScopeProvider::read_client_scope(&client, &realm_id, &client_scope_id).await
     }
 
     async fn client_scope_exists_by_name(
@@ -950,13 +995,12 @@ impl IClientScopeProvider for RdsClientScopeProvider {
         match client_scopes_rows {
             Ok(rows) => {
                 for row in rows {
-                    let client_scope = self
-                        .read_client_scope(
-                            &client,
-                            realm_id,
-                            row.get::<&str, &str>("client_scope_id"),
-                        )
-                        .await;
+                    let client_scope = RdsClientScopeProvider::read_client_scope(
+                        &client,
+                        realm_id,
+                        row.get::<&str, &str>("client_scope_id"),
+                    )
+                    .await;
                     if client_scope.is_ok() {
                         if let Some(s) = client_scope.unwrap() {
                             scopes.push(s);
@@ -1026,7 +1070,7 @@ pub struct RdsClientProvider {
 }
 
 impl RdsClientProvider {
-    fn read_record(&self, row: &Row) -> ClientModel {
+    fn read_record(row: &Row) -> ClientModel {
         let configs =
             serde_json::from_value::<AttributesMap>(row.get::<&str, serde_json::Value>("configs"))
                 .map_or_else(|_| None, |p| Some(p));
@@ -1076,10 +1120,19 @@ impl RdsClientProvider {
     }
 
     pub async fn load_clients_by_query(
+        client: &Object,
         query: &str,
         params: &[&(dyn ToSql + Sync)],
     ) -> Result<Vec<ClientModel>, String> {
-        todo!()
+        let load_clients_stmt = client.prepare_cached(&query).await.unwrap();
+        let result = client.query(&load_clients_stmt, params).await;
+        match result {
+            Ok(rows) => Ok(rows
+                .iter()
+                .map(|row| RdsClientProvider::read_record(&row))
+                .collect()),
+            Err(err) => Err(err.to_string()),
+        }
     }
 }
 
@@ -1221,7 +1274,7 @@ impl IClientProvider for RdsClientProvider {
         match &result {
             Ok(row) => {
                 if let Some(r) = row {
-                    Ok(Some(self.read_record(&r)))
+                    Ok(Some(RdsClientProvider::read_record(&r)))
                 } else {
                     Ok(None)
                 }
@@ -1295,7 +1348,7 @@ impl IClientProvider for RdsClientProvider {
         match &result {
             Ok(row) => {
                 if let Some(r) = row {
-                    Ok(Some(self.read_record(r)))
+                    Ok(Some(RdsClientProvider::read_record(r)))
                 } else {
                     Ok(None)
                 }
@@ -1331,7 +1384,10 @@ impl IClientProvider for RdsClientProvider {
             .query(&load_protocol_mapper_stmt, &[&realm_id, &client_ids])
             .await;
         match result {
-            Ok(rows) => Ok(rows.into_iter().map(|row| self.read_record(&row)).collect()),
+            Ok(rows) => Ok(rows
+                .into_iter()
+                .map(|row| RdsClientProvider::read_record(&row))
+                .collect()),
             Err(err) => Err(err.to_string()),
         }
     }
@@ -1354,7 +1410,10 @@ impl IClientProvider for RdsClientProvider {
             .unwrap();
         let result = client.query(&load_protocol_mapper_stmt, &[&realm_id]).await;
         match result {
-            Ok(rows) => Ok(rows.into_iter().map(|row| self.read_record(&row)).collect()),
+            Ok(rows) => Ok(rows
+                .into_iter()
+                .map(|row| RdsClientProvider::read_record(&row))
+                .collect()),
             Err(err) => Err(err.to_string()),
         }
     }
@@ -1720,7 +1779,7 @@ impl IClientProvider for RdsClientProvider {
             Ok(rows) => {
                 let roles: Vec<RoleModel> = rows
                     .into_iter()
-                    .map(|row| role_reader.read_record(&row))
+                    .map(|row| RdsRoleProvider::read_record(&row))
                     .collect();
                 Ok(roles)
             }
@@ -1770,7 +1829,7 @@ impl IClientProvider for RdsClientProvider {
         match &result {
             Ok(row) => {
                 if let Some(r) = row {
-                    Ok(Some(self.read_record(&r)))
+                    Ok(Some(RdsClientProvider::read_record(&r)))
                 } else {
                     Ok(None)
                 }

@@ -33,7 +33,7 @@ pub struct RdsRoleProvider {
 }
 
 impl RdsRoleProvider {
-    pub fn read_record(&self, row: &Row) -> RoleModel {
+    pub fn read_record(row: &Row) -> RoleModel {
         RoleModel {
             role_id: row.get("role_id"),
             realm_id: row.get("realm_id"),
@@ -49,6 +49,22 @@ impl RdsRoleProvider {
                 updated_at: row.get("updated_at"),
                 version: row.get("version"),
             },
+        }
+    }
+
+    pub async fn load_roles_by_query(
+        client: &Object,
+        query: &str,
+        params: &[&(dyn ToSql + Sync)],
+    ) -> Result<Vec<RoleModel>, String> {
+        let load_roles_stmt = client.prepare_cached(query).await.unwrap();
+        let result = client.query(&load_roles_stmt, params).await;
+        match result {
+            Ok(rows) => Ok(rows
+                .iter()
+                .map(|row| RdsRoleProvider::read_record(&row))
+                .collect()),
+            Err(err) => Err(err.to_string()),
         }
     }
 }
@@ -172,7 +188,10 @@ impl IRoleProvider for RdsRoleProvider {
             .query(&load_roles_stmt, &[&realm_id, &roles_ids])
             .await;
         match result {
-            Ok(rows) => Ok(rows.iter().map(|row| self.read_record(&row)).collect()),
+            Ok(rows) => Ok(rows
+                .iter()
+                .map(|row| RdsRoleProvider::read_record(&row))
+                .collect()),
             Err(err) => Err(err.to_string()),
         }
     }
@@ -192,7 +211,10 @@ impl IRoleProvider for RdsRoleProvider {
         let load_roles_stmt = client.prepare_cached(&load_roles_sql).await.unwrap();
         let result = client.query(&load_roles_stmt, &[&realm_id]).await;
         match result {
-            Ok(rows) => Ok(rows.iter().map(|row| self.read_record(&row)).collect()),
+            Ok(rows) => Ok(rows
+                .iter()
+                .map(|row| RdsRoleProvider::read_record(&row))
+                .collect()),
             Err(err) => Err(err.to_string()),
         }
     }
@@ -222,7 +244,7 @@ impl IRoleProvider for RdsRoleProvider {
         match &result {
             Ok(row) => {
                 if let Some(r) = row {
-                    Ok(Some(self.read_record(r)))
+                    Ok(Some(RdsRoleProvider::read_record(r)))
                 } else {
                     Ok(None)
                 }
@@ -289,7 +311,7 @@ impl IRoleProvider for RdsRoleProvider {
         match &result {
             Ok(row) => {
                 if let Some(r) = row {
-                    Ok(Some(self.read_record(r)))
+                    Ok(Some(RdsRoleProvider::read_record(r)))
                 } else {
                     Ok(None)
                 }
@@ -323,7 +345,7 @@ impl IRoleProvider for RdsRoleProvider {
         match &result {
             Ok(row) => {
                 if let Some(r) = row {
-                    Ok(Some(self.read_record(r)))
+                    Ok(Some(RdsRoleProvider::read_record(r)))
                 } else {
                     Ok(None)
                 }
@@ -450,7 +472,10 @@ impl IRoleProvider for RdsRoleProvider {
             .query(&load_roles_stmt, &[&realm_id, &client_id])
             .await;
         match result {
-            Ok(rows) => Ok(rows.iter().map(|row| self.read_record(&row)).collect()),
+            Ok(rows) => Ok(rows
+                .iter()
+                .map(|row| RdsRoleProvider::read_record(&row))
+                .collect()),
             Err(err) => Err(err.to_string()),
         }
     }
@@ -471,7 +496,10 @@ impl IRoleProvider for RdsRoleProvider {
             .unwrap();
         let result = client.query(&load_roles_stmt, &[&realm_id, &user_id]).await;
         match result {
-            Ok(rows) => Ok(rows.iter().map(|row| self.read_record(&row)).collect()),
+            Ok(rows) => Ok(rows
+                .iter()
+                .map(|row| RdsRoleProvider::read_record(&row))
+                .collect()),
             Err(err) => Err(err.to_string()),
         }
     }
@@ -485,7 +513,7 @@ pub struct RdsGroupProvider {
 }
 
 impl RdsGroupProvider {
-    fn read_record(&self, row: Row, roles: Vec<RoleModel>) -> GroupModel {
+    fn read_record(row: Row, roles: Vec<RoleModel>) -> GroupModel {
         GroupModel {
             group_id: row.get("group_id"),
             realm_id: row.get("realm_id"),
@@ -506,7 +534,6 @@ impl RdsGroupProvider {
     }
 
     async fn read_group_roles(
-        &self,
         client: &Object,
         realm_id: &str,
         group_id: &str,
@@ -521,13 +548,10 @@ impl RdsGroupProvider {
 
         match &roles_rows {
             Ok(rs) => {
-                let role_mapper = RdsRoleProvider {
-                    database_manager: self.database_manager.clone(),
-                };
                 let roles: Vec<RoleModel> = roles_rows
                     .unwrap()
                     .iter()
-                    .map(|r| role_mapper.read_record(&r))
+                    .map(|r| RdsRoleProvider::read_record(&r))
                     .collect();
                 Ok(roles)
             }
@@ -536,10 +560,32 @@ impl RdsGroupProvider {
     }
 
     async fn load_group_by_query(
+        client: &Object,
         query: &str,
         params: &[&(dyn ToSql + Sync)],
     ) -> Result<Vec<GroupModel>, String> {
-        todo!()
+        let load_groups_stmt = client.prepare_cached(query).await.unwrap();
+        let result = client.query(&load_groups_stmt, params).await;
+        match result {
+            Ok(rows) => {
+                let mut groups = Vec::new();
+                for r in rows {
+                    let roles_records = RdsGroupProvider::read_group_roles(
+                        &client,
+                        &r.get::<&str, &str>("realm_id"),
+                        &r.get::<&str, &str>("group_id"),
+                    )
+                    .await;
+                    if roles_records.is_ok() {
+                        groups.push(RdsGroupProvider::read_record(r, roles_records.unwrap()));
+                    } else {
+                        return Err(roles_records.err().unwrap());
+                    }
+                }
+                Ok(groups)
+            }
+            Err(err) => Err(err.to_string()),
+        }
     }
 }
 
@@ -686,9 +732,10 @@ impl IGroupProvider for RdsGroupProvider {
             Ok(row) => {
                 if let Some(r) = row {
                     let group_id = r.get::<&str, String>("group_id");
-                    let roles_records = self.read_group_roles(&client, realm_id, &group_id).await;
+                    let roles_records =
+                        RdsGroupProvider::read_group_roles(&client, realm_id, &group_id).await;
                     match roles_records {
-                        Ok(roles) => Ok(Some(self.read_record(r, roles))),
+                        Ok(roles) => Ok(Some(RdsGroupProvider::read_record(r, roles))),
                         Err(err) => Err(err),
                     }
                 } else {
@@ -725,9 +772,10 @@ impl IGroupProvider for RdsGroupProvider {
             Ok(row) => {
                 if let Some(r) = row {
                     let group_id = r.get::<&str, String>("group_id");
-                    let roles_records = self.read_group_roles(&client, realm_id, &group_id).await;
+                    let roles_records =
+                        RdsGroupProvider::read_group_roles(&client, realm_id, &group_id).await;
                     match roles_records {
-                        Ok(roles) => Ok(Some(self.read_record(r, roles))),
+                        Ok(roles) => Ok(Some(RdsGroupProvider::read_record(r, roles))),
                         Err(err) => Err(err),
                     }
                 } else {
@@ -776,11 +824,14 @@ impl IGroupProvider for RdsGroupProvider {
             Ok(rows) => {
                 let mut groups = Vec::new();
                 for r in rows {
-                    let roles_records = self
-                        .read_group_roles(&client, realm_id, &r.get::<&str, &str>("group_id"))
-                        .await;
+                    let roles_records = RdsGroupProvider::read_group_roles(
+                        &client,
+                        realm_id,
+                        &r.get::<&str, &str>("group_id"),
+                    )
+                    .await;
                     if roles_records.is_ok() {
-                        groups.push(self.read_record(r, roles_records.unwrap()));
+                        groups.push(RdsGroupProvider::read_record(r, roles_records.unwrap()));
                     } else {
                         return Err(roles_records.err().unwrap());
                     }
@@ -909,11 +960,14 @@ impl IGroupProvider for RdsGroupProvider {
             Ok(rows) => {
                 let mut groups = Vec::new();
                 for r in rows {
-                    let roles_records = self
-                        .read_group_roles(&client, realm_id, &r.get::<&str, &str>("group_id"))
-                        .await;
+                    let roles_records = RdsGroupProvider::read_group_roles(
+                        &client,
+                        realm_id,
+                        &r.get::<&str, &str>("group_id"),
+                    )
+                    .await;
                     if roles_records.is_ok() {
-                        groups.push(self.read_record(r, roles_records.unwrap()));
+                        groups.push(RdsGroupProvider::read_record(r, roles_records.unwrap()));
                     } else {
                         return Err(roles_records.err().unwrap());
                     }
@@ -963,11 +1017,14 @@ impl IGroupProvider for RdsGroupProvider {
             Ok(rows) => {
                 let mut groups = Vec::new();
                 for r in rows {
-                    let roles_records = self
-                        .read_group_roles(&client, realm_id, &r.get::<&str, &str>("group_id"))
-                        .await;
+                    let roles_records = RdsGroupProvider::read_group_roles(
+                        &client,
+                        realm_id,
+                        &r.get::<&str, &str>("group_id"),
+                    )
+                    .await;
                     if roles_records.is_ok() {
-                        groups.push(self.read_record(r, roles_records.unwrap()));
+                        groups.push(RdsGroupProvider::read_record(r, roles_records.unwrap()));
                     } else {
                         return Err(roles_records.err().unwrap());
                     }
@@ -1575,7 +1632,7 @@ pub struct RdsResourceProvider {
 }
 
 impl RdsResourceProvider {
-    fn read_record(&self, row: &Row) -> ResourceModel {
+    fn read_record(row: &Row) -> ResourceModel {
         let configs =
             serde_json::from_value::<AttributesMap>(row.get::<&str, serde_json::Value>("configs"))
                 .map_or_else(|_| None, |p| Some(p));
@@ -1604,10 +1661,19 @@ impl RdsResourceProvider {
     }
 
     async fn load_resources_by_query(
+        client: &Object,
         query: &str,
         params: &[&(dyn ToSql + Sync)],
     ) -> Result<Vec<ResourceModel>, String> {
-        todo!()
+        let load_resources_stmt = client.prepare_cached(&query).await.unwrap();
+        let result = client.query(&load_resources_stmt, params).await;
+        match result {
+            Ok(rows) => Ok(rows
+                .iter()
+                .map(|row| RdsResourceProvider::read_record(&row))
+                .collect()),
+            Err(err) => Err(err.to_string()),
+        }
     }
 }
 
@@ -1738,7 +1804,7 @@ impl IResourceProvider for RdsResourceProvider {
         match &result {
             Ok(row) => {
                 if let Some(r) = row {
-                    Ok(Some(self.read_record(r)))
+                    Ok(Some(RdsResourceProvider::read_record(r)))
                 } else {
                     Ok(None)
                 }
@@ -1824,7 +1890,10 @@ impl IResourceProvider for RdsResourceProvider {
         let load_resources_stmt = client.prepare_cached(&load_resources_sql).await.unwrap();
         let result = client.query(&load_resources_stmt, &[&realm_id]).await;
         match result {
-            Ok(rows) => Ok(rows.iter().map(|row| self.read_record(&row)).collect()),
+            Ok(rows) => Ok(rows
+                .iter()
+                .map(|row| RdsResourceProvider::read_record(&row))
+                .collect()),
             Err(err) => Err(err.to_string()),
         }
     }
@@ -1853,7 +1922,10 @@ impl IResourceProvider for RdsResourceProvider {
             .query(&load_resources_stmt, &[&realm_id, &server_id])
             .await;
         match result {
-            Ok(rows) => Ok(rows.iter().map(|row| self.read_record(&row)).collect()),
+            Ok(rows) => Ok(rows
+                .iter()
+                .map(|row| RdsResourceProvider::read_record(&row))
+                .collect()),
             Err(err) => Err(err.to_string()),
         }
     }
@@ -1997,7 +2069,7 @@ pub struct RdsScopeProvider {
 }
 
 impl RdsScopeProvider {
-    fn read_record(&self, row: &Row) -> ScopeModel {
+    fn read_record(row: &Row) -> ScopeModel {
         ScopeModel {
             scope_id: row.get("scope_id"),
             server_id: row.get("server_id"),
@@ -2017,10 +2089,20 @@ impl RdsScopeProvider {
     }
 
     async fn load_scope_by_query(
+        client: &Object,
         query: &str,
         params: &[&(dyn ToSql + Sync)],
     ) -> Result<Vec<ScopeModel>, String> {
-        todo!()
+        let load_scopes_stmt = client.prepare_cached(&query).await.unwrap();
+        let result = client.query(&load_scopes_stmt, params).await;
+
+        match result {
+            Ok(rows) => Ok(rows
+                .iter()
+                .map(|row| RdsScopeProvider::read_record(&row))
+                .collect()),
+            Err(err) => Err(err.to_string()),
+        }
     }
 }
 
@@ -2141,7 +2223,7 @@ impl IScopeProvider for RdsScopeProvider {
         match &result {
             Ok(row) => {
                 if let Some(r) = row {
-                    Ok(Some(self.read_record(r)))
+                    Ok(Some(RdsScopeProvider::read_record(r)))
                 } else {
                     Ok(None)
                 }
@@ -2166,7 +2248,10 @@ impl IScopeProvider for RdsScopeProvider {
         let result = client.query(&load_scopes_stmt, &[&realm_id]).await;
 
         match result {
-            Ok(rows) => Ok(rows.iter().map(|row| self.read_record(&row)).collect()),
+            Ok(rows) => Ok(rows
+                .iter()
+                .map(|row| RdsScopeProvider::read_record(&row))
+                .collect()),
             Err(err) => Err(err.to_string()),
         }
     }
@@ -2196,7 +2281,10 @@ impl IScopeProvider for RdsScopeProvider {
             .await;
 
         match result {
-            Ok(rows) => Ok(rows.iter().map(|row| self.read_record(&row)).collect()),
+            Ok(rows) => Ok(rows
+                .iter()
+                .map(|row| RdsScopeProvider::read_record(&row))
+                .collect()),
             Err(err) => Err(err.to_string()),
         }
     }
@@ -2415,8 +2503,10 @@ impl IPolicyProvider for RdsPolicyProvider {
                 .await
                 .unwrap();
 
-                self.save_policies_associated_entities(&trx, &policy).await;
-
+                match self.save_policies_associated_entities(&trx, &policy).await {
+                    Ok(_) => {}
+                    Err(err) => return Err(err.to_string()),
+                }
                 trx.commit().await.unwrap();
                 Ok(())
             }
@@ -2485,7 +2575,12 @@ impl IPolicyProvider for RdsPolicyProvider {
         server_id: &str,
         policy_id: &str,
     ) -> Result<Vec<ScopeModel>, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
         RdsScopeProvider::load_scope_by_query(
+            &client.unwrap(),
             &authz_tables::SELECT_SCOPES_BY_POLICY_ID,
             &[&realm_id, &server_id, &policy_id],
         )
@@ -2498,7 +2593,12 @@ impl IPolicyProvider for RdsPolicyProvider {
         server_id: &str,
         policy_id: &str,
     ) -> Result<Vec<ResourceModel>, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
         RdsResourceProvider::load_resources_by_query(
+            &client.unwrap(),
             &authz_tables::SELECT_RESOURCES_BY_POLICY_ID,
             &[&realm_id, &server_id, &policy_id],
         )
@@ -2573,14 +2673,14 @@ impl IPolicyProvider for RdsPolicyProvider {
         }
     }
 
-    async fn count_policies(&self, realm_id: &str, server_id: &str) -> Result<u64, String> {
+    async fn count_policies(&self, _realm_id: &str, _server_id: &str) -> Result<u64, String> {
         todo!()
     }
 
     async fn search_policies(
         &self,
-        realm_id: &str,
-        search_query: &str,
+        _realm_id: &str,
+        _search_query: &str,
     ) -> Result<Vec<PolicyModel>, String> {
         todo!()
     }
@@ -3186,24 +3286,15 @@ impl RdsPolicyProvider {
 
         match policy_type {
             PolicyTypeEnum::RolePolicy => {
-                let load_roles_stmt = client
-                    .prepare_cached(&authz_tables::SELECT_ROLES_BY_POLICY_ID)
-                    .await
-                    .unwrap();
-                let roles_rows = client
-                    .query(&load_roles_stmt, &[&realm_id, &server_id, &policy_id])
-                    .await;
-
-                match roles_rows {
-                    Ok(roles_rows) => {
-                        let role_mapper = RdsRoleProvider {
-                            database_manager: self.database_manager.clone(),
-                        };
-                        let parsed_roles: Vec<RoleModel> = roles_rows
-                            .iter()
-                            .map(|r| role_mapper.read_record(&r))
-                            .collect();
-                        policy.roles = Some(parsed_roles);
+                let loaded_roles = RdsRoleProvider::load_roles_by_query(
+                    client,
+                    &authz_tables::SELECT_GROUPS_BY_POLICY_ID,
+                    &[&realm_id, &server_id, &policy_id],
+                )
+                .await;
+                match loaded_roles {
+                    Ok(roles) => {
+                        policy.roles = Some(roles);
                     }
                     Err(err) => return Err(err.to_string()),
                 }
@@ -3220,6 +3311,7 @@ impl RdsPolicyProvider {
                 }
 
                 let loaded_groups = RdsGroupProvider::load_group_by_query(
+                    client,
                     &authz_tables::SELECT_GROUPS_BY_POLICY_ID,
                     &[&realm_id, &server_id, &policy_id],
                 )
@@ -3248,6 +3340,7 @@ impl RdsPolicyProvider {
                 }
 
                 let loaded_scopes = RdsScopeProvider::load_scope_by_query(
+                    client,
                     &authz_tables::SELECT_SCOPES_BY_POLICY_ID,
                     &[&realm_id, &server_id, &policy_id],
                 )
@@ -3269,6 +3362,7 @@ impl RdsPolicyProvider {
                 }
 
                 let loaded_resources = RdsResourceProvider::load_resources_by_query(
+                    client,
                     &authz_tables::SELECT_RESOURCES_BY_POLICY_ID,
                     &[&realm_id, &server_id, &policy_id],
                 )
@@ -3280,6 +3374,7 @@ impl RdsPolicyProvider {
             }
             PolicyTypeEnum::UserPolicy => {
                 let loaded_users = RdsUserProvider::load_users_by_query(
+                    client,
                     &authz_tables::SELECT_USERS_BY_POLICY_ID,
                     &[&realm_id, &server_id, &policy_id],
                 )
@@ -3291,6 +3386,7 @@ impl RdsPolicyProvider {
             }
             PolicyTypeEnum::ClientPolicy => {
                 let loaded_clients = RdsClientProvider::load_clients_by_query(
+                    client,
                     &authz_tables::SELECT_CLIENTS_BY_POLICY_ID,
                     &[&realm_id, &server_id, &policy_id],
                 )
@@ -3330,6 +3426,7 @@ impl RdsPolicyProvider {
             }
             PolicyTypeEnum::ClientScopePolicy => {
                 let loaded_clients_scopes = RdsClientScopeProvider::load_clients_scopes_by_query(
+                    client,
                     &authz_tables::SELECT_CLIENTS_SCOPES_BY_POLICY_ID,
                     &[&realm_id, &server_id, &policy_id],
                 )
