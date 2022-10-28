@@ -6,6 +6,7 @@ use crate::providers::{
         tables::{authz_tables, user_table},
     },
 };
+use async_recursion::async_recursion;
 use async_trait::async_trait;
 use deadpool_postgres::{Object, Transaction};
 use log;
@@ -2524,49 +2525,8 @@ impl IPolicyProvider for RdsPolicyProvider {
         if let Err(err) = client {
             return Err(err);
         }
-        let load_policy_sql = SelectRequestBuilder::new()
-            .table_name(authz_tables::POLICIES_TABLE.table_name.clone())
-            .where_clauses(vec![
-                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
-                SqlCriteriaBuilder::is_equals("server_id".to_string()),
-                SqlCriteriaBuilder::is_equals("policy_id".to_string()),
-            ])
-            .sql_query()
-            .unwrap();
-
-        let client = client.unwrap();
-        let load_policy_stmt = client.prepare_cached(&load_policy_sql).await.unwrap();
-        let result = client
-            .query_opt(&load_policy_stmt, &[&realm_id, &server_id, &policy_id])
-            .await;
-
-        match result {
-            Ok(result_row) => match result_row {
-                Some(row) => {
-                    let mut policy = self.read_record(&row);
-                    let attributes_map: Map<String, Value> =
-                        serde_json::from_value(row.get::<&str, Value>("attributes")).unwrap();
-
-                    if let Err(err) = self
-                        .load_policy_associated_entities(
-                            &client,
-                            &realm_id,
-                            &server_id,
-                            &policy_id,
-                            &mut policy,
-                            attributes_map,
-                        )
-                        .await
-                    {
-                        Err(err)
-                    } else {
-                        return Ok(Some(policy));
-                    }
-                }
-                _ => Ok(None),
-            },
-            Err(err) => Err(err.to_string()),
-        }
+        self.load_policy_by_id_with_client(&client.unwrap(), &realm_id, &server_id, &policy_id)
+            .await
     }
 
     async fn load_policy_scopes_by_id(
@@ -3262,6 +3222,7 @@ impl RdsPolicyProvider {
         Ok(())
     }
 
+    #[async_recursion]
     async fn load_policy_associated_entities(
         &self,
         client: &Object,
@@ -3447,6 +3408,7 @@ impl RdsPolicyProvider {
         Ok(())
     }
 
+    #[async_recursion]
     async fn load_associated_policies(
         &self,
         client: &Object,
@@ -3454,26 +3416,101 @@ impl RdsPolicyProvider {
         server_id: &str,
         policy_id: &str,
     ) -> Result<Vec<PolicyModel>, String> {
-        /*
-        let associated_policies: Option<Vec<PolicyModel>> = None;
+        let mut policies = Vec::new();
+
         let associated_policy_select_stmt = client
             .prepare_cached(&authz_tables::SELECT_ASSOCIATED_POLICIES_BY_POLICY_ID)
             .await
             .unwrap();
 
         let associated_polciy_records = client
-            .query(&associated_policy_select_stmt, &[&realm_id, &policy_id])
+            .query(
+                &associated_policy_select_stmt,
+                &[&realm_id, &server_id, &policy_id],
+            )
             .await;
+
         match associated_polciy_records {
             Ok(rows) => {
                 let associated_policy_ids: Vec<String> = rows
                     .iter()
                     .map(|r| r.get::<&str, String>("associated_policy_id"))
                     .collect();
+                for associated_policy_id in associated_policy_ids {
+                    let loaded_policy = self
+                        .load_policy_by_id_with_client(
+                            &client,
+                            realm_id,
+                            server_id,
+                            &associated_policy_id,
+                        )
+                        .await;
+                    match loaded_policy {
+                        Ok(Some(policy)) => policies.push(policy),
+                        Ok(_) => {
+                            return Err(format!(
+                                "failed to load associated policy {} for policy {}",
+                                &associated_policy_id, &policy_id
+                            ));
+                        }
+                        Err(err) => return Err(err.to_string()),
+                    }
+                }
+                return Ok(policies);
             }
             Err(err) => return Err(err.to_string()),
         }
-        */
-        todo!()
+    }
+
+    #[async_recursion]
+    async fn load_policy_by_id_with_client(
+        &self,
+        client: &Object,
+        realm_id: &str,
+        server_id: &str,
+        policy_id: &str,
+    ) -> Result<Option<PolicyModel>, String> {
+        let load_policy_sql = SelectRequestBuilder::new()
+            .table_name(authz_tables::POLICIES_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("server_id".to_string()),
+                SqlCriteriaBuilder::is_equals("policy_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let load_policy_stmt = client.prepare_cached(&load_policy_sql).await.unwrap();
+        let result = client
+            .query_opt(&load_policy_stmt, &[&realm_id, &server_id, &policy_id])
+            .await;
+
+        match result {
+            Ok(result_row) => match result_row {
+                Some(row) => {
+                    let mut policy = self.read_record(&row);
+                    let attributes_map: Map<String, Value> =
+                        serde_json::from_value(row.get::<&str, Value>("attributes")).unwrap();
+
+                    if let Err(err) = self
+                        .load_policy_associated_entities(
+                            &client,
+                            &realm_id,
+                            &server_id,
+                            &policy_id,
+                            &mut policy,
+                            attributes_map,
+                        )
+                        .await
+                    {
+                        return Err(err);
+                    } else {
+                        return Ok(Some(policy));
+                    }
+                }
+                _ => return Ok(None),
+            },
+            Err(err) => return Err(err.to_string()),
+        }
     }
 }
