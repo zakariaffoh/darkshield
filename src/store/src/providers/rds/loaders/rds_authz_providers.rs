@@ -11,12 +11,7 @@ use deadpool_postgres::{Object, Transaction};
 use log;
 use models::{
     auditable::AuditableModel,
-    entities::{
-        attributes::AttributesMap,
-        authz::*,
-        client::{ClientModel, ClientScopeModel},
-        user::UserModel,
-    },
+    entities::{attributes::AttributesMap, authz::*},
 };
 use postgres_types::ToSql;
 use serde_json::{json, Map, Value};
@@ -2361,7 +2356,10 @@ impl IPolicyProvider for RdsPolicyProvider {
                 .await
                 .unwrap();
 
-                self.save_policies_associated_entities(&trx, &policy).await;
+                match self.save_policies_associated_entities(&trx, &policy).await {
+                    Ok(_) => {}
+                    Err(err) => return Err(err.to_string()),
+                }
 
                 trx.commit().await.unwrap();
                 Ok(())
