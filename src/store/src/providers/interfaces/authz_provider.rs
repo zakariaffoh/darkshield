@@ -282,14 +282,14 @@ pub trait IPolicyProvider: Interface {
         realm_id: &str,
         server_id: &str,
         policy_id: &str,
-    ) -> Result<Vec<PolicyModel>, String>;
+    ) -> Result<Vec<ScopeModel>, String>;
 
     async fn load_policy_resources_by_id(
         &self,
         realm_id: &str,
         server_id: &str,
         policy_id: &str,
-    ) -> Result<Vec<PolicyModel>, String>;
+    ) -> Result<Vec<ResourceModel>, String>;
 
     async fn load_associated_policies_by_policy_id(
         &self,
@@ -302,7 +302,6 @@ pub trait IPolicyProvider: Interface {
         &self,
         realm_id: &str,
         server_id: &str,
-        name: &str,
     ) -> Result<Vec<PolicyModel>, String>;
 
     async fn count_policies(&self, realm_id: &str, server_id: &str) -> Result<u64, String>;

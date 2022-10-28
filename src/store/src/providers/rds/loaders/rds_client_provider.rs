@@ -15,6 +15,7 @@ use models::{
         client::{ClientModel, ClientScopeModel, ProtocolEnum, ProtocolMapperModel},
     },
 };
+use postgres_types::ToSql;
 use serde_json::json;
 use shaku::Component;
 use std::{collections::HashMap, sync::Arc};
@@ -506,6 +507,13 @@ impl RdsClientScopeProvider {
             }
             Err(err) => Err(err.to_string()),
         }
+    }
+
+    pub async fn load_clients_scopes_by_query(
+        query: &str,
+        params: &[&(dyn ToSql + Sync)],
+    ) -> Result<Vec<ClientScopeModel>, String> {
+        todo!()
     }
 }
 
@@ -1065,6 +1073,13 @@ impl RdsClientProvider {
                 version: row.get("version"),
             },
         }
+    }
+
+    pub async fn load_clients_by_query(
+        query: &str,
+        params: &[&(dyn ToSql + Sync)],
+    ) -> Result<Vec<ClientModel>, String> {
+        todo!()
     }
 }
 

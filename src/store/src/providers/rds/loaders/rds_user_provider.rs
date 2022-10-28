@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use models::auditable::AuditableModel;
 use models::entities::attributes::AttributesMap;
 use models::entities::user::UserModel;
+use postgres_types::ToSql;
 use tokio_postgres::Row;
 
 use std::sync::Arc;
@@ -56,6 +57,13 @@ impl RdsUserProvider {
                 version: row.get("version"),
             },
         }
+    }
+
+    pub async fn load_users_by_query(
+        query: &str,
+        params: &[&(dyn ToSql + Sync)],
+    ) -> Result<Vec<UserModel>, String> {
+        todo!()
     }
 }
 
