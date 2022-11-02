@@ -26,7 +26,17 @@ pub trait IUserService: Interface {
 
     async fn delete_user(&self, realm_id: &str, user_id: &str) -> Result<(), String>;
 
-    async fn load_user(&self, realm_id: &str, user_id: &str) -> Result<Option<UserModel>, String>;
+    async fn load_user_by_id(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+    ) -> Result<Option<UserModel>, String>;
+
+    async fn load_user_by_ids(
+        &self,
+        realm_id: &str,
+        user_ids: &[&str],
+    ) -> Result<Vec<UserModel>, String>;
 
     async fn load_users_by_realm_id(&self, realm_id: &str) -> Result<Vec<UserModel>, String>;
 
@@ -124,7 +134,19 @@ impl IUserService for UserService {
         todo!()
     }
 
-    async fn load_user(&self, realm_id: &str, user_id: &str) -> Result<Option<UserModel>, String> {
+    async fn load_user_by_id(
+        &self,
+        realm_id: &str,
+        user_id: &str,
+    ) -> Result<Option<UserModel>, String> {
+        todo!()
+    }
+
+    async fn load_user_by_ids(
+        &self,
+        realm_id: &str,
+        user_ids: &[&str],
+    ) -> Result<Vec<UserModel>, String> {
         todo!()
     }
 

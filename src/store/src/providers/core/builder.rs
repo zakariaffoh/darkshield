@@ -1,12 +1,14 @@
+use postgres_types::ToSql;
+
 pub trait SqlCriteria {
-    fn clause(&mut self, index: u16) -> String;
-    fn current_index(&self) -> u16;
+    fn clause(&mut self, index: usize) -> String;
+    fn current_index(&self) -> usize;
 }
 
 pub struct ComaparableSqlClause {
     column: String,
     op: String,
-    index: u16,
+    index: usize,
 }
 
 impl ComaparableSqlClause {
@@ -20,12 +22,12 @@ impl ComaparableSqlClause {
 }
 
 impl SqlCriteria for ComaparableSqlClause {
-    fn clause(&mut self, index: u16) -> String {
+    fn clause(&mut self, index: usize) -> String {
         self.index = index;
         format!("{} {} ${}", self.column, self.op, self.index)
     }
 
-    fn current_index(&self) -> u16 {
+    fn current_index(&self) -> usize {
         self.index + 1
     }
 }
@@ -33,12 +35,12 @@ impl SqlCriteria for ComaparableSqlClause {
 pub struct InSqlClause {
     column: String,
     op: String,
-    index: u16,
-    in_count: u16,
+    index: usize,
+    in_count: usize,
 }
 
 impl InSqlClause {
-    fn new(colum: String, op: String, in_count: u16) -> Self {
+    fn new(colum: String, op: String, in_count: usize) -> Self {
         Self {
             column: colum,
             op: op,
@@ -49,7 +51,7 @@ impl InSqlClause {
 }
 
 impl SqlCriteria for InSqlClause {
-    fn clause(&mut self, index: u16) -> String {
+    fn clause(&mut self, index: usize) -> String {
         self.index = index;
         let indices: Vec<String> = (self.index..(self.index + self.in_count))
             .into_iter()
@@ -58,7 +60,7 @@ impl SqlCriteria for InSqlClause {
         format!("{} {} ({})", self.column, self.op, indices.join(","))
     }
 
-    fn current_index(&self) -> u16 {
+    fn current_index(&self) -> usize {
         self.index + self.in_count
     }
 }
@@ -66,7 +68,7 @@ impl SqlCriteria for InSqlClause {
 pub struct NullSqlClause {
     column: String,
     op: String,
-    index: u16,
+    index: usize,
 }
 
 #[allow(dead_code)]
@@ -81,12 +83,12 @@ impl NullSqlClause {
 }
 
 impl SqlCriteria for NullSqlClause {
-    fn clause(&mut self, index: u16) -> String {
+    fn clause(&mut self, index: usize) -> String {
         self.index = index;
         format!("{} {}", self.column, self.op)
     }
 
-    fn current_index(&self) -> u16 {
+    fn current_index(&self) -> usize {
         self.index
     }
 }
@@ -127,17 +129,17 @@ impl SqlCriteriaBuilder {
         Box::new(ComaparableSqlClause::new(column, "IS NOT NULL".to_owned()))
     }
 
-    pub fn is_in(column: String, in_count: u16) -> Box<dyn SqlCriteria> {
+    pub fn is_in(column: String, in_count: usize) -> Box<dyn SqlCriteria> {
         Box::new(InSqlClause::new(column, "IN".to_owned(), in_count))
     }
 
-    pub fn is_not_in(column: String, in_count: u16) -> Box<dyn SqlCriteria> {
+    pub fn is_not_in(column: String, in_count: usize) -> Box<dyn SqlCriteria> {
         Box::new(InSqlClause::new(column, "NOT IN".to_owned(), in_count))
     }
 }
 
 #[allow(dead_code)]
-fn build_sql_where_clause(criteria: &mut Vec<Box<dyn SqlCriteria>>, start_index: u16) -> String {
+fn build_sql_where_clause(criteria: &mut Vec<Box<dyn SqlCriteria>>, start_index: usize) -> String {
     let mut clauses = Vec::new();
     let mut index = start_index;
     for cr in criteria.iter_mut() {
@@ -290,7 +292,7 @@ impl UpdateRequestBuilder {
         }
 
         let mut where_clause = "".to_owned();
-        let column_count = self.columns.as_deref().unwrap().len() as u16;
+        let column_count = self.columns.as_deref().unwrap().len() as usize;
         if let Some(clauses) = &mut self.clauses {
             where_clause = build_sql_where_clause(clauses, column_count + 1);
         }

@@ -576,7 +576,7 @@ pub async fn create_policy(
         &realm_id,
         &server_id
     );
-    AuthorizationModelApi::create_policy(&context, &realm_id, &server_id, &policy_model).await
+    AuthorizationModelApi::create_policy(&context, &realm_id, &server_id, policy_model).await
 }
 
 #[put("/realm/{realm_id}/resource-server/{server_id}/policy/{policy_id}")]
@@ -593,7 +593,7 @@ pub async fn update_policy(
         &realm_id,
         &server_id
     );
-    AuthorizationModelApi::update_policy(&context, &realm_id, &server_id, &policy_id, &policy_model)
+    AuthorizationModelApi::update_policy(&context, &realm_id, &server_id, &policy_id, policy_model)
         .await
 }
 

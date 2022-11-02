@@ -30,7 +30,7 @@ pub trait IClientService: Interface {
     async fn load_client_by_ids(
         &self,
         realm_id: &str,
-        client_ids: &Vec<String>,
+        client_ids: &[&str],
     ) -> Result<Vec<ClientModel>, String>;
 
     async fn load_clients_by_realm(&self, realm_id: &str) -> Result<Vec<ClientModel>, String>;
@@ -152,10 +152,10 @@ impl IClientService for ClientService {
     async fn load_client_by_ids(
         &self,
         realm_id: &str,
-        client_ids: &Vec<String>,
+        client_ids: &[&str],
     ) -> Result<Vec<ClientModel>, String> {
         self.client_provider
-            .load_client_by_client_ids(&realm_id, &client_ids)
+            .load_client_by_ids(&realm_id, &client_ids)
             .await
     }
 
@@ -414,6 +414,12 @@ pub trait IClientScopeService: Interface {
         client_scope_id: &str,
     ) -> Result<Option<ClientScopeModel>, String>;
 
+    async fn load_client_scopes_by_ids(
+        &self,
+        realm_id: &str,
+        client_scopes_ids: &[&str],
+    ) -> Result<Vec<ClientScopeModel>, String>;
+
     async fn add_client_scope_protocol_mapper(
         &self,
         realm_id: &str,
@@ -503,6 +509,16 @@ impl IClientScopeService for ClientScopeService {
     ) -> Result<Option<ClientScopeModel>, String> {
         self.client_scope_provider
             .load_client_scope_by_client_scope_id(&realm_id, &client_scope_id)
+            .await
+    }
+
+    async fn load_client_scopes_by_ids(
+        &self,
+        realm_id: &str,
+        client_scopes_ids: &[&str],
+    ) -> Result<Vec<ClientScopeModel>, String> {
+        self.client_scope_provider
+            .load_client_scopes_by_ids(&realm_id, &client_scopes_ids)
             .await
     }
 

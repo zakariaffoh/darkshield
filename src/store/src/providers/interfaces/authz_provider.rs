@@ -12,7 +12,7 @@ pub trait IRoleProvider: Interface {
     async fn load_roles_by_ids(
         &self,
         realm_id: &str,
-        roles_ids: &Vec<String>,
+        roles_ids: &[&str],
     ) -> Result<Vec<RoleModel>, String>;
     async fn load_roles_by_realm(&self, realm_id: &str) -> Result<Vec<RoleModel>, String>;
     async fn load_role_by_name(
@@ -71,6 +71,13 @@ pub trait IGroupProvider: Interface {
     ) -> Result<Option<GroupModel>, String>;
 
     async fn load_groups_by_realm(&self, realm_id: &str) -> Result<Vec<GroupModel>, String>;
+
+    async fn load_group_by_ids(
+        &self,
+        realm_id: &str,
+        group_ids: &[&str],
+    ) -> Result<Vec<GroupModel>, String>;
+
     async fn count_groups(&self, realm_id: &str) -> Result<i64, String>;
     async fn exists_groups_by_id(&self, realm_id: &str, realm_id: &str) -> Result<bool, String>;
     async fn add_group_role_mapping(
@@ -175,6 +182,12 @@ pub trait IResourceProvider: Interface {
         resource_id: &str,
     ) -> Result<Option<ResourceModel>, String>;
 
+    async fn load_resources_by_ids(
+        &self,
+        realm_id: &str,
+        resource_ids: &[&str],
+    ) -> Result<Vec<ResourceModel>, String>;
+
     async fn resource_exists_by_name(
         &self,
         realm_id: &str,
@@ -233,6 +246,12 @@ pub trait IScopeProvider: Interface {
         server_id: &str,
         scope_id: &str,
     ) -> Result<Option<ScopeModel>, String>;
+
+    async fn load_scopes_by_ids(
+        &self,
+        realm_id: &str,
+        scopes_ids: &[&str],
+    ) -> Result<Vec<ScopeModel>, String>;
 
     async fn load_scopes_by_realm(&self, realm_id: &str) -> Result<Vec<ScopeModel>, String>;
 
@@ -298,6 +317,13 @@ pub trait IPolicyProvider: Interface {
         scope_id: &str,
     ) -> Result<Vec<PolicyModel>, String>;
 
+    async fn load_policies_by_ids(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        policies_ids: &[&str],
+    ) -> Result<Vec<PolicyModel>, String>;
+
     async fn load_policies_by_server_id(
         &self,
         realm_id: &str,
@@ -313,6 +339,20 @@ pub trait IPolicyProvider: Interface {
     ) -> Result<Vec<PolicyModel>, String>;
 
     async fn delete_policy_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        policy_id: &str,
+    ) -> Result<(), String>;
+
+    async fn policy_exists_by_name(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        name: &str,
+    ) -> Result<bool, String>;
+
+    async fn policy_exists_by_id(
         &self,
         realm_id: &str,
         server_id: &str,

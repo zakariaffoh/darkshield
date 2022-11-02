@@ -120,7 +120,7 @@ impl ClientApi {
     pub async fn load_client_by_ids(
         context: &DarkShieldContext,
         realm_id: &str,
-        client_ids: &Vec<String>,
+        client_ids: &[&str],
     ) -> ApiResult<Vec<ClientModel>> {
         let client_service: &dyn IClientService = context.services().resolve_ref();
         let loaded_clients = client_service
