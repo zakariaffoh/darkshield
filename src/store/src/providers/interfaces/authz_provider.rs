@@ -12,7 +12,7 @@ pub trait IRoleProvider: Interface {
     async fn load_roles_by_ids(
         &self,
         realm_id: &str,
-        roles_ids: &Vec<String>,
+        roles_ids: &[&str],
     ) -> Result<Vec<RoleModel>, String>;
     async fn load_roles_by_realm(&self, realm_id: &str) -> Result<Vec<RoleModel>, String>;
     async fn load_role_by_name(
@@ -31,12 +31,6 @@ pub trait IRoleProvider: Interface {
         realm_id: &str,
         role_id: &str,
     ) -> Result<Option<RoleModel>, String>;
-
-    async fn load_role_by_ids(
-        &self,
-        realm_id: &str,
-        role_ids: &[&str],
-    ) -> Result<Vec<RoleModel>, String>;
 
     async fn exists_by_name(&self, realm_id: &str, name: &str) -> Result<bool, String>;
 
@@ -188,6 +182,12 @@ pub trait IResourceProvider: Interface {
         resource_id: &str,
     ) -> Result<Option<ResourceModel>, String>;
 
+    async fn load_resources_by_ids(
+        &self,
+        realm_id: &str,
+        resource_ids: &[&str],
+    ) -> Result<Vec<ResourceModel>, String>;
+
     async fn resource_exists_by_name(
         &self,
         realm_id: &str,
@@ -250,10 +250,9 @@ pub trait IScopeProvider: Interface {
     async fn load_scopes_by_ids(
         &self,
         realm_id: &str,
-        server_id: &str,
-        scope_ids: &[&str],
-    ) -> Result<Option<ScopeModel>, String>;
-    
+        scopes_ids: &[&str],
+    ) -> Result<Vec<ScopeModel>, String>;
+
     async fn load_scopes_by_realm(&self, realm_id: &str) -> Result<Vec<ScopeModel>, String>;
 
     async fn load_scopes_by_realm_and_server(
@@ -316,6 +315,13 @@ pub trait IPolicyProvider: Interface {
         realm_id: &str,
         server_id: &str,
         scope_id: &str,
+    ) -> Result<Vec<PolicyModel>, String>;
+
+    async fn load_policies_by_ids(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        policies_ids: &[&str],
     ) -> Result<Vec<PolicyModel>, String>;
 
     async fn load_policies_by_server_id(

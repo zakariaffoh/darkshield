@@ -82,12 +82,11 @@ impl IRoleService for RoleService {
         &self,
         realm_id: &str,
         role_ids: &[&str],
-    ) -> Result<Vec<RoleModel>, String>{
+    ) -> Result<Vec<RoleModel>, String> {
         self.role_provider
-        .load_role_by_ids(&realm_id, &role_ids)
-        .await
+            .load_roles_by_ids(&realm_id, &role_ids)
+            .await
     }
-
 
     async fn load_roles_by_realm(&self, realm_id: &str) -> Result<Vec<RoleModel>, String> {
         self.role_provider.load_roles_by_realm(&realm_id).await
@@ -149,7 +148,7 @@ pub trait IGroupService: Interface {
     async fn load_group_by_ids(
         &self,
         realm_id: &str,
-        group_id: &str,
+        group_ids: &[&str],
     ) -> Result<Vec<GroupModel>, String>;
 
     async fn load_groups_by_realm(&self, realm_id: &str) -> Result<Vec<GroupModel>, String>;
@@ -233,10 +232,10 @@ impl IGroupService for GroupService {
         &self,
         realm_id: &str,
         group_ids: &[&str],
-    ) -> Result<Vec<GroupModel>, String>{
+    ) -> Result<Vec<GroupModel>, String> {
         self.group_provider
-        .load_group_by_ids(&realm_id, &group_ids)
-        .await
+            .load_group_by_ids(&realm_id, &group_ids)
+            .await
     }
 
     async fn load_groups_by_realm(&self, realm_id: &str) -> Result<Vec<GroupModel>, String> {
@@ -532,10 +531,8 @@ pub trait IResourceService: Interface {
     async fn load_resources_by_ids(
         &self,
         realm_id: &str,
-        server_id: &str,
         resource_id: &[&str],
     ) -> Result<Vec<ResourceModel>, String>;
-
 
     async fn load_resources_by_server(
         &self,
@@ -612,6 +609,16 @@ impl IResourceService for ResourceService {
     ) -> Result<Option<ResourceModel>, String> {
         self.resource_provider
             .load_resource_by_id(&realm_id, &server_id, &resource_id)
+            .await
+    }
+
+    async fn load_resources_by_ids(
+        &self,
+        realm_id: &str,
+        resource_ids: &[&str],
+    ) -> Result<Vec<ResourceModel>, String> {
+        self.resource_provider
+            .load_resources_by_ids(&realm_id, &resource_ids)
             .await
     }
 
@@ -705,9 +712,8 @@ pub trait IScopeService: Interface {
     async fn load_scopes_by_ids(
         &self,
         realm_id: &str,
-        server_id: &str,
         scope_ids: &[&str],
-    ) -> Result<Option<ScopeModel>, String>;
+    ) -> Result<Vec<ScopeModel>, String>;
 
     async fn load_scopes_by_realm(
         &self,
@@ -778,12 +784,11 @@ impl IScopeService for ScopeService {
     async fn load_scopes_by_ids(
         &self,
         realm_id: &str,
-        server_id: &str,
         scope_ids: &[&str],
-    ) -> Result<Option<ScopeModel>, String>{
+    ) -> Result<Vec<ScopeModel>, String> {
         self.scope_provider
-        .load_scopes_by_ids(&realm_id, &server_id, &scope_ids)
-        .await
+            .load_scopes_by_ids(&realm_id, &scope_ids)
+            .await
     }
 
     async fn load_scopes_by_realm(
@@ -858,7 +863,6 @@ pub trait IPolicyService: Interface {
         server_id: &str,
         policy_id: &[&str],
     ) -> Result<Vec<PolicyModel>, String>;
-
 
     async fn load_policy_scopes_by_id(
         &self,
@@ -944,7 +948,20 @@ impl IPolicyService for PolicyService {
         server_id: &str,
         policy_id: &str,
     ) -> Result<Option<PolicyModel>, String> {
-        self.policy_provider.load_policy_by_id(&realm_id, &server_id, &policy_id).await
+        self.policy_provider
+            .load_policy_by_id(&realm_id, &server_id, &policy_id)
+            .await
+    }
+
+    async fn load_policy_by_ids(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        policies_ids: &[&str],
+    ) -> Result<Vec<PolicyModel>, String> {
+        self.policy_provider
+            .load_policies_by_ids(&realm_id, &server_id, &policies_ids)
+            .await
     }
 
     async fn load_policy_scopes_by_id(
@@ -953,7 +970,9 @@ impl IPolicyService for PolicyService {
         server_id: &str,
         policy_id: &str,
     ) -> Result<Vec<ScopeModel>, String> {
-        self.policy_provider.load_policy_scopes_by_id(&realm_id, &server_id, &policy_id).await
+        self.policy_provider
+            .load_policy_scopes_by_id(&realm_id, &server_id, &policy_id)
+            .await
     }
 
     async fn load_policy_resources_by_id(
@@ -962,7 +981,9 @@ impl IPolicyService for PolicyService {
         server_id: &str,
         policy_id: &str,
     ) -> Result<Vec<ResourceModel>, String> {
-        self.policy_provider.load_policy_resources_by_id(&realm_id, &server_id, &policy_id).await
+        self.policy_provider
+            .load_policy_resources_by_id(&realm_id, &server_id, &policy_id)
+            .await
     }
 
     async fn load_associated_policies_by_policy_id(
@@ -971,7 +992,9 @@ impl IPolicyService for PolicyService {
         server_id: &str,
         policy_id: &str,
     ) -> Result<Vec<PolicyModel>, String> {
-        self.policy_provider.load_associated_policies_by_policy_id(&realm_id, &server_id, &policy_id).await
+        self.policy_provider
+            .load_associated_policies_by_policy_id(&realm_id, &server_id, &policy_id)
+            .await
     }
 
     async fn load_policies_by_server_id(
@@ -979,11 +1002,15 @@ impl IPolicyService for PolicyService {
         realm_id: &str,
         server_id: &str,
     ) -> Result<Vec<PolicyModel>, String> {
-        self.policy_provider.load_policies_by_server_id(&realm_id, &server_id).await
+        self.policy_provider
+            .load_policies_by_server_id(&realm_id, &server_id)
+            .await
     }
 
     async fn count_policies(&self, realm_id: &str, count_query: &str) -> Result<u64, String> {
-        self.policy_provider.count_policies(&realm_id, &count_query).await
+        self.policy_provider
+            .count_policies(&realm_id, &count_query)
+            .await
     }
 
     async fn search_policies(
@@ -991,7 +1018,9 @@ impl IPolicyService for PolicyService {
         realm_id: &str,
         search_query: &str,
     ) -> Result<Vec<PolicyModel>, String> {
-        self.policy_provider.search_policies(&realm_id, &search_query).await
+        self.policy_provider
+            .search_policies(&realm_id, &search_query)
+            .await
     }
 
     async fn delete_policy_by_id(
@@ -1000,7 +1029,9 @@ impl IPolicyService for PolicyService {
         server_id: &str,
         policy_id: &str,
     ) -> Result<(), String> {
-        self.policy_provider.delete_policy_by_id(&realm_id, &server_id, &policy_id).await
+        self.policy_provider
+            .delete_policy_by_id(&realm_id, &server_id, &policy_id)
+            .await
     }
 
     async fn policy_exists_by_name(
@@ -1009,7 +1040,9 @@ impl IPolicyService for PolicyService {
         server_id: &str,
         name: &str,
     ) -> Result<bool, String> {
-        self.policy_provider.policy_exists_by_name(&realm_id, &server_id, &name).await
+        self.policy_provider
+            .policy_exists_by_name(&realm_id, &server_id, &name)
+            .await
     }
 
     async fn policy_exists_by_id(
@@ -1018,6 +1051,8 @@ impl IPolicyService for PolicyService {
         server_id: &str,
         policy_id: &str,
     ) -> Result<bool, String> {
-        self.policy_provider.policy_exists_by_id(&realm_id, &server_id, &policy_id).await
+        self.policy_provider
+            .policy_exists_by_id(&realm_id, &server_id, &policy_id)
+            .await
     }
 }

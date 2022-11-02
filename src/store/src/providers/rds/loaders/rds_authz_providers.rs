@@ -165,38 +165,6 @@ impl IRoleProvider for RdsRoleProvider {
         }
     }
 
-    async fn load_roles_by_ids(
-        &self,
-        realm_id: &str,
-        roles_ids: &Vec<String>,
-    ) -> Result<Vec<RoleModel>, String> {
-        let client = self.database_manager.connection().await;
-        if let Err(err) = client {
-            return Err(err);
-        }
-        let load_roles_sql = SelectRequestBuilder::new()
-            .table_name(authz_tables::ROLE_TABLE.table_name.clone())
-            .where_clauses(vec![
-                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
-                SqlCriteriaBuilder::is_in("roles_id".to_string(), roles_ids.len() as u16),
-            ])
-            .sql_query()
-            .unwrap();
-
-        let client = client.unwrap();
-        let load_roles_stmt = client.prepare_cached(&load_roles_sql).await.unwrap();
-        let result = client
-            .query(&load_roles_stmt, &[&realm_id, &roles_ids])
-            .await;
-        match result {
-            Ok(rows) => Ok(rows
-                .iter()
-                .map(|row| RdsRoleProvider::read_record(&row))
-                .collect()),
-            Err(err) => Err(err.to_string()),
-        }
-    }
-
     async fn load_roles_by_realm(&self, realm_id: &str) -> Result<Vec<RoleModel>, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
@@ -496,6 +464,41 @@ impl IRoleProvider for RdsRoleProvider {
             .await
             .unwrap();
         let result = client.query(&load_roles_stmt, &[&realm_id, &user_id]).await;
+        match result {
+            Ok(rows) => Ok(rows
+                .iter()
+                .map(|row| RdsRoleProvider::read_record(&row))
+                .collect()),
+            Err(err) => Err(err.to_string()),
+        }
+    }
+
+    async fn load_roles_by_ids(
+        &self,
+        realm_id: &str,
+        role_ids: &[&str],
+    ) -> Result<Vec<RoleModel>, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let client = client.unwrap();
+        let load_realm_sql = SelectRequestBuilder::new()
+            .table_name(authz_tables::ROLE_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_in("role_id".to_string(), role_ids.len()),
+            ])
+            .sql_query()
+            .unwrap();
+        let load_roles_stmt = client.prepare_cached(&load_realm_sql).await.unwrap();
+        let mut params: Vec<&(dyn ToSql + Sync)> = Vec::new();
+        params.push(&realm_id);
+        for role_id in role_ids.iter() {
+            params.push(role_id);
+        }
+
+        let result = client.query(&load_roles_stmt, params.as_slice()).await;
         match result {
             Ok(rows) => Ok(rows
                 .iter()
@@ -1057,6 +1060,55 @@ impl IGroupProvider for RdsGroupProvider {
         match result {
             Ok(row) => Ok(row.get::<usize, i64>(0)),
             Err(error) => Err(error.to_string()),
+        }
+    }
+
+    async fn load_group_by_ids(
+        &self,
+        realm_id: &str,
+        group_ids: &[&str],
+    ) -> Result<Vec<GroupModel>, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let client = client.unwrap();
+        let load_realm_sql = SelectRequestBuilder::new()
+            .table_name(authz_tables::GROUP_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_in("group_id".to_string(), group_ids.len()),
+            ])
+            .sql_query()
+            .unwrap();
+        let load_roles_stmt = client.prepare_cached(&load_realm_sql).await.unwrap();
+
+        let mut params: Vec<&(dyn ToSql + Sync)> = Vec::new();
+        params.push(&realm_id);
+        for group_id in group_ids.iter() {
+            params.push(group_id);
+        }
+
+        let result = client.query(&load_roles_stmt, params.as_slice()).await;
+        match result {
+            Ok(rows) => {
+                let mut groups = Vec::new();
+                for r in rows {
+                    let roles_records = RdsGroupProvider::read_group_roles(
+                        &client,
+                        realm_id,
+                        &r.get::<&str, &str>("group_id"),
+                    )
+                    .await;
+                    if roles_records.is_ok() {
+                        groups.push(RdsGroupProvider::read_record(r, roles_records.unwrap()));
+                    } else {
+                        return Err(roles_records.err().unwrap());
+                    }
+                }
+                Ok(groups)
+            }
+            Err(err) => Err(err.to_string()),
         }
     }
 }
@@ -1814,6 +1866,42 @@ impl IResourceProvider for RdsResourceProvider {
         }
     }
 
+    async fn load_resources_by_ids(
+        &self,
+        realm_id: &str,
+        resource_ids: &[&str],
+    ) -> Result<Vec<ResourceModel>, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let load_resources_sql = SelectRequestBuilder::new()
+            .table_name(authz_tables::RESOURCES_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_in("resource_id".to_string(), resource_ids.len()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let mut params: Vec<&(dyn ToSql + Sync)> = Vec::new();
+        params.push(&realm_id);
+        for resource_id in resource_ids.iter() {
+            params.push(resource_id);
+        }
+
+        let client = client.unwrap();
+        let load_resources_stmt = client.prepare_cached(&load_resources_sql).await.unwrap();
+        let result = client.query(&load_resources_stmt, params.as_slice()).await;
+        match result {
+            Ok(rows) => Ok(rows
+                .iter()
+                .map(|row| RdsResourceProvider::read_record(&row))
+                .collect()),
+            Err(err) => Err(err.to_string()),
+        }
+    }
+
     async fn resource_exists_by_name(
         &self,
         realm_id: &str,
@@ -2358,6 +2446,42 @@ impl IScopeProvider for RdsScopeProvider {
         }
     }
 
+    async fn load_scopes_by_ids(
+        &self,
+        realm_id: &str,
+        scope_ids: &[&str],
+    ) -> Result<Vec<ScopeModel>, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let load_scopes_sql = SelectRequestBuilder::new()
+            .table_name(authz_tables::SCOPES_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_in("scope_id".to_string(), scope_ids.len()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let mut params: Vec<&(dyn ToSql + Sync)> = Vec::new();
+        params.push(&realm_id);
+        for scope_id in scope_ids.iter() {
+            params.push(scope_id);
+        }
+        let client = client.unwrap();
+        let load_scopes_stmt = client.prepare_cached(&load_scopes_sql).await.unwrap();
+        let result = client.query(&load_scopes_stmt, params.as_slice()).await;
+
+        match result {
+            Ok(rows) => Ok(rows
+                .iter()
+                .map(|row| RdsScopeProvider::read_record(&row))
+                .collect()),
+            Err(err) => Err(err.to_string()),
+        }
+    }
+
     async fn scope_exists_by_name(
         &self,
         realm_id: &str,
@@ -2377,7 +2501,7 @@ impl IScopeProvider for RdsScopeProvider {
             ])
             .sql_query()
             .unwrap();
-        
+
         let client = client.unwrap();
         let load_scope_stmt = client.prepare_cached(&load_scope_sql).await.unwrap();
         let result = client
@@ -2633,6 +2757,67 @@ impl IPolicyProvider for RdsPolicyProvider {
         }
     }
 
+    async fn load_policies_by_ids(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        policies_ids: &[&str],
+    ) -> Result<Vec<PolicyModel>, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let load_policies_sql = SelectRequestBuilder::new()
+            .table_name(authz_tables::POLICIES_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("server_id".to_string()),
+                SqlCriteriaBuilder::is_in("policy_id".to_string(), policies_ids.len()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let mut params: Vec<&(dyn ToSql + Sync)> = Vec::new();
+        params.push(&realm_id);
+        params.push(&server_id);
+        for policy_id in policies_ids.iter() {
+            params.push(policy_id);
+        }
+
+        let client = client.unwrap();
+        let load_policies_stmt = client.prepare_cached(&load_policies_sql).await.unwrap();
+        let results = client.query(&load_policies_stmt, params.as_slice()).await;
+
+        match results {
+            Ok(result_rows) => {
+                let mut policies = Vec::new();
+                for row in result_rows {
+                    let mut policy = self.read_record(&row);
+                    let attributes_map: Map<String, Value> =
+                        serde_json::from_value(row.get::<&str, Value>("attributes")).unwrap();
+
+                    if let Err(err) = self
+                        .load_policy_associated_entities(
+                            &client,
+                            &realm_id,
+                            &server_id,
+                            &policy.policy_id.to_owned(),
+                            &mut policy,
+                            attributes_map,
+                        )
+                        .await
+                    {
+                        return Err(err);
+                    } else {
+                        policies.push(policy);
+                    }
+                }
+                return Ok(policies);
+            }
+            Err(err) => Err(err.to_string()),
+        }
+    }
+
     async fn count_policies(&self, _realm_id: &str, _server_id: &str) -> Result<u64, String> {
         todo!()
     }
@@ -2825,7 +3010,7 @@ impl IPolicyProvider for RdsPolicyProvider {
         realm_id: &str,
         server_id: &str,
         name: &str,
-    ) -> Result<bool, String>{
+    ) -> Result<bool, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
@@ -2839,12 +3024,13 @@ impl IPolicyProvider for RdsPolicyProvider {
             ])
             .sql_query()
             .unwrap();
-        
+
         RdsPolicyProvider::policy_exists_by_query(
             &client.unwrap(),
             &load_policy_sql,
-            &[&realm_id, &server_id, &name]
-        ).await
+            &[&realm_id, &server_id, &name],
+        )
+        .await
     }
 
     async fn policy_exists_by_id(
@@ -2852,7 +3038,7 @@ impl IPolicyProvider for RdsPolicyProvider {
         realm_id: &str,
         server_id: &str,
         policy_id: &str,
-    ) -> Result<bool, String>{
+    ) -> Result<bool, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
@@ -2870,8 +3056,9 @@ impl IPolicyProvider for RdsPolicyProvider {
         RdsPolicyProvider::policy_exists_by_query(
             &client.unwrap(),
             &load_policy_sql,
-            &[&realm_id, &server_id, &policy_id]
-        ).await
+            &[&realm_id, &server_id, &policy_id],
+        )
+        .await
     }
 }
 
@@ -3571,16 +3758,13 @@ impl RdsPolicyProvider {
     async fn policy_exists_by_query(
         client: &Object,
         query: &str,
-        params: &[&(dyn ToSql + Sync)]
-    ) -> Result<bool, String>{
+        params: &[&(dyn ToSql + Sync)],
+    ) -> Result<bool, String> {
         let load_policy_stmt = client.prepare_cached(&query).await.unwrap();
-        let result = client
-            .query_one(&load_policy_stmt, params)
-            .await;
+        let result = client.query_one(&load_policy_stmt, params).await;
         match result {
             Ok(row) => Ok(row.get::<usize, i32>(0) > 0),
             Err(error) => Err(error.to_string()),
         }
     }
-
 }

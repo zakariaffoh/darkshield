@@ -29,10 +29,10 @@ pub trait IClientProvider: Interface {
         client_id: &str,
     ) -> Result<Option<ClientModel>, String>;
 
-    async fn load_client_by_client_ids(
+    async fn load_client_by_ids(
         &self,
         realm_id: &str,
-        client_id: &Vec<String>,
+        client_ids: &[&str],
     ) -> Result<Vec<ClientModel>, String>;
 
     async fn load_clients_by_realm_id(&self, realm_id: &str) -> Result<Vec<ClientModel>, String>;
@@ -123,6 +123,12 @@ pub trait IClientScopeProvider: Interface {
         realm_id: &str,
         client_scope_id: &str,
     ) -> Result<Option<ClientScopeModel>, String>;
+
+    async fn load_client_scopes_by_ids(
+        &self,
+        realm_id: &str,
+        client_scopes_ids: &[&str],
+    ) -> Result<Vec<ClientScopeModel>, String>;
 
     async fn load_client_scopes_by_client_id(
         &self,

@@ -1,8 +1,6 @@
 use std::fmt::format;
 
 use crate::context::DarkShieldContext;
-use actix_web::Scope;
-use authz::policy;
 use commons::ApiResult;
 use log;
 use store::providers::rds::loaders::rds_authz_providers::RdsPolicyProvider;
@@ -10,15 +8,24 @@ use uuid;
 
 use models::{
     auditable::AuditableModel,
-    entities::{authz::{
-        GroupModel, IdentityProviderModel, PolicyModel, PolicyRepresentation, ResourceModel,
-        ResourceServerModel, RoleModel, ScopeModel, GroupPolicyConfig, RegexConfig, TimePolicyConfig, PolicyTypeEnum, DecisionLogicEnum,
-    }, client::{ClientScopeModel, ClientModel}},
+    entities::{
+        authz::{
+            DecisionLogicEnum, DecisionStrategyEnum, GroupModel, GroupPolicyConfig,
+            IdentityProviderModel, PolicyModel, PolicyRepresentation, PolicyTypeEnum, RegexConfig,
+            ResourceModel, ResourceServerModel, RoleModel, ScopeModel, TimePolicyConfig,
+        },
+        client::{ClientModel, ClientScopeModel},
+        user::UserModel,
+    },
 };
-use services::services::{authz_services::{
-    IGroupService, IIdentityProviderService, IPolicyService, IResourceServerService,
-    IResourceService, IRoleService, IScopeService,
-}, user_services::IUserService, client_services::{IClientScopeService, IClientService}};
+use services::services::{
+    authz_services::{
+        IGroupService, IIdentityProviderService, IPolicyService, IResourceServerService,
+        IResourceService, IRoleService, IScopeService,
+    },
+    client_services::{IClientScopeService, IClientService},
+    user_services::IUserService,
+};
 use shaku::HasComponent;
 pub struct AuthorizationModelApi;
 
@@ -1312,7 +1319,7 @@ impl AuthorizationModelApi {
         context: &DarkShieldContext,
         realm_id: &str,
         server_id: &str,
-        policy: &PolicyRepresentation,
+        policy: PolicyRepresentation,
     ) -> ApiResult<PolicyModel> {
         let resource_server_server: &dyn IResourceServerService = context.services().resolve_ref();
         let existing_resource_server = resource_server_server
@@ -1352,7 +1359,7 @@ impl AuthorizationModelApi {
         let policy_id = uuid::Uuid::new_v4().to_string();
 
         let parsed_policy_model = AuthorizationModelApi::policy_model_from_representation(
-            context, realm_id, server_id, &policy_id,&policy
+            context, realm_id, server_id, &policy_id, policy,
         )
         .await;
         match parsed_policy_model {
@@ -1366,7 +1373,7 @@ impl AuthorizationModelApi {
                     Err(err) => {
                         log::error!(
                             "Failed to create policy: {}, realm: {}. Error: {}",
-                            &policy.name(),
+                            &policy_model.name,
                             &realm_id,
                             err
                         );
@@ -1376,8 +1383,7 @@ impl AuthorizationModelApi {
             }
             Err(err) => {
                 log::error!(
-                    "Failed to create policy model: {} from representation. Error: {}",
-                    &policy.name(),
+                    "Failed to create policy model from representation. Error: {}",
                     err
                 );
                 ApiResult::from_error(400, "500", &err)
@@ -1390,20 +1396,19 @@ impl AuthorizationModelApi {
         realm_id: &str,
         server_id: &str,
         policy_id: &str,
-        policy: &PolicyRepresentation
-    ) -> Result<PolicyModel, String> {        
-       
+        policy: PolicyRepresentation,
+    ) -> Result<PolicyModel, String> {
         let mut policy_type: PolicyTypeEnum;
         let mut name: String;
         let mut description: String;
         let mut decision: DecisionStrategyEnum;
         let mut logic: DecisionLogicEnum;
         let mut policy_owner: String;
-
+        let mut configs: Option<std::collections::BTreeMap<String, String>>;
         let mut script: Option<String> = None;
         let mut resource_type: Option<String> = None;
 
-        let mut associated_policies: Result<Vec<PolicyModel>, String>;
+        let mut associated_policies: Option<Vec<PolicyModel>> = None;
         let mut users: Option<Vec<UserModel>> = None;
         let mut roles: Option<Vec<RoleModel>> = None;
         let mut groups: Option<GroupPolicyConfig> = None;
@@ -1414,218 +1419,296 @@ impl AuthorizationModelApi {
         let mut regex_config: Option<RegexConfig> = None;
         let mut time_config: Option<TimePolicyConfig> = None;
 
-        let policy_service: &dyn IPolicyService = context.services().resolve_ref();
+        let policy_service: &(dyn IPolicyService + 'static) = context.services().resolve_ref();
         match policy {
-            PolicyRepresentation::PyPolicy(py_policy) =>{
-                if py_policy.script.is_empty(){
-                    return Err("field script is empty". to_owned());
+            PolicyRepresentation::PyPolicy(py_policy) => {
+                if py_policy.script.is_empty() {
+                    return Err("field script is empty".to_owned());
                 }
                 script = Some(py_policy.script);
-                if let Some(policies_ids) = py_policy.policies {
-                    associated_policies = AuthorizationModelApi::resolve_associated_policies(
-                        &policy_service,
+                if let Some(policies_ids) = &py_policy.policies {
+                    match AuthorizationModelApi::resolve_associated_policies(
+                        policy_service,
                         &realm_id,
                         &server_id,
-                        &policies_ids,
-                    ).await
+                        policies_ids,
+                    )
+                    .await
+                    {
+                        Ok(res) => associated_policies = Some(res),
+                        Err(err) => return Err(err),
+                    }
                 }
 
-                policy_type=PolicyTypeEnum::PyPolicy;
-                name=py_policy.name;
-                description=py_policy.description;
-                decision=py_policy.decision;
-                logic=py_policy.logic;
-                policy_owner=py_policy.policy_owner;
-            },
-            PolicyRepresentation::UserPolicy(user_policy) =>{
-                if let Some(policies_ids) = user_policy.policies {
-                    associated_policies = AuthorizationModelApi::resolve_associated_policies(
-                        &policy_service,
+                policy_type = PolicyTypeEnum::PyPolicy;
+                name = py_policy.name;
+                description = py_policy.description;
+                decision = py_policy.decision;
+                logic = py_policy.logic;
+                policy_owner = py_policy.policy_owner;
+                configs = py_policy.configs;
+            }
+            PolicyRepresentation::UserPolicy(user_policy) => {
+                if let Some(policies_ids) = &user_policy.policies {
+                    match AuthorizationModelApi::resolve_associated_policies(
+                        policy_service,
                         &realm_id,
                         &server_id,
-                        &policies_ids,
-                    ).await
+                        policies_ids,
+                    )
+                    .await
+                    {
+                        Ok(res) => associated_policies = Some(res),
+                        Err(err) => return Err(err),
+                    }
                 }
-                if let Some(users_ids) = user_policy.users {
+                if !user_policy.users.is_empty() {
                     let user_service: &dyn IUserService = context.services().resolve_ref();
-                    match user_service.load_user_by_ids(&realm_id, &users_ids).await {
+                    let user_ids: Vec<_> = user_policy.users.iter().map(|s| s.as_str()).collect();
+                    match user_service.load_user_by_ids(&realm_id, &user_ids).await {
                         Ok(res) => users = Some(res),
-                        Err(err) => return  Err(err)
+                        Err(err) => return Err(err),
                     }
                 }
-                policy_type=PolicyTypeEnum::UserPolicy;
-                name=py_policy.name;
-                description=py_policy.description;
-                decision=py_policy.decision;
-                logic=py_policy.logic;
-                policy_owner=py_policy.policy_owner;
+                policy_type = PolicyTypeEnum::UserPolicy;
+                name = user_policy.name;
+                description = user_policy.description;
+                decision = user_policy.decision;
+                logic = user_policy.logic;
+                policy_owner = user_policy.policy_owner;
+                configs = user_policy.configs;
             }
-            PolicyRepresentation::RolePolicy(role_policy) =>{
-                if let Some(policies_ids) = role_policy.policies {
-                    associated_policies = AuthorizationModelApi::resolve_associated_policies(
-                        &policy_service,
+            PolicyRepresentation::RolePolicy(role_policy) => {
+                if let Some(policies_ids) = &role_policy.policies {
+                    match AuthorizationModelApi::resolve_associated_policies(
+                        policy_service,
                         &realm_id,
                         &server_id,
-                        &policies_ids,
-                    ).await
+                        policies_ids,
+                    )
+                    .await
+                    {
+                        Ok(res) => associated_policies = Some(res),
+                        Err(err) => return Err(err),
+                    }
                 }
-                if let Some(roles_ids) = role_policy.roles {
+                if !role_policy.roles.is_empty() {
                     let role_service: &dyn IRoleService = context.services().resolve_ref();
-                    match role_service.load_user_roles(&realm_id, &users_ids).await {
-                        Ok(res) =>{
-                            users = Some(res);
-                        },
-                        _ => _
+                    let roles_ids: Vec<_> = role_policy.roles.iter().map(|s| s.as_str()).collect();
+
+                    match role_service.load_role_by_ids(&realm_id, &roles_ids).await {
+                        Ok(res) => {
+                            roles = Some(res);
+                        }
+                        Err(err) => return Err(err),
                     }
                 }
-                policy_type=PolicyTypeEnum::RolePolicy;
-                name=py_policy.name;
-                description=py_policy.description;
-                decision=py_policy.decision;
-                logic=py_policy.logic;
-                policy_owner=py_policy.policy_owner;
+                policy_type = PolicyTypeEnum::RolePolicy;
+                name = role_policy.name;
+                description = role_policy.description;
+                decision = role_policy.decision;
+                logic = role_policy.logic;
+                policy_owner = role_policy.policy_owner;
+                configs = role_policy.configs;
             }
-            PolicyRepresentation::GroupPolicy(group_policy) =>{
-                if let Some(policies_ids) = group_policy.policies {
-                    associated_policies = AuthorizationModelApi::resolve_associated_policies(
-                        &policy_service,
+            PolicyRepresentation::GroupPolicy(group_policy) => {
+                if let Some(policies_ids) = &group_policy.policies {
+                    match AuthorizationModelApi::resolve_associated_policies(
+                        policy_service,
                         &realm_id,
                         &server_id,
-                        &policies_ids,
-                    ).await
+                        policies_ids,
+                    )
+                    .await
+                    {
+                        Ok(res) => associated_policies = Some(res),
+                        Err(err) => return Err(err),
+                    }
                 }
 
                 let group_claim = group_policy.group_claim;
-                if group_claim.is_empty(){
-                    return Err("field group_claim is empty". to_owned());
+                if group_claim.is_empty() {
+                    return Err("field group_claim is empty".to_owned());
                 }
                 let mut loaded_groups: Vec<GroupModel> = Vec::new();
-                if let Some(groups_ids) = group_policy.groups {
+                if !group_policy.groups.is_empty() {
                     let group_service: &dyn IGroupService = context.services().resolve_ref();
-                    match group_service.load_group_by_ids(&realm_id, &groups_ids).await {
+                    let group_ids: Vec<_> =
+                        group_policy.groups.iter().map(|s| s.as_str()).collect();
+
+                    match group_service.load_group_by_ids(&realm_id, &group_ids).await {
                         Ok(res) => loaded_groups = res,
-                        Err(err) => return Err(err)
+                        Err(err) => return Err(err),
                     }
                 }
-                groups = Some(GroupPolicyConfig{
+                groups = Some(GroupPolicyConfig {
                     group_claim: group_claim,
-                    groups: loaded_groups
+                    groups: loaded_groups,
                 });
 
-                policy_type=PolicyTypeEnum::GroupPolicy;
-                name=py_policy.name;
-                description=py_policy.description;
-                decision=py_policy.decision;
-                logic=py_policy.logic;
-                policy_owner=py_policy.policy_owner;
+                policy_type = PolicyTypeEnum::GroupPolicy;
+                name = group_policy.name;
+                description = group_policy.description;
+                decision = group_policy.decision;
+                logic = group_policy.logic;
+                policy_owner = group_policy.policy_owner;
+                configs = group_policy.configs;
             }
-            PolicyRepresentation::ClientPolicy(client_policy) =>{
-                if let Some(policies_ids) = client_policy.policies {
-                    associated_policies = AuthorizationModelApi::resolve_associated_policies(
-                        &policy_service,
+            PolicyRepresentation::ClientPolicy(client_policy) => {
+                if let Some(policies_ids) = &client_policy.policies {
+                    match AuthorizationModelApi::resolve_associated_policies(
+                        policy_service,
                         &realm_id,
                         &server_id,
-                        &policies_ids,
-                    ).await
+                        policies_ids,
+                    )
+                    .await
+                    {
+                        Ok(res) => associated_policies = Some(res),
+                        Err(err) => return Err(err),
+                    }
                 }
 
-                if let Some(clients_ids) = client_policy.clients {
+                if !client_policy.clients.is_empty() {
                     let client_service: &dyn IClientService = context.services().resolve_ref();
-                    match client_service.load_client_by_ids(&realm_id, &clients_ids).await {
+                    let clients_ids: Vec<_> =
+                        client_policy.clients.iter().map(|s| s.as_str()).collect();
+
+                    match client_service
+                        .load_client_by_ids(&realm_id, &clients_ids)
+                        .await
+                    {
                         Ok(res) => clients = Some(res),
-                        Err(err) => return Err(err)
+                        Err(err) => return Err(err),
                     }
                 }
-                policy_type=PolicyTypeEnum::ClientPolicy;
-                name=py_policy.name;
-                description=py_policy.description;
-                decision=py_policy.decision;
-                logic=py_policy.logic;
-                policy_owner=py_policy.policy_owner;
+                policy_type = PolicyTypeEnum::ClientPolicy;
+                name = client_policy.name;
+                description = client_policy.description;
+                decision = client_policy.decision;
+                logic = client_policy.logic;
+                policy_owner = client_policy.policy_owner;
+                configs = client_policy.configs;
             }
-            PolicyRepresentation::ClientScopePolicy(client_scope_policy) =>{
-                if let Some(policies_ids) = client_scope_policy.policies {
-                    associated_policies = AuthorizationModelApi::resolve_associated_policies(
-                        &policy_service,
+            PolicyRepresentation::ClientScopePolicy(client_scope_policy) => {
+                if let Some(policies_ids) = &client_scope_policy.policies {
+                    match AuthorizationModelApi::resolve_associated_policies(
+                        policy_service,
                         &realm_id,
                         &server_id,
-                        &policies_ids,
-                    ).await
+                        policies_ids,
+                    )
+                    .await
+                    {
+                        Ok(res) => associated_policies = Some(res),
+                        Err(err) => return Err(err),
+                    }
                 }
 
-                if let Some(client_scopes_ids) = client_scope_policy.client_scopes {
-                    let client_scope_service: &dyn IClientScopeService = context.services().resolve_ref();
-                    match client_scope_service.load_client_scope_by_scope_ids(&realm_id, &client_scopes_ids).await {
+                if !client_scope_policy.client_scopes.is_empty() {
+                    let client_scope_service: &dyn IClientScopeService =
+                        context.services().resolve_ref();
+                    let client_scope_ids: Vec<_> = client_scope_policy
+                        .client_scopes
+                        .iter()
+                        .map(|s| s.as_str())
+                        .collect();
+                    match client_scope_service
+                        .load_client_scopes_by_ids(&realm_id, &client_scope_ids)
+                        .await
+                    {
                         Ok(res) => client_scopes = Some(res),
-                        Err(err) => return Err(err)
+                        Err(err) => return Err(err),
                     }
                 }
-                policy_type=PolicyTypeEnum::ClientScopePolicy;
-                name=py_policy.name;
-                description=py_policy.description;
-                decision=py_policy.decision;
-                logic=py_policy.logic;
-                policy_owner=py_policy.policy_owner;
+                policy_type = PolicyTypeEnum::ClientScopePolicy;
+                name = client_scope_policy.name;
+                description = client_scope_policy.description;
+                decision = client_scope_policy.decision;
+                logic = client_scope_policy.logic;
+                policy_owner = client_scope_policy.policy_owner;
+                configs = client_scope_policy.configs;
             }
-            PolicyRepresentation::AggregatedPolicy(aggregated_policy) =>{
-                if let Some(policies_ids) = aggregated_policy.policies {
-                    associated_policies = AuthorizationModelApi::resolve_associated_policies(
-                        &policy_service,
+            PolicyRepresentation::AggregatedPolicy(aggregated_policy) => {
+                if let Some(policies_ids) = &aggregated_policy.policies {
+                    match AuthorizationModelApi::resolve_associated_policies(
+                        policy_service,
                         &realm_id,
                         &server_id,
-                        &policies_ids,
-                    ).await
-                }
-                policy_type=PolicyTypeEnum::AggregatedPolicy;
-                name=py_policy.name;
-                description=py_policy.description;
-                decision=py_policy.decision;
-                logic=py_policy.logic;
-                policy_owner=py_policy.policy_owner;
-            }
-            PolicyRepresentation::RegexPolicy(regex_policy) =>{
-                if let Some(policies_ids) = regex_policy.policies {
-                    associated_policies = AuthorizationModelApi::resolve_associated_policies(
-                        &policy_service,
-                        &realm_id,
-                        &server_id,
-                        &policies_ids,
-                    ).await
-                }
-                if regex_policy.target_regex.is_empty(){
-                    return Err("field target_regex is empty". to_owned());
-                }
-                if regex_policy.target_claim.is_empty(){
-                    return Err("field target_claim is empty". to_owned());
-                }
-
-                regex_config = Some(
-                    RegexConfig{
-                        target_regex: regex_policy.target_regex.clone(),
-                        target_claim: regex_policy.target_claim.clone(),
+                        policies_ids,
+                    )
+                    .await
+                    {
+                        Ok(res) => associated_policies = Some(res),
+                        Err(err) => return Err(err),
                     }
-                );
-                policy_type=PolicyTypeEnum::RegexPolicy;
-                name=py_policy.name;
-                description=py_policy.description;
-                decision=py_policy.decision;
-                logic=py_policy.logic;
-                policy_owner=py_policy.policy_owner;
+                }
+                policy_type = PolicyTypeEnum::AggregatedPolicy;
+                name = aggregated_policy.name;
+                description = aggregated_policy.description;
+                decision = aggregated_policy.decision;
+                logic = aggregated_policy.logic;
+                policy_owner = aggregated_policy.policy_owner;
+                configs = aggregated_policy.configs;
             }
-            PolicyRepresentation::TimePolicy(time_policy) =>{
-                if let Some(policies_ids) = time_policy.policies {
-                    associated_policies = AuthorizationModelApi::resolve_associated_policies(
-                        &policy_service,
+            PolicyRepresentation::RegexPolicy(regex_policy) => {
+                if let Some(policies_ids) = &regex_policy.policies {
+                    match AuthorizationModelApi::resolve_associated_policies(
+                        policy_service,
                         &realm_id,
                         &server_id,
-                        &policies_ids,
-                    ).await
+                        policies_ids,
+                    )
+                    .await
+                    {
+                        Ok(res) => associated_policies = Some(res),
+                        Err(err) => return Err(err),
+                    }
+                }
+                if regex_policy.target_regex.is_empty() {
+                    return Err("field target_regex is empty".to_owned());
+                }
+                if regex_policy.target_claim.is_empty() {
+                    return Err("field target_claim is empty".to_owned());
                 }
 
-                let check_integer_value = |name: &str, value: u64, lower_bound: u64, higher_bound: u64|
-                    -> Result<(), String> {
-                    if (value < lower_bound || value > higher_bound){
-                        return Err(format!("{} out off bound [{}-{}]", value, lower_bound, higher_bound));
+                regex_config = Some(RegexConfig {
+                    target_regex: regex_policy.target_regex.clone(),
+                    target_claim: regex_policy.target_claim.clone(),
+                });
+                policy_type = PolicyTypeEnum::RegexPolicy;
+                name = regex_policy.name;
+                description = regex_policy.description;
+                decision = regex_policy.decision;
+                logic = regex_policy.logic;
+                policy_owner = regex_policy.policy_owner;
+                configs = regex_policy.configs;
+            }
+            PolicyRepresentation::TimePolicy(time_policy) => {
+                if let Some(policies_ids) = &time_policy.policies {
+                    match AuthorizationModelApi::resolve_associated_policies(
+                        policy_service,
+                        &realm_id,
+                        &server_id,
+                        policies_ids,
+                    )
+                    .await
+                    {
+                        Ok(res) => associated_policies = Some(res),
+                        Err(err) => return Err(err),
+                    }
+                }
+
+                let check_integer_value = |name: &str,
+                                           value: u64,
+                                           lower_bound: u64,
+                                           higher_bound: u64|
+                 -> Result<(), String> {
+                    if value < lower_bound || value > higher_bound {
+                        return Err(format!(
+                            "{} out off bound [{}-{}]",
+                            value, lower_bound, higher_bound
+                        ));
                     }
                     Ok(())
                 };
@@ -1643,7 +1726,7 @@ impl AuthorizationModelApi {
                     check_integer_value("month_end", month_end, 1, 12)?
                 }
                 if let Some(year) = time_policy.year {
-                    check_integer_value("year", month, 1, 9999)?
+                    check_integer_value("year", year, 1, 9999)?
                 }
                 if let Some(year_end) = time_policy.year_end {
                     check_integer_value("year_end", year_end, 1, 9999)?
@@ -1660,89 +1743,110 @@ impl AuthorizationModelApi {
                 if let Some(minute_end) = time_policy.minute_end {
                     check_integer_value("minute_end", minute_end, 1, 59)?
                 }
-                time_config = Some(
-                    TimePolicyConfig{
-                        not_before_time: time_policy.not_before_time,
-                        not_on_or_after_time: time_policy.not_on_or_after_time,
-                        year: time_policy.year,
-                        year_end: time_policy.year_end,
-                        month: time_policy.month,
-                        month_end: time_policy.month_end,
-                        day_of_month: time_policy.day_of_month,
-                        day_of_month_end: time_policy.day_of_month_end,
-                        hour: time_policy.hour,
-                        hour_end: time_policy.hour_end,
-                        minute: time_policy.minute,
-                        minute_end: time_policy.minute_end,
-                    }
-                );
-                policy_type=PolicyTypeEnum::TimePolicy;
-                name=py_policy.name;
-                description=py_policy.description;
-                decision=py_policy.decision;
-                logic=py_policy.logic;
-                policy_owner=py_policy.policy_owner;
+                time_config = Some(TimePolicyConfig {
+                    not_before_time: time_policy.not_before_time,
+                    not_on_or_after_time: time_policy.not_on_or_after_time,
+                    year: time_policy.year,
+                    year_end: time_policy.year_end,
+                    month: time_policy.month,
+                    month_end: time_policy.month_end,
+                    day_of_month: time_policy.day_of_month,
+                    day_of_month_end: time_policy.day_of_month_end,
+                    hour: time_policy.hour,
+                    hour_end: time_policy.hour_end,
+                    minute: time_policy.minute,
+                    minute_end: time_policy.minute_end,
+                });
+                policy_type = PolicyTypeEnum::TimePolicy;
+                name = time_policy.name;
+                description = time_policy.description;
+                decision = time_policy.decision;
+                logic = time_policy.logic;
+                policy_owner = time_policy.policy_owner;
+                configs = time_policy.configs;
             }
-            PolicyRepresentation::ScopePermissionPolicy(scope_policy) =>{
-                if scope_policy.resource_type.is_empty(){
-                    return Err("field resource_type is empty". to_owned());
+            PolicyRepresentation::ScopePermissionPolicy(scope_policy) => {
+                if scope_policy.resource_type.is_empty() {
+                    return Err("field resource_type is empty".to_owned());
                 }
                 resource_type = Some(scope_policy.resource_type.clone());
-                if let Some(policies_ids) = scope_policy.policies {
-                    associated_policies = AuthorizationModelApi::resolve_associated_policies(
-                        &policy_service,
+                if let Some(policies_ids) = &scope_policy.policies {
+                    match AuthorizationModelApi::resolve_associated_policies(
+                        policy_service,
                         &realm_id,
                         &server_id,
-                        &policies_ids,
-                    ).await
+                        policies_ids,
+                    )
+                    .await
+                    {
+                        Ok(res) => associated_policies = Some(res),
+                        Err(err) => return Err(err),
+                    }
                 }
 
                 if let Some(scopes_ids) = scope_policy.scopes {
                     let scope_service: &dyn IScopeService = context.services().resolve_ref();
-                    match scope_service.load_scopes_by_ids(&realm_id, &scopes_ids).await {
+                    let scope_ids: Vec<_> = scopes_ids.iter().map(|s| s.as_str()).collect();
+                    match scope_service
+                        .load_scopes_by_ids(&realm_id, &scope_ids)
+                        .await
+                    {
                         Ok(res) => scopes = Some(res),
-                        Err(err) => return Err(err)
+                        Err(err) => return Err(err),
                     }
                 }
-                policy_type=PolicyTypeEnum::ScopePermission;
-                name=py_policy.name;
-                description=py_policy.description;
-                decision=py_policy.decision;
-                logic=py_policy.logic;
-                policy_owner=py_policy.policy_owner;
+                policy_type = PolicyTypeEnum::ScopePermission;
+                name = scope_policy.name;
+                description = scope_policy.description;
+                decision = scope_policy.decision;
+                logic = scope_policy.logic;
+                policy_owner = scope_policy.policy_owner;
+                configs = scope_policy.configs;
             }
-            PolicyRepresentation::ResourcePermissionPolicy(resource_policy) =>{
-                if scope_policy.resource_type.is_empty(){
-                    return Err("field resource_type is empty". to_owned());
+            PolicyRepresentation::ResourcePermissionPolicy(resource_policy) => {
+                if resource_policy.resource_type.is_empty() {
+                    return Err("field resource_type is empty".to_owned());
                 }
-                resource_type = Some(scope_policy.resource_type.clone());
-                
-                if let Some(policies_ids) = resource_policy.policies {
-                    associated_policies = AuthorizationModelApi::resolve_associated_policies(
-                        &policy_service,
+                resource_type = Some(resource_policy.resource_type.clone());
+
+                if let Some(policies_ids) = &resource_policy.policies {
+                    match AuthorizationModelApi::resolve_associated_policies(
+                        policy_service,
                         &realm_id,
                         &server_id,
-                        &policies_ids,
-                    ).await
+                        policies_ids,
+                    )
+                    .await
+                    {
+                        Ok(res) => associated_policies = Some(res),
+                        Err(err) => return Err(err),
+                    }
                 }
 
                 if let Some(resources_ids) = resource_policy.resources {
                     let resources_service: &dyn IResourceService = context.services().resolve_ref();
-                    match resources_service.load_resources_by_ids(&realm_id, &resources_ids).await {
+                    let resources_ids: Vec<_> = resources_ids.iter().map(|s| s.as_str()).collect();
+
+                    match resources_service
+                        .load_resources_by_ids(&realm_id, &resources_ids)
+                        .await
+                    {
                         Ok(res) => resources = Some(res),
-                        Err(err) => return Err(err)
+                        Err(err) => return Err(err),
                     }
                 }
-                policy_type=PolicyTypeEnum::ResourcePermission;
-                name=py_policy.name;
-                description=py_policy.description;
-                decision=py_policy.decision;
-                logic=py_policy.logic;
-                policy_owner=py_policy.policy_owner;
+                policy_type = PolicyTypeEnum::ResourcePermission;
+                name = resource_policy.name;
+                description = resource_policy.description;
+                decision = resource_policy.decision;
+                logic = resource_policy.logic;
+                policy_owner = resource_policy.policy_owner;
+                configs = resource_policy.configs;
             }
-            _ => Err("Unsupported policy type".to_owned())
+            _ => return Err("Unsupported policy type".to_owned()),
         }
-        let policy = PolicyModel{
+
+        let policy = PolicyModel {
             policy_id: policy_id.to_owned(),
             server_id: server_id.to_owned(),
             realm_id: realm_id.to_owned(),
@@ -1766,24 +1870,28 @@ impl AuthorizationModelApi {
             clients: clients,
             resource_type: None,
             metadata: AuditableModel::default(),
-        }
+        };
+        Ok(policy)
     }
 
     async fn resolve_associated_policies(
-        policy_service: &dyn IPolicyService,
+        policy_service: &(dyn IPolicyService + 'static),
         realm_id: &str,
         server_id: &str,
-        policies_ids: &[&str],
-    ) -> Result<Vec<PolicyModel>, String>{
-        let loaded_policies = policy_service.load_policy_by_ids(realm_id, server_id, policies_ids).await;
-        match loaded_policies{
+        policies_ids: &Vec<String>,
+    ) -> Result<Vec<PolicyModel>, String> {
+        let params: Vec<_> = policies_ids.iter().map(|s| s.as_str()).collect();
+        let loaded_policies = policy_service
+            .load_policy_by_ids(realm_id, server_id, &params)
+            .await;
+        match loaded_policies {
             Ok(plcs) => {
-                if plcs.len() != policies_ids.len(){
+                if plcs.len() != policies_ids.len() {
                     return Err("missing policies".to_owned());
                 }
                 return Ok(plcs);
-            },
-            _ => _
+            }
+            Err(err) => return Err(err),
         }
     }
 
@@ -1792,7 +1900,7 @@ impl AuthorizationModelApi {
         realm_id: &str,
         server_id: &str,
         policy_id: &str,
-        policy: &PolicyRepresentation,
+        policy: PolicyRepresentation,
     ) -> ApiResult<PolicyModel> {
         let resource_server_server: &dyn IResourceServerService = context.services().resolve_ref();
         let existing_resource_server = resource_server_server
@@ -1830,7 +1938,8 @@ impl AuthorizationModelApi {
         }
 
         let parsed_policy_model = AuthorizationModelApi::policy_model_from_representation(
-            context, realm_id, server_id, &policy_id, &policy)
+            context, realm_id, server_id, &policy_id, policy,
+        )
         .await;
         match parsed_policy_model {
             Ok(policy_model) => {
@@ -1843,7 +1952,7 @@ impl AuthorizationModelApi {
                     Err(err) => {
                         log::error!(
                             "Failed to update policy: {} realm: {}. Error: {}",
-                            &policy.name(),
+                            &policy_model.name,
                             &realm_id,
                             err
                         );
@@ -1853,8 +1962,7 @@ impl AuthorizationModelApi {
             }
             Err(err) => {
                 log::error!(
-                    "Failed to update policy model: {} from representation. Error: {}",
-                    &policy.name(),
+                    "Failed to update policy model from representation. Error: {}",
                     err
                 );
                 ApiResult::from_error(400, "500", &err)

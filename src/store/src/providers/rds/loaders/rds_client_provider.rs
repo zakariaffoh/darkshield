@@ -675,6 +675,43 @@ impl IClientScopeProvider for RdsClientScopeProvider {
         RdsClientScopeProvider::read_client_scope(&client, &realm_id, &client_scope_id).await
     }
 
+    async fn load_client_scopes_by_ids(
+        &self,
+        realm_id: &str,
+        client_scopes_ids: &[&str],
+    ) -> Result<Vec<ClientScopeModel>, String> {
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let load_sclient_scopes_sql = SelectRequestBuilder::new()
+            .table_name(
+                client_tables::CLIENTS_CLIENTS_SCOPES_TABLE
+                    .table_name
+                    .clone(),
+            )
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_in("client_scope_id".to_string(), client_scopes_ids.len()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        let mut params: Vec<&(dyn ToSql + Sync)> = Vec::new();
+        params.push(&realm_id);
+        for scope_id in client_scopes_ids.iter() {
+            params.push(scope_id);
+        }
+
+        let client = client.unwrap();
+        RdsClientScopeProvider::load_clients_scopes_by_query(
+            &client,
+            &load_sclient_scopes_sql,
+            params.as_slice(),
+        )
+        .await
+    }
+
     async fn client_scope_exists_by_name(
         &self,
         realm_id: &str,
@@ -1357,10 +1394,10 @@ impl IClientProvider for RdsClientProvider {
         }
     }
 
-    async fn load_client_by_client_ids(
+    async fn load_client_by_ids(
         &self,
         realm_id: &str,
-        client_ids: &Vec<String>,
+        client_ids: &[&str],
     ) -> Result<Vec<ClientModel>, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
@@ -1370,19 +1407,22 @@ impl IClientProvider for RdsClientProvider {
             .table_name(client_tables::CLIENTS_TABLE.table_name.clone())
             .where_clauses(vec![
                 SqlCriteriaBuilder::is_equals("realm_id".to_string()),
-                SqlCriteriaBuilder::is_in("realm_id".to_string(), client_ids.len() as u16),
+                SqlCriteriaBuilder::is_in("realm_id".to_string(), client_ids.len()),
             ])
             .sql_query()
             .unwrap();
+        let mut params: Vec<&(dyn ToSql + Sync)> = Vec::new();
+        params.push(&realm_id);
+        for client_id in client_ids.iter() {
+            params.push(client_id);
+        }
 
         let client = client.unwrap();
         let load_protocol_mapper_stmt = client
             .prepare_cached(&load_protocol_mapper_sql)
             .await
             .unwrap();
-        let result = client
-            .query(&load_protocol_mapper_stmt, &[&realm_id, &client_ids])
-            .await;
+        let result = client.query(&load_protocol_mapper_stmt, &params).await;
         match result {
             Ok(rows) => Ok(rows
                 .into_iter()

@@ -268,7 +268,7 @@ impl IRequiredActionProvider for RdsRequiredActionProvider {
             .table_name(auth_table::REQUIRED_ACTIONS_TABLE.table_name.clone())
             .where_clauses(vec![
                 SqlCriteriaBuilder::is_equals("realm_id".to_string()),
-                SqlCriteriaBuilder::is_in("action".to_string(), actions.len() as u16),
+                SqlCriteriaBuilder::is_in("action".to_string(), actions.len()),
             ])
             .sql_query()
             .unwrap();

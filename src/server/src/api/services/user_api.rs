@@ -288,7 +288,7 @@ impl UserApi {
         user_id: &str,
     ) -> ApiResult<UserModel> {
         let user_service: &dyn IUserService = context.services().resolve_ref();
-        let loaded_user = user_service.load_user(&realm_id, user_id).await;
+        let loaded_user = user_service.load_user_by_id(&realm_id, user_id).await;
         match loaded_user {
             Ok(user) => ApiResult::<UserModel>::from_option(user),
             Err(err) => ApiResult::from_error(500, "500", &err),
@@ -652,7 +652,7 @@ impl UserApi {
             return ApiResult::from_error(400, "400", "credential secret is empty");
         }
         let user_service: &dyn IUserService = context.services().resolve_ref();
-        let user = user_service.load_user(&realm_id, &user_id).await;
+        let user = user_service.load_user_by_id(&realm_id, &user_id).await;
         match &user {
             Ok(data) => {
                 if data.is_none() {
