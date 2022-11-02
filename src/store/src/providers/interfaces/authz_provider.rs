@@ -32,6 +32,12 @@ pub trait IRoleProvider: Interface {
         role_id: &str,
     ) -> Result<Option<RoleModel>, String>;
 
+    async fn load_role_by_ids(
+        &self,
+        realm_id: &str,
+        role_ids: &[&str],
+    ) -> Result<Vec<RoleModel>, String>;
+
     async fn exists_by_name(&self, realm_id: &str, name: &str) -> Result<bool, String>;
 
     async fn client_role_exists_by_id(&self, realm_id: &str, role_id: &str)
@@ -71,6 +77,13 @@ pub trait IGroupProvider: Interface {
     ) -> Result<Option<GroupModel>, String>;
 
     async fn load_groups_by_realm(&self, realm_id: &str) -> Result<Vec<GroupModel>, String>;
+
+    async fn load_group_by_ids(
+        &self,
+        realm_id: &str,
+        group_ids: &[&str],
+    ) -> Result<Vec<GroupModel>, String>;
+
     async fn count_groups(&self, realm_id: &str) -> Result<i64, String>;
     async fn exists_groups_by_id(&self, realm_id: &str, realm_id: &str) -> Result<bool, String>;
     async fn add_group_role_mapping(
@@ -234,6 +247,13 @@ pub trait IScopeProvider: Interface {
         scope_id: &str,
     ) -> Result<Option<ScopeModel>, String>;
 
+    async fn load_scopes_by_ids(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        scope_ids: &[&str],
+    ) -> Result<Option<ScopeModel>, String>;
+    
     async fn load_scopes_by_realm(&self, realm_id: &str) -> Result<Vec<ScopeModel>, String>;
 
     async fn load_scopes_by_realm_and_server(
@@ -313,6 +333,20 @@ pub trait IPolicyProvider: Interface {
     ) -> Result<Vec<PolicyModel>, String>;
 
     async fn delete_policy_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        policy_id: &str,
+    ) -> Result<(), String>;
+
+    async fn policy_exists_by_name(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        name: &str,
+    ) -> Result<bool, String>;
+
+    async fn policy_exists_by_id(
         &self,
         realm_id: &str,
         server_id: &str,

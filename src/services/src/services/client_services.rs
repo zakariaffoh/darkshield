@@ -414,6 +414,13 @@ pub trait IClientScopeService: Interface {
         client_scope_id: &str,
     ) -> Result<Option<ClientScopeModel>, String>;
 
+    async fn load_client_scope_by_scope_ids(
+        &self,
+        realm_id: &str,
+        client_scope_id: &[&str],
+    ) -> Result<Vec<ClientScopeModel>, String>;
+
+
     async fn add_client_scope_protocol_mapper(
         &self,
         realm_id: &str,

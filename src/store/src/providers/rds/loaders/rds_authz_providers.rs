@@ -2377,7 +2377,7 @@ impl IScopeProvider for RdsScopeProvider {
             ])
             .sql_query()
             .unwrap();
-
+        
         let client = client.unwrap();
         let load_scope_stmt = client.prepare_cached(&load_scope_sql).await.unwrap();
         let result = client
@@ -2650,7 +2650,7 @@ impl IPolicyProvider for RdsPolicyProvider {
         realm_id: &str,
         server_id: &str,
         policy_id: &str,
-    ) -> Result<bool, String> {
+    ) -> Result<(), String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
@@ -2814,10 +2814,64 @@ impl IPolicyProvider for RdsPolicyProvider {
                     .await
                     .unwrap();
 
-                return Ok(true);
+                return Ok(());
             }
             Err(err) => Err(err.to_string()),
         }
+    }
+
+    async fn policy_exists_by_name(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        name: &str,
+    ) -> Result<bool, String>{
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let load_policy_sql = SelectCountRequestBuilder::new()
+            .table_name(authz_tables::POLICIES_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("server_id".to_string()),
+                SqlCriteriaBuilder::is_equals("name".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+        
+        RdsPolicyProvider::policy_exists_by_query(
+            &client.unwrap(),
+            &load_policy_sql,
+            &[&realm_id, &server_id, &name]
+        ).await
+    }
+
+    async fn policy_exists_by_id(
+        &self,
+        realm_id: &str,
+        server_id: &str,
+        policy_id: &str,
+    ) -> Result<bool, String>{
+        let client = self.database_manager.connection().await;
+        if let Err(err) = client {
+            return Err(err);
+        }
+        let load_policy_sql = SelectCountRequestBuilder::new()
+            .table_name(authz_tables::POLICIES_TABLE.table_name.clone())
+            .where_clauses(vec![
+                SqlCriteriaBuilder::is_equals("realm_id".to_string()),
+                SqlCriteriaBuilder::is_equals("server_id".to_string()),
+                SqlCriteriaBuilder::is_equals("policy_id".to_string()),
+            ])
+            .sql_query()
+            .unwrap();
+
+        RdsPolicyProvider::policy_exists_by_query(
+            &client.unwrap(),
+            &load_policy_sql,
+            &[&realm_id, &server_id, &policy_id]
+        ).await
     }
 }
 
@@ -3513,4 +3567,20 @@ impl RdsPolicyProvider {
             Err(err) => return Err(err.to_string()),
         }
     }
+
+    async fn policy_exists_by_query(
+        client: &Object,
+        query: &str,
+        params: &[&(dyn ToSql + Sync)]
+    ) -> Result<bool, String>{
+        let load_policy_stmt = client.prepare_cached(&query).await.unwrap();
+        let result = client
+            .query_one(&load_policy_stmt, params)
+            .await;
+        match result {
+            Ok(row) => Ok(row.get::<usize, i32>(0) > 0),
+            Err(error) => Err(error.to_string()),
+        }
+    }
+
 }
