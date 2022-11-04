@@ -39,11 +39,13 @@ pub trait IRoleService: Interface {
     async fn client_role_exists_by_id(&self, realm_id: &str, role_id: &str)
         -> Result<bool, String>;
 
-    async fn load_user_roles(
+    async fn load_user_roles_paging(
         &self,
         realm_id: &str,
         user_id: &str,
-    ) -> Result<Vec<RoleModel>, String>;
+        page_index: &Option<u64>,
+        page_size: &Option<u64>,
+    ) -> Result<RolePagingResult, String>;
 }
 
 #[allow(dead_code)]
@@ -120,13 +122,15 @@ impl IRoleService for RoleService {
             .await
     }
 
-    async fn load_user_roles(
+    async fn load_user_roles_paging(
         &self,
         realm_id: &str,
         user_id: &str,
-    ) -> Result<Vec<RoleModel>, String> {
+        page_index: &Option<u64>,
+        page_size: &Option<u64>,
+    ) -> Result<RolePagingResult, String> {
         self.role_provider
-            .load_user_roles(&realm_id, &user_id)
+            .load_user_roles_paging(&realm_id, &user_id, &page_index, &page_size)
             .await
     }
 }
@@ -183,14 +187,14 @@ pub trait IGroupService: Interface {
         user_id: &str,
     ) -> Result<Vec<GroupModel>, String>;
 
-    async fn count_user_groups(&self, realm_id: &str, user_id: &str) -> Result<i64, String>;
+    async fn count_user_groups(&self, realm_id: &str, user_id: &str) -> Result<u64, String>;
 
     async fn load_user_groups_paging(
         &self,
         realm_id: &str,
         user_id: &str,
-        page_size: i32,
-        page_index: i32,
+        page_size: &Option<u64>,
+        page_index: &Option<u64>,
     ) -> Result<GroupPagingResult, String>;
 }
 
@@ -293,7 +297,7 @@ impl IGroupService for GroupService {
             .await
     }
 
-    async fn count_user_groups(&self, realm_id: &str, user_id: &str) -> Result<i64, String> {
+    async fn count_user_groups(&self, realm_id: &str, user_id: &str) -> Result<u64, String> {
         self.group_provider
             .count_user_groups(&realm_id, &user_id)
             .await
@@ -303,11 +307,11 @@ impl IGroupService for GroupService {
         &self,
         realm_id: &str,
         user_id: &str,
-        page_size: i32,
-        page_index: i32,
+        page_size: &Option<u64>,
+        page_index: &Option<u64>,
     ) -> Result<GroupPagingResult, String> {
         self.group_provider
-            .load_user_groups_paging(&realm_id, &user_id, page_size, page_index)
+            .load_user_groups_paging(&realm_id, &user_id, &page_size, &page_index)
             .await
     }
 }

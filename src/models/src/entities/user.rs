@@ -5,6 +5,7 @@ use crate::auditable::AuditableModel;
 
 use super::{
     attributes::{AttributeHelper, AttributeValue, AttributesMap},
+    auth::RequiredActionEnum,
     credentials::CredentialRepresentation,
     realm::RealmModel,
 };
@@ -23,7 +24,7 @@ pub struct UserModel {
     pub enabled: bool,
     pub email: String,
     pub email_verified: Option<bool>,
-    pub required_actions: Option<Vec<String>>,
+    pub required_actions: Option<Vec<RequiredActionEnum>>,
     pub not_before: Option<i64>,
     pub user_storage: Option<UserStorageEnum>,
     pub attributes: Option<AttributesMap>,
@@ -54,13 +55,11 @@ impl Default for UserModel {
 
 #[derive(Serialize, Deserialize)]
 pub struct UserCreateModel {
-    pub user_id: String,
-    pub realm_id: String,
     pub user_name: String,
     pub enabled: bool,
     pub email: String,
     pub email_verified: Option<bool>,
-    pub required_actions: Option<Vec<String>>,
+    pub required_actions: Option<Vec<RequiredActionEnum>>,
     pub not_before: Option<i64>,
     pub credential: CredentialRepresentation,
     pub user_storage: Option<UserStorageEnum>,
@@ -72,8 +71,8 @@ pub struct UserCreateModel {
 impl Into<UserModel> for UserCreateModel {
     fn into(self) -> UserModel {
         UserModel {
-            user_id: self.user_id,
-            realm_id: self.realm_id,
+            user_id: Default::default(),
+            realm_id: Default::default(),
             user_name: self.user_name,
             enabled: self.enabled,
             email: self.email,
@@ -91,11 +90,10 @@ impl Into<UserModel> for UserCreateModel {
 
 #[derive(Serialize, Deserialize)]
 pub struct UserUpdateModel {
-    pub realm_id: String,
     pub enabled: bool,
     pub email: String,
     pub email_verified: Option<bool>,
-    pub required_actions: Option<Vec<String>>,
+    pub required_actions: Option<Vec<RequiredActionEnum>>,
     pub not_before: Option<i64>,
     pub attributes: Option<AttributesMap>,
     pub is_service_account: Option<bool>,
@@ -105,8 +103,8 @@ pub struct UserUpdateModel {
 impl Into<UserModel> for UserUpdateModel {
     fn into(self) -> UserModel {
         UserModel {
-            user_id: String::new(),
-            realm_id: self.realm_id,
+            user_id: Default::default(),
+            realm_id: Default::default(),
             user_name: String::new(),
             enabled: self.enabled,
             email: self.email,

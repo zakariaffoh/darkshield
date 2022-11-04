@@ -449,26 +449,62 @@ impl IRoleProvider for RdsRoleProvider {
         }
     }
 
-    async fn load_user_roles(
+    async fn load_user_roles_paging(
         &self,
         realm_id: &str,
         user_id: &str,
-    ) -> Result<Vec<RoleModel>, String> {
+        page_index: &Option<u64>,
+        page_size: &Option<u64>,
+    ) -> Result<RolePagingResult, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
         }
         let client = client.unwrap();
-        let load_roles_stmt = client
-            .prepare_cached(&user_table::SELECT_USER_ROLES_BY_USER_ID)
+        let count_user_roles_stmt = client
+            .prepare_cached(&authz_tables::SELECT_USER_ROLES_COUNT_BY_USER_ID)
             .await
             .unwrap();
-        let result = client.query(&load_roles_stmt, &[&realm_id, &user_id]).await;
+        let count_result = client
+            .query_one(&count_user_roles_stmt, &[&realm_id, &user_id])
+            .await;
+        if let Err(err) = count_result {
+            return Err(err.to_string());
+        }
+        let total_roles = count_result.unwrap().get::<usize, i64>(0);
+
+        let mut params: Vec<&(dyn ToSql + Sync)> = Vec::new();
+        params.push(&realm_id);
+        params.push(&user_id);
+        let mut load_user_roles_sql = String::new();
+        let mut page_offset = 0;
+        let mut page_size_v = 0;
+
+        if page_index.is_none() || page_size.is_none() {
+            load_user_roles_sql = authz_tables::SELECT_USER_ROLES_BY_USER_ID.clone();
+        } else {
+            load_user_roles_sql = authz_tables::SELECT_USER_ROLES_BY_USER_ID_PAGING.clone();
+            page_offset = (page_index.unwrap() * page_size.unwrap()) as i64;
+            page_size_v = (page_size.unwrap() as i64);
+            params.push(&page_offset);
+            params.push(&page_size_v);
+        }
+
+        let load_user_roles_stmt = client.prepare_cached(&load_user_roles_sql).await.unwrap();
+        let result = client.query(&load_user_roles_stmt, &params).await;
         match result {
-            Ok(rows) => Ok(rows
-                .iter()
-                .map(|row| RdsRoleProvider::read_record(&row))
-                .collect()),
+            Ok(rows) => {
+                let roles = rows
+                    .iter()
+                    .map(|row| RdsRoleProvider::read_record(&row))
+                    .collect();
+                return Ok(RolePagingResult {
+                    page_size: page_size.clone(),
+                    page_index: page_index.clone(),
+                    total_count: Some(total_roles as u64),
+                    roles: roles,
+                });
+            }
             Err(err) => Err(err.to_string()),
         }
     }
@@ -986,8 +1022,8 @@ impl IGroupProvider for RdsGroupProvider {
         &self,
         realm_id: &str,
         user_id: &str,
-        page_size: i32,
-        page_index: i32,
+        page_size: &Option<u64>,
+        page_index: &Option<u64>,
     ) -> Result<GroupPagingResult, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
@@ -1005,17 +1041,26 @@ impl IGroupProvider for RdsGroupProvider {
             return Err(err.to_string());
         }
         let total_groups = count_result.unwrap().get::<usize, i64>(0);
-        let page_offset = page_index * page_size;
-        let load_user_groups_stmt = client
-            .prepare_cached(&user_table::SELECT_USER_GROUPS_BY_USER_ID_PAGING)
-            .await
-            .unwrap();
-        let result = client
-            .query(
-                &load_user_groups_stmt,
-                &[&realm_id, &user_id, &page_offset, &page_size],
-            )
-            .await;
+
+        let mut params: Vec<&(dyn ToSql + Sync)> = Vec::new();
+        params.push(&realm_id);
+        params.push(&user_id);
+        let mut load_user_groups_sql = String::new();
+        let mut page_offset = 0;
+        let mut page_size_v = 0;
+
+        if page_index.is_none() || page_size.is_none() {
+            load_user_groups_sql = user_table::SELECT_USER_GROUPS_BY_USER_ID.clone();
+        } else {
+            load_user_groups_sql = user_table::SELECT_USER_GROUPS_BY_USER_ID_PAGING.clone();
+            page_offset = (page_index.unwrap() * page_size.unwrap()) as i64;
+            page_size_v = (page_size.unwrap() as i64);
+            params.push(&page_offset);
+            params.push(&page_size_v);
+        }
+
+        let load_user_groups_stmt = client.prepare_cached(&load_user_groups_sql).await.unwrap();
+        let result = client.query(&load_user_groups_stmt, &params).await;
 
         match result {
             Ok(rows) => {
@@ -1034,9 +1079,9 @@ impl IGroupProvider for RdsGroupProvider {
                     }
                 }
                 Ok(GroupPagingResult {
-                    page_size: page_size as i64,
-                    page_index: page_index as i64,
-                    total_count: total_groups,
+                    page_size: page_size.clone(),
+                    page_index: page_index.clone(),
+                    total_count: Some(total_groups as u64),
                     groups: groups,
                 })
             }
@@ -1044,7 +1089,7 @@ impl IGroupProvider for RdsGroupProvider {
         }
     }
 
-    async fn count_user_groups(&self, realm_id: &str, user_id: &str) -> Result<i64, String> {
+    async fn count_user_groups(&self, realm_id: &str, user_id: &str) -> Result<u64, String> {
         let client = self.database_manager.connection().await;
         if let Err(err) = client {
             return Err(err);
@@ -1058,7 +1103,7 @@ impl IGroupProvider for RdsGroupProvider {
             .query_one(&count_user_groups_stmt, &[&realm_id, &user_id])
             .await;
         match result {
-            Ok(row) => Ok(row.get::<usize, i64>(0)),
+            Ok(row) => Ok(row.get::<usize, i64>(0) as u64),
             Err(error) => Err(error.to_string()),
         }
     }

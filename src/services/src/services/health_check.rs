@@ -23,11 +23,11 @@ impl IHealthCheckService for HealthCheckService {
     async fn health_check(&self) -> ApiResult<()> {
         let result = self.health_check_provider.health_check().await;
         match result {
-            Ok(_) => ApiResult::Data(()),
             Err(err) => {
                 log::error!("Failed to run health check");
                 ApiResult::from_error(500, "500", &err)
             }
+            _ => ApiResult::Data(()),
         }
     }
 }

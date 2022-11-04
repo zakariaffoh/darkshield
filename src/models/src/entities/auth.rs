@@ -5,7 +5,8 @@ use std::fmt::{Display, Formatter, Result};
 
 use super::attributes::AttributesMap;
 
-#[derive(Debug, Serialize, Deserialize, ToSql, FromSql, PartialEq, Eq, Hash)]
+#[derive(Debug, Serialize, Deserialize, ToSql, FromSql, PartialEq, Eq, Hash, Clone)]
+#[postgres(name = "requiredactionenum")]
 pub enum RequiredActionEnum {
     ResetPassword,
     UpdatePassword,
