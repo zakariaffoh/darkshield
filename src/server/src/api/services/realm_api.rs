@@ -35,7 +35,7 @@ impl ReamlApi {
 
         let created_realm = realm_service.create_realm(&realm).await;
         match created_realm {
-            Ok(_) => ApiResult::Data(realm),
+            _ => ApiResult::Data(realm),
             Err(err) => ApiResult::from_error(500, "500", err.as_str()),
         }
     }
@@ -57,7 +57,7 @@ impl ReamlApi {
         let updated_realm = realm_service.udpate_realm(&realm).await;
         match updated_realm {
             Err(err) => ApiResult::from_error(500, "500", err.as_str()),
-            Ok(_) => ApiResult::no_content(),
+            _ => ApiResult::no_content(),
         }
     }
 
@@ -66,7 +66,7 @@ impl ReamlApi {
         let response = realm_service.delete_realm(&realm_id).await;
         match response {
             Err(err) => ApiResult::from_error(500, "500", err.as_str()),
-            Ok(_) => ApiResult::Data(()),
+            _ => ApiResult::Data(()),
         }
     }
 

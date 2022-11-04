@@ -5,7 +5,7 @@ use models::{
     auditable::AuditableModel,
     entities::{
         auth::{RequiredActionEnum, RequiredActionModel},
-        authz::{GroupModel, GroupPagingResult, RoleModel},
+        authz::{GroupPagingResult, RolePagingResult},
         credentials::{
             CredentialRepresentation, CredentialTypeEnum, CredentialViewRepresentation,
             PasswordCredentialModel, UserCredentialModel,
@@ -13,6 +13,7 @@ use models::{
         realm::{RealmModel, HASH_ALGORITHM_DEFAULT},
         user::{UserCreateModel, UserModel, UserProfileHelper, UserStorageEnum},
     },
+    PagingParams,
 };
 use services::services::{
     auth_services::IRequiredActionService,
@@ -28,21 +29,23 @@ pub struct UserApi;
 impl UserApi {
     pub async fn create_user(
         context: &DarkShieldContext,
+        realm_id: &str,
+        user_id: &str,
         user: UserCreateModel,
     ) -> ApiResult<UserModel> {
         let realm_service: &dyn IRealmService = context.services().resolve_ref();
-        let realm_model = realm_service.load_realm(&user.realm_id).await;
+        let realm_model = realm_service.load_realm(&realm_id).await;
         match &realm_model {
             Ok(realm) => {
                 if realm.is_none() {
-                    log::error!("Realm: {} not found", &user.realm_id);
+                    log::error!("Realm: {} not found", &realm_id);
                     return ApiResult::from_error(404, "404", "realm not found");
                 }
             }
             Err(err) => {
                 log::error!(
                     "Failed to load realm: {}. Error: {}",
-                    &user.realm_id,
+                    &realm_id,
                     err.to_string()
                 );
                 return ApiResult::from_error(500, "500", "Failed to load realm");
@@ -54,9 +57,10 @@ impl UserApi {
         let required_action_service: &dyn IRequiredActionService = context.services().resolve_ref();
 
         if realm.registration_allowed.unwrap() {
-            log::error!("User registration not allowed for realm {}", &user.realm_id,);
+            log::error!("User registration not allowed for realm {}", &realm_id);
             return ApiResult::from_error(403, "403", "User registration not allowed");
         }
+
         let mut user_name = user.user_name.clone();
         if realm.register_email_as_username.unwrap() {
             user_name = user.email.clone();
@@ -65,58 +69,58 @@ impl UserApi {
             log::error!("User name is null or empty");
             return ApiResult::from_error(400, "400", "User name is null or empty");
         }
+
         if user_service
-            .user_exists_by_user_name(&user.realm_id, &user_name)
+            .user_exists_by_user_name(&realm_id, &user_name)
             .await
             .unwrap_or_default()
         {
             log::error!("User with user name: {} already exist", &user_name);
-            return ApiResult::from_error(409, "409", "User allready exists in the realm");
+            return ApiResult::from_error(409, "409", "User already exists in the realm");
         }
 
         if !user.email.is_empty() && realm.duplicated_email_allowed.unwrap_or_default() {
             if user_service
-                .user_exists_by_email(&user.realm_id, &user_name)
+                .user_exists_by_email(&realm_id, &user_name)
                 .await
                 .unwrap_or_default()
             {
                 log::error!("User with user name: {} already exist", &user_name);
-                return ApiResult::from_error(409, "409", "User allready exists in the realm");
+                return ApiResult::from_error(409, "409", "User already exists in the realm");
             }
         }
 
         let required_actions_list = required_action_service
-            .load_required_action_by_realm_id(&user.realm_id)
+            .load_required_action_by_realm_id(&realm_id)
             .await;
-        match required_actions_list {
-            Err(err) => {
-                log::error!("Failed to load required actions");
-                return ApiResult::from_error(500, "500", "Failed to load required actions");
-            }
-            _ => {}
+
+        if let Err(err) = required_actions_list {
+            log::error!("Failed to load required actions: {}", err);
+            return ApiResult::from_error(500, "500", "Failed to load required actions");
         }
 
         let required_actions = required_actions_list.unwrap();
         let user_model =
-            UserApi::user_model_from_representation(&realm, &user, required_actions).await;
-        match user_model {
-            Err(err) => {
-                log::error!("Invalid user. Error: {}", &err);
-                return ApiResult::from_error(400, "400", &err);
-            }
-            _ => {}
+            UserApi::user_model_from_representation(&realm, &user_id, &user, required_actions)
+                .await;
+
+        if let Err(err) = user_model {
+            log::error!("Invalid user. Error: {}", &err);
+            return ApiResult::from_error(400, "400", &err);
         }
 
-        let user_model = user_model.unwrap();
+        let mut user_model = user_model.unwrap();
         let credential_input = UserApi::create_user_credential_input(&realm, &user).await;
-        match credential_input {
-            Err(err) => {
-                log::error!("Invalid user credential. Error: {}", &err);
-                return ApiResult::from_error(400, "400", &err);
-            }
-            _ => {}
+        if let Err(err) = credential_input {
+            log::error!("Invalid user credential. Error: {}", &err);
+            return ApiResult::from_error(400, "400", &err);
         }
+
         let credential_input = credential_input.unwrap();
+        user_model.metadata = AuditableModel::from_creator(
+            context.authenticated_user().metadata.tenant.to_owned(),
+            context.authenticated_user().user_id.to_owned(),
+        );
 
         let created_user = user_service
             .create_user(&user_model, &credential_input)
@@ -125,53 +129,43 @@ impl UserApi {
             log::error!(
                 "Failed to create user: {}, realm: {}. Error: {}",
                 &user.email,
-                &user.realm_id,
+                &realm_id,
                 err
             );
             return ApiResult::from_error(500, "500", "Failed to create user");
         }
-
         ApiResult::Data(user_model)
     }
 
     async fn user_model_from_representation(
         realm: &RealmModel,
+        user_id: &str,
         user_create: &UserCreateModel,
         required_actions: Vec<RequiredActionModel>,
     ) -> Result<UserModel, String> {
-        let realm_required_action_models = required_actions;
-        let mut valid_actions: Vec<String> = Vec::new();
+        let mut valid_actions: Vec<RequiredActionEnum> = Vec::new();
+        let realm_actions: Vec<RequiredActionEnum> =
+            required_actions.into_iter().map(|a| a.action).collect();
 
-        if !realm_required_action_models.is_empty() {
-            let actions = if let Some(required_actions) = &user_create.required_actions {
-                required_actions.clone()
-            } else {
-                Vec::<String>::new()
-            };
-
-            let realm_valid_actions: Vec<String> = realm_required_action_models
-                .iter()
-                .map(|r| r.action.to_string())
-                .collect();
-            for action in actions.iter() {
-                if realm_valid_actions.contains(&action) {
-                    valid_actions.push(action.to_owned());
+        if let Some(actions) = &user_create.required_actions {
+            for user_action in actions {
+                if realm_actions.contains(user_action) {
+                    valid_actions.push(user_action.clone())
                 }
             }
         }
 
         if user_create.credential.credential_type == CredentialTypeEnum::PASSWORD
-            && user_create.credential.is_temporary.unwrap()
+            && user_create.credential.is_temporary.unwrap_or_default()
         {
-            valid_actions.push(RequiredActionEnum::UpdatePassword.to_string());
+            valid_actions.push(RequiredActionEnum::UpdatePassword);
         }
 
         if !user_create.email.is_empty() {
-            let validate_email = EmailValidator::validate(&user_create.email);
-            if let Err(err) = validate_email {
+            if let Err(_) = EmailValidator::validate(&user_create.email) {
                 log::error!(
                     "Email user: {} email{} is invalid",
-                    &user_create.user_id,
+                    &user_id,
                     &user_create.email
                 );
                 return Err("User email is invalid".to_string());
@@ -179,8 +173,8 @@ impl UserApi {
         }
 
         let user = UserModel {
-            user_id: user_create.user_id.clone(),
-            realm_id: user_create.realm_id.clone(),
+            user_id: user_id.to_owned(),
+            realm_id: realm.realm_id.clone(),
             user_name: user_create.user_name.clone(),
             enabled: user_create.enabled.clone(),
             email: user_create.email.clone(),
@@ -194,7 +188,7 @@ impl UserApi {
             metadata: AuditableModel::default(),
         };
 
-        if let Err(err) = UserProfileHelper::validate_user_profile_and_attributes(&realm, &user) {
+        if let Err(_) = UserProfileHelper::validate_user_profile_and_attributes(&realm, &user) {
             log::error!("Invalid user: {} profile", &user.user_id,);
             return Err("Invalid user profile".to_string());
         }
@@ -232,27 +226,64 @@ impl UserApi {
                 }
             }
             Err(err) => {
-                log::error!(
-                    "Failed to load realm: {}. Error: {}",
-                    &user.realm_id,
-                    err.to_string()
-                );
+                log::error!("Failed to load realm: {}. Error: {}", &user.realm_id, &err);
                 return ApiResult::from_error(500, "500", "Failed to load realm");
             }
         }
 
-        let realm = realm_model.unwrap().unwrap();
         let user_service: &dyn IUserService = context.services().resolve_ref();
+        let existing_user_model = user_service
+            .load_user_by_id(&user.realm_id, &user.user_id)
+            .await;
 
-        if !user_service
-            .user_exists_by_id(&user.realm_id, &user.user_id)
-            .await
-            .unwrap_or_default()
-        {
-            log::error!("User with user id: {} does not exist", &user.user_name);
-            return ApiResult::from_error(404, "404", "User does not exists in the realm");
+        let realm = realm_model.unwrap().unwrap();
+        match &existing_user_model {
+            Ok(res) => match res {
+                Some(loaded_user) => {
+                    if loaded_user.email.to_lowercase() != user.email.to_lowercase() {
+                        log::error!("Updating user email not allowed");
+                        return ApiResult::from_error(400, "400", "Cannot update the user email");
+                    }
+                }
+                None => {
+                    log::error!(
+                        "User: {}, realm: {} does not exists",
+                        &user.user_id,
+                        &user.realm_id,
+                    );
+                    return ApiResult::from_error(404, "404", "User does not exist");
+                }
+            },
+            Err(err) => {
+                log::error!(
+                    "Failed to load user: {}, realm: {}. Error: {}",
+                    &user.user_id,
+                    &user.realm_id,
+                    &err
+                );
+                return ApiResult::from_error(500, "500", "Failed to load user");
+            }
         }
-        match user_service.udpate_user(&user).await {
+
+        if user.attributes.is_some() {
+            if let Err(_) = UserProfileHelper::validate_user_profile_and_attributes(&realm, &user) {
+                log::error!("Invalid user: {} profile", &user.user_id);
+                return ApiResult::from_error(500, "500", "Invalid user profile");
+            }
+        }
+
+        let mut user_model = existing_user_model.unwrap().unwrap();
+        user_model.attributes = user.attributes;
+        user_model.not_before = user.not_before;
+        user_model.user_storage = user.user_storage;
+        user_model.is_service_account = user.is_service_account;
+        user_model.service_account_client_link = user.service_account_client_link;
+        user_model.metadata = AuditableModel::from_creator(
+            context.authenticated_user().metadata.tenant.to_owned(),
+            context.authenticated_user().user_id.to_owned(),
+        );
+
+        match user_service.udpate_user(&user_model).await {
             Err(err) => {
                 log::error!("User: {} updated. Error: {}", &user.user_id, &err);
                 return ApiResult::from_error(500, "500", "Failed to update user");
@@ -295,13 +326,16 @@ impl UserApi {
         }
     }
 
-    pub async fn load_users_by_realm_id(
+    pub async fn load_users_by_realm_paging(
         context: &DarkShieldContext,
         realm_id: &str,
+        paging: &PagingParams,
     ) -> ApiResult<Vec<UserModel>> {
         let user_service: &dyn IUserService = context.services().resolve_ref();
 
-        let loaded_users = user_service.load_users_by_realm_id(&realm_id).await;
+        let loaded_users = user_service
+            .load_users_by_realm_paging(&realm_id, &paging.page_index, &paging.page_size)
+            .await;
         match loaded_users {
             Ok(users) => {
                 log::info!("[{}] users loaded for realm: {}", users.len(), realm_id);
@@ -315,7 +349,7 @@ impl UserApi {
         }
     }
 
-    pub async fn count_users(context: &DarkShieldContext, realm_id: &str) -> ApiResult<i64> {
+    pub async fn count_users(context: &DarkShieldContext, realm_id: &str) -> ApiResult<u64> {
         let user_service: &dyn IUserService = context.services().resolve_ref();
         let response = user_service.count_users(&realm_id).await;
         match response {
@@ -334,27 +368,40 @@ impl UserApi {
         let role_service: &dyn IRoleService = context.services().resolve_ref();
 
         let user_exists = user_service.user_exists_by_id(&realm_id, &user_id).await;
-        if let Ok(response) = user_exists {
-            if !response {
-                log::error!("user: {} not found in realm: {}", &user_id, &realm_id);
-                return ApiResult::from_error(409, "404", "user not found");
+        match user_exists {
+            Ok(response) => {
+                if !response {
+                    log::error!("user: {} not found in realm: {}", &user_id, &realm_id);
+                    return ApiResult::from_error(404, "404", "user not found");
+                }
+            }
+            Err(err) => {
+                log::error!("Fail to load user: {}. Error: {}", &user_id, &err);
+                return ApiResult::from_error(500, "500", "failed to load user");
             }
         }
 
         let existing_role = role_service.role_exists_by_id(&realm_id, &role_id).await;
-        if let Ok(res) = existing_role {
-            if !res {
-                log::error!("role: {} not found in realm: {}", &role_id, &realm_id,);
-                return ApiResult::from_error(409, "404", "client role not found");
+
+        match existing_role {
+            Ok(response) => {
+                if !response {
+                    log::error!("role: {} not found in realm: {}", &role_id, &realm_id,);
+                    return ApiResult::from_error(409, "404", "role not found");
+                }
+            }
+            Err(err) => {
+                log::error!("Fail to load role: {}. Error: {}", &user_id, &err);
+                return ApiResult::from_error(500, "500", "failed to load role");
             }
         }
 
         let response = user_service
-            .add_user_role(&realm_id, &user_id, &role_id)
+            .add_user_role_mapping(&realm_id, &user_id, &role_id)
             .await;
 
         match response {
-            Err(_) => ApiResult::from_error(500, "500", "failed to add client role mapping"),
+            Err(_) => ApiResult::from_error(500, "500", "failed to add user role mapping"),
             _ => ApiResult::no_content(),
         }
     }
@@ -369,27 +416,40 @@ impl UserApi {
         let role_service: &dyn IRoleService = context.services().resolve_ref();
 
         let user_exists = user_service.user_exists_by_id(&realm_id, &user_id).await;
-        if let Ok(response) = user_exists {
-            if !response {
-                log::error!("user: {} not found in realm: {}", &user_id, &realm_id);
-                return ApiResult::from_error(409, "404", "user not found");
+        match user_exists {
+            Ok(response) => {
+                if !response {
+                    log::error!("user: {} not found in realm: {}", &user_id, &realm_id);
+                    return ApiResult::from_error(404, "404", "user not found");
+                }
+            }
+            Err(err) => {
+                log::error!("Fail to load user: {}. Error: {}", &user_id, &err);
+                return ApiResult::from_error(500, "500", "failed to load user");
             }
         }
 
         let existing_role = role_service.role_exists_by_id(&realm_id, &role_id).await;
-        if let Ok(res) = existing_role {
-            if !res {
-                log::error!("role: {} not found in realm: {}", &role_id, &realm_id,);
-                return ApiResult::from_error(409, "404", "client role not found");
+
+        match existing_role {
+            Ok(response) => {
+                if !response {
+                    log::error!("role: {} not found in realm: {}", &role_id, &realm_id,);
+                    return ApiResult::from_error(409, "404", "role not found");
+                }
+            }
+            Err(err) => {
+                log::error!("Fail to load role: {}. Error: {}", &user_id, &err);
+                return ApiResult::from_error(500, "500", "failed to load role");
             }
         }
 
         let response = user_service
-            .remove_user_role(&realm_id, &user_id, &role_id)
+            .remove_user_role_mapping(&realm_id, &user_id, &role_id)
             .await;
 
         match response {
-            Err(_) => ApiResult::from_error(500, "500", "failed to add client role mapping"),
+            Err(_) => ApiResult::from_error(500, "500", "failed to add user role mapping"),
             _ => ApiResult::no_content(),
         }
     }
@@ -398,18 +458,21 @@ impl UserApi {
         context: &DarkShieldContext,
         realm_id: &str,
         user_id: &str,
-    ) -> ApiResult<Vec<RoleModel>> {
+        paging: &PagingParams,
+    ) -> ApiResult<RolePagingResult> {
         let role_service: &dyn IRoleService = context.services().resolve_ref();
-        let loaded_roles = role_service.load_user_roles(&realm_id, &user_id).await;
+        let loaded_roles = role_service
+            .load_user_roles_paging(&realm_id, &user_id, &paging.page_index, &paging.page_size)
+            .await;
         match loaded_roles {
             Ok(roles) => {
                 log::info!(
                     "[{}] loaded for roles: {} realm: {}",
-                    roles.len(),
+                    roles.roles.len(),
                     &user_id,
                     &realm_id
                 );
-                if roles.is_empty() {
+                if roles.roles.is_empty() {
                     ApiResult::no_content()
                 } else {
                     ApiResult::from_data(roles)
@@ -436,20 +499,33 @@ impl UserApi {
         let group_service: &dyn IGroupService = context.services().resolve_ref();
 
         let user_exists = user_service.user_exists_by_id(&realm_id, &user_id).await;
-        if let Ok(response) = user_exists {
-            if !response {
-                log::error!("user: {} not found in realm: {}", &user_id, &realm_id);
-                return ApiResult::from_error(404, "404", "user not found");
+        match user_exists {
+            Ok(response) => {
+                if !response {
+                    log::error!("user: {} not found in realm: {}", &user_id, &realm_id);
+                    return ApiResult::from_error(404, "404", "user not found");
+                }
+            }
+            Err(err) => {
+                log::error!("Fail to load user: {}. Error: {}", &user_id, &err);
+                return ApiResult::from_error(500, "500", "failed to load user");
             }
         }
 
         let existing_group = group_service
             .exists_groups_by_id(&realm_id, &group_id)
             .await;
-        if let Ok(res) = existing_group {
-            if !res {
-                log::error!("group: {} not found in realm: {}", &group_id, &realm_id,);
-                return ApiResult::from_error(404, "404", "client role not found");
+
+        match existing_group {
+            Ok(response) => {
+                if !response {
+                    log::error!("group: {} not found in realm: {}", &group_id, &realm_id,);
+                    return ApiResult::from_error(404, "404", "client role not found");
+                }
+            }
+            Err(err) => {
+                log::error!("Fail to load group: {}. Error: {}", &user_id, &err);
+                return ApiResult::from_error(500, "500", "failed to load group");
             }
         }
 
@@ -473,20 +549,33 @@ impl UserApi {
         let group_service: &dyn IGroupService = context.services().resolve_ref();
 
         let user_exists = user_service.user_exists_by_id(&realm_id, &user_id).await;
-        if let Ok(response) = user_exists {
-            if !response {
-                log::error!("user: {} not found in realm: {}", &user_id, &realm_id);
-                return ApiResult::from_error(409, "404", "user not found");
+        match user_exists {
+            Ok(response) => {
+                if !response {
+                    log::error!("user: {} not found in realm: {}", &user_id, &realm_id);
+                    return ApiResult::from_error(404, "404", "user not found");
+                }
+            }
+            Err(err) => {
+                log::error!("Fail to load user: {}. Error: {}", &user_id, &err);
+                return ApiResult::from_error(500, "500", "failed to load user");
             }
         }
 
         let existing_group = group_service
             .exists_groups_by_id(&realm_id, &group_id)
             .await;
-        if let Ok(res) = existing_group {
-            if !res {
-                log::error!("group: {} not found in realm: {}", &group_id, &realm_id,);
-                return ApiResult::from_error(409, "404", "client role not found");
+
+        match existing_group {
+            Ok(response) => {
+                if !response {
+                    log::error!("group: {} not found in realm: {}", &group_id, &realm_id,);
+                    return ApiResult::from_error(404, "404", "client role not found");
+                }
+            }
+            Err(err) => {
+                log::error!("Fail to load group: {}. Error: {}", &user_id, &err);
+                return ApiResult::from_error(500, "500", "failed to load group");
             }
         }
 
@@ -500,44 +589,11 @@ impl UserApi {
         }
     }
 
-    pub async fn load_user_groups(
-        context: &DarkShieldContext,
-        realm_id: &str,
-        user_id: &str,
-    ) -> ApiResult<Vec<GroupModel>> {
-        let group_service: &dyn IGroupService = context.services().resolve_ref();
-
-        let loaded_groups = group_service.load_user_groups(&realm_id, &user_id).await;
-        match loaded_groups {
-            Ok(groups) => {
-                log::info!(
-                    "[{}] groups: loaded for user {} realm: {}",
-                    groups.len(),
-                    &user_id,
-                    &realm_id
-                );
-                if groups.is_empty() {
-                    ApiResult::no_content()
-                } else {
-                    ApiResult::from_data(groups)
-                }
-            }
-            Err(err) => {
-                log::error!(
-                    "Failed to load groups for user: {} realm: {}",
-                    &user_id,
-                    &realm_id
-                );
-                ApiResult::from_error(500, "500", &err)
-            }
-        }
-    }
-
     pub async fn user_count_groups(
         context: &DarkShieldContext,
         realm_id: &str,
         user_id: &str,
-    ) -> ApiResult<i64> {
+    ) -> ApiResult<u64> {
         let group_service: &dyn IGroupService = context.services().resolve_ref();
         let response = group_service.count_user_groups(&realm_id, &user_id).await;
         match response {
@@ -550,13 +606,12 @@ impl UserApi {
         context: &DarkShieldContext,
         realm_id: &str,
         user_id: &str,
-        page_size: i32,
-        page_index: i32,
+        paging: &PagingParams,
     ) -> ApiResult<GroupPagingResult> {
         let group_service: &dyn IGroupService = context.services().resolve_ref();
 
         let loaded_groups = group_service
-            .load_user_groups_paging(&realm_id, &user_id, page_index, page_size)
+            .load_user_groups_paging(&realm_id, &user_id, &paging.page_index, &paging.page_size)
             .await;
         match loaded_groups {
             Ok(groups_paging) => {
@@ -675,10 +730,10 @@ impl UserApi {
         if password.is_temporary.unwrap_or_default() {
             if let Some(actions) = user.required_actions {
                 let mut update_actions = actions;
-                update_actions.push(RequiredActionEnum::UpdatePassword.to_string());
+                update_actions.push(RequiredActionEnum::UpdatePassword);
                 user.required_actions = Some(update_actions);
             } else {
-                user.required_actions = Some(vec![RequiredActionEnum::UpdatePassword.to_string()])
+                user.required_actions = Some(vec![RequiredActionEnum::UpdatePassword])
             }
         }
         let password_credential = PasswordCredentialModel::from_password(&password.secret);
@@ -871,7 +926,7 @@ impl UserApi {
                 );
                 return ApiResult::from_error(500, "500", "failed to move user credential");
             }
-            Ok(_) => ApiResult::no_content(),
+            _ => ApiResult::no_content(),
         }
     }
 

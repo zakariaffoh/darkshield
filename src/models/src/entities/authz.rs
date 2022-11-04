@@ -62,6 +62,14 @@ impl Into<RoleModel> for RoleMutationModel {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct RolePagingResult {
+    pub page_size: Option<u64>,
+    pub page_index: Option<u64>,
+    pub total_count: Option<u64>,
+    pub roles: Vec<RoleModel>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct GroupModel {
     pub group_id: String,
     pub realm_id: String,
@@ -98,9 +106,9 @@ impl Into<GroupModel> for GroupMutationModel {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GroupPagingResult {
-    pub page_size: i64,
-    pub page_index: i64,
-    pub total_count: i64,
+    pub page_size: Option<u64>,
+    pub page_index: Option<u64>,
+    pub total_count: Option<u64>,
     pub groups: Vec<GroupModel>,
 }
 

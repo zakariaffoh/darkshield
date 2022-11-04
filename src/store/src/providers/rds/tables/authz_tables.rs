@@ -26,6 +26,15 @@ lazy_static! {
             "updated_at".to_owned()
         ]
     };
+    pub static ref SELECT_USER_ROLES_COUNT_BY_USER_ID: String =
+        "SELECT COUNT(r.role_id) FROM ROLES r INNER JOIN ur USERS_ROLES ON (ur.role_id = r.role_id AND  ur.realm_id = r.realm_id) WHERE ur.realm_id=$1 AND ur.user_id=$2".to_owned();
+
+    pub static ref SELECT_USER_ROLES_BY_USER_ID: String =
+        "SELECT r.* FROM ROLES r INNER JOIN ur USERS_ROLES ON (ur.role_id = r.role_id AND  ur.realm_id = r.realm_id) WHERE ur.realm_id=$1 AND ur.user_id=$2".to_owned();
+
+    pub static ref SELECT_USER_ROLES_BY_USER_ID_PAGING: String =
+        "SELECT r.* FROM ROLES r INNER JOIN ur USERS_ROLES ON (ur.role_id = r.role_id AND  ur.realm_id = r.realm_id) WHERE ur.realm_id=$1 AND ur.user_id=$2 OFFSET $3 LIMIT $4".to_owned();
+
     pub static ref CLIENT_ROLES_SELECT_BY_CLIENT_ID_QUERY: &'static str = r#"SELECT r.* FROM ROLES r INNER JOIN CLIENTS_ROLES cr ON (r.role_id = cr.role_id AND r.realm_id = cr.realm_id) WHERE cr.realm_id = $1 AND cr.client_id = $2"#;
     pub static ref GROUP_TABLE: RdsTable = RdsTable {
         table_name: "GROUPS".to_owned(),

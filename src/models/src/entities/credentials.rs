@@ -14,6 +14,7 @@ pub trait CredentialInput {
     fn challenge_response(&self) -> String;
 }
 
+#[allow(dead_code)]
 enum CredentialDataEnum {
     HashAlgorithm,
     HashIteration,
