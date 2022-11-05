@@ -1,11 +1,10 @@
 use async_trait::async_trait;
 use commons::ApiResult;
 use models::entities::authz::GroupPagingResult;
-use models::entities::authz::RoleModel;
 use models::entities::authz::RolePagingResult;
 use models::entities::credentials::CredentialRepresentation;
-use models::entities::credentials::UserCredentialModel;
 use models::entities::user::UserModel;
+use models::entities::user::UserPagingResult;
 use shaku::Component;
 use shaku::Interface;
 use std::sync::Arc;
@@ -18,11 +17,7 @@ use store::providers::interfaces::authz_provider::IRoleProvider;
 
 #[async_trait]
 pub trait IUserService: Interface {
-    async fn create_user(
-        &self,
-        realm: &UserModel,
-        credential: &UserCredentialModel,
-    ) -> Result<(), String>;
+    async fn create_user(&self, user: &UserModel) -> Result<(), String>;
 
     async fn udpate_user(&self, user: &UserModel) -> Result<(), String>;
 
@@ -40,12 +35,12 @@ pub trait IUserService: Interface {
         user_ids: &[&str],
     ) -> Result<Vec<UserModel>, String>;
 
-    async fn load_users_by_realm_paging(
+    async fn load_users_paging(
         &self,
         realm_id: &str,
         page: &Option<u64>,
         size: &Option<u64>,
-    ) -> Result<Vec<UserModel>, String>;
+    ) -> Result<UserPagingResult, String>;
 
     async fn count_users(&self, realm_id: &str) -> Result<u64, String>;
 
@@ -121,12 +116,8 @@ pub struct UserService {
 
 #[async_trait]
 impl IUserService for UserService {
-    async fn create_user(
-        &self,
-        user: &UserModel,
-        credential: &UserCredentialModel,
-    ) -> Result<(), String> {
-        self.user_provider.create_user(&user, &credential).await
+    async fn create_user(&self, user: &UserModel) -> Result<(), String> {
+        self.user_provider.create_user(&user).await
     }
 
     async fn udpate_user(&self, user: &UserModel) -> Result<(), String> {
@@ -157,14 +148,14 @@ impl IUserService for UserService {
             .await
     }
 
-    async fn load_users_by_realm_paging(
+    async fn load_users_paging(
         &self,
         realm_id: &str,
         page_index: &Option<u64>,
         page_size: &Option<u64>,
-    ) -> Result<Vec<UserModel>, String> {
+    ) -> Result<UserPagingResult, String> {
         self.user_provider
-            .load_users_by_realm_paging(&realm_id, &page_index, &page_size)
+            .load_users_paging(&realm_id, &page_index, &page_size)
             .await
     }
 
@@ -185,7 +176,7 @@ impl IUserService for UserService {
         role_id: &str,
     ) -> Result<(), String> {
         self.user_provider
-            .add_user_role(&realm_id, &user_id, &role_id)
+            .add_user_role_mapping(&realm_id, &user_id, &role_id)
             .await
     }
 
@@ -196,7 +187,7 @@ impl IUserService for UserService {
         role_id: &str,
     ) -> Result<(), String> {
         self.user_provider
-            .remove_user_role(&realm_id, &user_id, &role_id)
+            .remove_user_role_mapping(&realm_id, &user_id, &role_id)
             .await
     }
 
