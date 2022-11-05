@@ -6,7 +6,7 @@ use postgres_types::ToSql;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-pub trait CredentialInput {
+pub trait CredentialInput: Sync {
     fn credential_id(&self) -> String;
 
     fn credentialm_type(&self) -> String;
@@ -775,6 +775,20 @@ impl UserCredentialModel {
 
     pub fn notes(&self) -> &Option<HashMap<String, String>> {
         &self.notes
+    }
+}
+
+impl CredentialInput for UserCredentialModel {
+    fn credential_id(&self) -> String {
+        todo!()
+    }
+
+    fn credentialm_type(&self) -> String {
+        todo!()
+    }
+
+    fn challenge_response(&self) -> String {
+        todo!()
     }
 }
 
