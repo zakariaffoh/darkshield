@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::context::DarkShieldContext;
 use ::services::services::credentials_services::IUserCredentialService;
 use commons::{validation::EmailValidator, ApiResult};
@@ -18,6 +20,7 @@ use models::{
 use services::services::{
     auth_services::IRequiredActionService,
     authz_services::{IGroupService, IRoleService},
+    credentials_services::{CredentialInputUpdater, PasswordCredentialProvider},
     realm_service::IRealmService,
     user_services::IUserService,
 };
@@ -131,6 +134,35 @@ impl UserApi {
                 err
             );
             return ApiResult::from_error(500, "500", "Failed to create user");
+        }
+
+        let user_credential_service: Arc<dyn IUserCredentialService> = context.services().resolve();
+        let credential_provider = PasswordCredentialProvider::new(user_credential_service);
+        let credential_update_response = credential_provider
+            .update_credential(&realm, &user_model, &credential_input)
+            .await;
+
+        if let Err(err) = credential_update_response {
+            match user_service.delete_user(&realm_id, &user_id).await {
+                Ok(_) => {
+                    log::error!(
+                        "Rollbacking user, failed to create user credential: {}, realm: {}. Error: {}",
+                        &user.email,
+                        &realm_id,
+                        err
+                    );
+                    return ApiResult::from_error(500, "500", "Failed to create user credential");
+                }
+                Err(_) => {
+                    log::error!(
+                        "Rollbacking user{}, realm: {} failed. Error: {}",
+                        &user.email,
+                        &realm_id,
+                        err
+                    );
+                    return ApiResult::from_error(500, "500", "Failed to create user");
+                }
+            }
         }
         ApiResult::Data(user_model)
     }
@@ -745,7 +777,11 @@ impl UserApi {
 
         match updated_credential {
             Err(err) => {
-                log::error!("Failed to update user: {} credential", &user_id,);
+                log::error!(
+                    "Failed to update user: {} credential. Error: {}",
+                    &user_id,
+                    &err
+                );
                 return ApiResult::from_error(500, "500", "failed to update user");
             }
             _ => ApiResult::no_content(),

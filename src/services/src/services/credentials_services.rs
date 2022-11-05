@@ -46,12 +46,12 @@ pub trait CredentialInputValidator {
 pub trait CredentialInputUpdater {
     fn supports_credential_type(&self, credential_type: &str) -> bool;
 
-    fn update_credential(
+    async fn update_credential(
         &self,
         realm: &RealmModel,
         user: &UserModel,
-        credential_input: &Box<dyn CredentialInput>,
-    ) -> bool;
+        credential_input: &dyn CredentialInput,
+    ) -> Result<bool, String>;
 
     async fn disable_credential_type(
         &self,
@@ -419,11 +419,11 @@ impl IUserCredentialProvider for UserCredentialProvider {}
 
 #[allow(dead_code)]
 pub struct PasswordCredentialProvider {
-    user_credential_provider: Arc<dyn IUserCredentialProvider>,
+    user_credential_provider: Arc<dyn IUserCredentialService>,
 }
 
 impl PasswordCredentialProvider {
-    pub fn new(provider: Arc<dyn IUserCredentialProvider>) -> Self {
+    pub fn new(provider: Arc<dyn IUserCredentialService>) -> Self {
         Self {
             user_credential_provider: Arc::clone(&provider),
         }
@@ -436,12 +436,12 @@ impl CredentialInputUpdater for PasswordCredentialProvider {
         credential_type.to_uppercase() == "PASSWORD"
     }
 
-    fn update_credential(
+    async fn update_credential(
         &self,
         realm: &RealmModel,
         user: &UserModel,
-        credential_input: &Box<dyn CredentialInput>,
-    ) -> bool {
+        credential_input: &dyn CredentialInput,
+    ) -> Result<bool, String> {
         todo!()
     }
 
