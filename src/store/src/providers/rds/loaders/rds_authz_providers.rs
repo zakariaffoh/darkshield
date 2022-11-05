@@ -1046,8 +1046,8 @@ impl IGroupProvider for RdsGroupProvider {
         params.push(&realm_id);
         params.push(&user_id);
         let mut load_user_groups_sql = String::new();
-        let mut page_offset = 0;
-        let mut page_size_v = 0;
+        let page_offset;
+        let page_size_v;
 
         if page_index.is_none() || page_size.is_none() {
             load_user_groups_sql = user_table::SELECT_USER_GROUPS_BY_USER_ID.clone();

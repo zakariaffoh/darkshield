@@ -3,11 +3,12 @@ use lazy_static::lazy_static;
 use crate::providers::rds::tables::rds_table::RdsTable;
 
 lazy_static! {
-    pub static ref USER_TABLE: RdsTable = RdsTable {
+    pub static ref USERS_TABLE: RdsTable = RdsTable {
         table_name: "REALMS".to_owned(),
         insert_columns: vec![
             "tenant".to_owned(),
             "realm_id".to_owned(),
+            "user_id".to_owned(),
             "user_name".to_owned(),
             "enabled".to_owned(),
             "email".to_owned(),
@@ -23,9 +24,8 @@ lazy_static! {
             "version".to_owned()
         ],
         update_columns: vec![
+            "user_name".to_owned(),
             "enabled".to_owned(),
-            "email".to_owned(),
-            "email_verified".to_owned(),
             "required_actions".to_owned(),
             "not_before".to_owned(),
             "user_storage".to_owned(),
@@ -36,6 +36,29 @@ lazy_static! {
             "updated_at".to_owned()
         ]
     };
+
+    pub static ref USERS_GROUPS_TABLE: RdsTable = RdsTable {
+        table_name: "USERS_GROUPS".to_owned(),
+        insert_columns: vec![
+            "realm_id".to_owned(),
+            "user_id".to_owned(),
+            "group_id".to_owned()
+        ],
+        update_columns: vec![
+        ]
+    };
+
+    pub static ref USERS_ROLES_TABLE: RdsTable = RdsTable {
+        table_name: "USERS_ROLES".to_owned(),
+        insert_columns: vec![
+            "realm_id".to_owned(),
+            "user_id".to_owned(),
+            "role_id".to_owned()
+        ],
+        update_columns: vec![
+        ]
+    };
+
     pub static ref SELECT_USER_BY_USER_NAME_EMAIL: String =
         "SELECT * FROM USERS WHERE realm_id: $1 AND (user_name=$2 OR email=$3)".to_owned();
     pub static ref SELECT_USER_GROUPS_BY_USER_ID: String =
@@ -45,6 +68,15 @@ lazy_static! {
 
     pub static ref SELECT_USER_GROUPS_BY_USER_ID_PAGING: String =
         "SELECT g.* FROM GROUPS g INNER JOIN USERS_GROUPS ug ON (ug.group_id = g.group_id AND  ug.realm_id = g.realm_id) WHERE ug.realm_id=$1 AND ug.user_id=$2 offset $3 limit $4".to_owned();
+
+    pub static ref SELECT_USERS_BY_REALM_PAGING: String =
+        "SELECT u.* FROM USERS u WHERE u.realm_id: $1 OFFSET $2 LIMIT $3".to_owned();
+
+    pub static ref SELECT_USERS_BY_REALM: String =
+        "SELECT u.* FROM USERS u WHERE u.realm_id: $1".to_owned();
+
+    pub static ref SELECT_COUNT_USERS: String =
+        "SELECT COUNT(u.user_id) FROM USERS u WHERE u.realm_id= $1".to_owned();
 
     pub static ref SELECT_USER_ROLES_BY_USER_ID: String =
         "SELECT r.* FROM ROLES r INNER JOIN USERS_ROLES ur ON (ur.role_id = r.role_id AND  ur.realm_id=r.realm_id) WHERE ur.realm_id=$1 AND ur.user_id=$2

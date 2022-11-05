@@ -11,7 +11,7 @@ use models::{
             PasswordCredentialModel, UserCredentialModel,
         },
         realm::{RealmModel, HASH_ALGORITHM_DEFAULT},
-        user::{UserCreateModel, UserModel, UserProfileHelper, UserStorageEnum},
+        user::{UserCreateModel, UserModel, UserPagingResult, UserProfileHelper, UserStorageEnum},
     },
     PagingParams,
 };
@@ -122,9 +122,7 @@ impl UserApi {
             context.authenticated_user().user_id.to_owned(),
         );
 
-        let created_user = user_service
-            .create_user(&user_model, &credential_input)
-            .await;
+        let created_user = user_service.create_user(&user_model).await;
         if let Err(err) = created_user {
             log::error!(
                 "Failed to create user: {}, realm: {}. Error: {}",
@@ -199,7 +197,7 @@ impl UserApi {
         realm: &RealmModel,
         user: &UserCreateModel,
     ) -> Result<UserCredentialModel, String> {
-        let password_policy = if let Some(policy) = &realm.password_policy {
+        let algorithm = if let Some(policy) = &realm.password_policy {
             policy.hash_algorithm.clone()
         } else {
             Some(HASH_ALGORITHM_DEFAULT.to_owned())
@@ -210,7 +208,7 @@ impl UserApi {
             CredentialTypeEnum::PASSWORD.to_string(),
             user.credential.secret.clone(),
             None,
-            password_policy,
+            algorithm,
             None,
         ))
     }
@@ -330,16 +328,20 @@ impl UserApi {
         context: &DarkShieldContext,
         realm_id: &str,
         paging: &PagingParams,
-    ) -> ApiResult<Vec<UserModel>> {
+    ) -> ApiResult<UserPagingResult> {
         let user_service: &dyn IUserService = context.services().resolve_ref();
 
         let loaded_users = user_service
-            .load_users_by_realm_paging(&realm_id, &paging.page_index, &paging.page_size)
+            .load_users_paging(&realm_id, &paging.page_index, &paging.page_size)
             .await;
         match loaded_users {
             Ok(users) => {
-                log::info!("[{}] users loaded for realm: {}", users.len(), realm_id);
-                if users.is_empty() {
+                log::info!(
+                    "[{}] users loaded for realm: {}",
+                    users.users.len(),
+                    realm_id
+                );
+                if users.users.is_empty() {
                     ApiResult::no_content()
                 } else {
                     ApiResult::from_data(users)

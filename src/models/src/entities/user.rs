@@ -16,7 +16,7 @@ pub enum UserStorageEnum {
     Ldap,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct UserModel {
     pub user_id: String,
     pub realm_id: String,
@@ -118,6 +118,14 @@ impl Into<UserModel> for UserUpdateModel {
             metadata: AuditableModel::default(),
         }
     }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UserPagingResult {
+    pub page_size: Option<u64>,
+    pub page_index: Option<u64>,
+    pub total_count: Option<u64>,
+    pub users: Vec<UserModel>,
 }
 
 #[derive(Serialize, Deserialize)]
