@@ -17,7 +17,7 @@ use models::entities::auth::{
 pub async fn create_authentication_execution(
     realm_id: web::Path<String>,
     execution: web::Json<AuthenticationExecutionMutationModel>,
-    context: web::Data<DarkshieldSession>,
+    session: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let mut execution_model: AuthenticationExecutionModel = execution.0.into();
     execution_model.realm_id = realm_id.to_string();
@@ -26,14 +26,14 @@ pub async fn create_authentication_execution(
         &execution_model.alias,
         realm_id.as_str()
     );
-    AuthenticationModelApi::create_authentication_execution(&context, execution_model).await
+    AuthenticationModelApi::create_authentication_execution(&session, execution_model).await
 }
 
 #[put("/realm/{realm_id}/auth/execution/{execution_id}")]
 pub async fn update_authentication_execution(
     params: web::Path<(String, String)>,
     execution: web::Json<AuthenticationExecutionMutationModel>,
-    context: web::Data<DarkshieldSession>,
+    session: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, execution_id) = params.into_inner();
 
@@ -45,13 +45,13 @@ pub async fn update_authentication_execution(
         &execution_model.execution_id,
         realm_id.as_str()
     );
-    AuthenticationModelApi::update_authentication_execution(&context, execution_model).await
+    AuthenticationModelApi::update_authentication_execution(&session, execution_model).await
 }
 
 #[get("/realm/{realm_id}/auth/execution/{execution_id}")]
 pub async fn load_authentication_execution_by_id(
     params: web::Path<(String, String)>,
-    context: web::Data<DarkshieldSession>,
+    session: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, execution_id) = params.into_inner();
     log::info!(
@@ -59,25 +59,25 @@ pub async fn load_authentication_execution_by_id(
         execution_id.as_str(),
         realm_id.as_str()
     );
-    AuthenticationModelApi::load_authentication_execution(&context, &realm_id, &execution_id).await
+    AuthenticationModelApi::load_authentication_execution(&session, &realm_id, &execution_id).await
 }
 
 #[get("/realm/{realm_id}/auth/executions/load_all")]
 pub async fn load_authentication_execution_by_realm(
     realm_id: web::Path<String>,
-    context: web::Data<DarkshieldSession>,
+    session: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     log::info!(
         "Loading authentication execution realm: {}",
         realm_id.as_str()
     );
-    AuthenticationModelApi::load_authentication_execution_by_realm_id(&context, &realm_id).await
+    AuthenticationModelApi::load_authentication_execution_by_realm_id(&session, &realm_id).await
 }
 
 #[delete("/realm/{realm_id}/auth/execution/{execution_id}")]
 pub async fn remove_authentication_execution_by_id(
     params: web::Path<(String, String)>,
-    context: web::Data<DarkshieldSession>,
+    session: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, execution_id) = params.into_inner();
     log::info!(
@@ -85,7 +85,7 @@ pub async fn remove_authentication_execution_by_id(
         execution_id.as_str(),
         realm_id.as_str()
     );
-    AuthenticationModelApi::remove_authentication_execution(&context, &realm_id, &execution_id)
+    AuthenticationModelApi::remove_authentication_execution(&session, &realm_id, &execution_id)
         .await
 }
 
@@ -93,7 +93,7 @@ pub async fn remove_authentication_execution_by_id(
 pub async fn create_authentication_flow(
     realm_id: web::Path<String>,
     flow: web::Json<AuthenticationFlowMutationModel>,
-    context: web::Data<DarkshieldSession>,
+    session: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let mut flow_model: AuthenticationFlowModel = flow.0.into();
     flow_model.realm_id = realm_id.to_string();
@@ -102,14 +102,14 @@ pub async fn create_authentication_flow(
         &flow_model.alias,
         realm_id.as_str()
     );
-    AuthenticationModelApi::create_authentication_flow(&context, flow_model).await
+    AuthenticationModelApi::create_authentication_flow(&session, flow_model).await
 }
 
 #[put("/realm/{realm_id}/auth/flow/{flow_id}")]
 pub async fn update_authentication_flow(
     params: web::Path<(String, String)>,
     flow: web::Json<AuthenticationFlowMutationModel>,
-    context: web::Data<DarkshieldSession>,
+    session: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, flow_id) = params.into_inner();
     let mut flow_model: AuthenticationFlowModel = flow.0.into();
@@ -120,13 +120,13 @@ pub async fn update_authentication_flow(
         &flow_model.flow_id,
         realm_id.as_str()
     );
-    AuthenticationModelApi::update_authentication_flow(&context, flow_model).await
+    AuthenticationModelApi::update_authentication_flow(&session, flow_model).await
 }
 
 #[get("/realm/{realm_id}/auth/flow/{flow_id}")]
 pub async fn load_authentication_flow_by_id(
     params: web::Path<(String, String)>,
-    context: web::Data<DarkshieldSession>,
+    session: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, flow_id) = params.into_inner();
     log::info!(
@@ -134,22 +134,22 @@ pub async fn load_authentication_flow_by_id(
         flow_id.as_str(),
         realm_id.as_str()
     );
-    AuthenticationModelApi::load_authentication_flow_by_flow_id(&context, &realm_id, &flow_id).await
+    AuthenticationModelApi::load_authentication_flow_by_flow_id(&session, &realm_id, &flow_id).await
 }
 
 #[get("/realm/{realm_id}/auth/flows/load_all")]
 pub async fn load_authentication_flows_by_realm(
     realm_id: web::Path<String>,
-    context: web::Data<DarkshieldSession>,
+    session: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     log::info!("Loading authentication flows realm: {}", realm_id.as_str());
-    AuthenticationModelApi::load_authentication_flow_by_realm_id(&context, &realm_id).await
+    AuthenticationModelApi::load_authentication_flow_by_realm_id(&session, &realm_id).await
 }
 
 #[delete("/realm/{realm_id}/auth/flow/{flow_id}")]
 pub async fn remove_authentication_flow_by_id(
     params: web::Path<(String, String)>,
-    context: web::Data<DarkshieldSession>,
+    session: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, flow_id) = params.into_inner();
     log::info!(
@@ -157,14 +157,14 @@ pub async fn remove_authentication_flow_by_id(
         flow_id.as_str(),
         realm_id.as_str()
     );
-    AuthenticationModelApi::remove_authentication_flow(&context, &realm_id, &flow_id).await
+    AuthenticationModelApi::remove_authentication_flow(&session, &realm_id, &flow_id).await
 }
 
 #[post("/realm/{realm_id}/auth/config/create")]
 pub async fn create_authenticator_config(
     realm_id: web::Path<String>,
     config: web::Json<AuthenticatorConfigMutationModel>,
-    context: web::Data<DarkshieldSession>,
+    session: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let mut config_model: AuthenticatorConfigModel = config.0.into();
     config_model.realm_id = realm_id.to_string();
@@ -173,14 +173,14 @@ pub async fn create_authenticator_config(
         &config_model.alias,
         realm_id.as_str()
     );
-    AuthenticationModelApi::create_authenticator_config(&context, config_model).await
+    AuthenticationModelApi::create_authenticator_config(&session, config_model).await
 }
 
 #[put("/realm/{realm_id}/auth/config/{config_id}")]
 pub async fn update_authenticator_config(
     params: web::Path<(String, String)>,
     config: web::Json<AuthenticatorConfigMutationModel>,
-    context: web::Data<DarkshieldSession>,
+    session: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, config_id) = params.into_inner();
     let mut config_model: AuthenticatorConfigModel = config.0.into();
@@ -191,13 +191,13 @@ pub async fn update_authenticator_config(
         &config_model.config_id,
         realm_id.as_str()
     );
-    AuthenticationModelApi::update_authenticator_config(&context, config_model).await
+    AuthenticationModelApi::update_authenticator_config(&session, config_model).await
 }
 
 #[get("/realm/{realm_id}/auth/config/{config_id}")]
 pub async fn load_authenticator_config_by_id(
     params: web::Path<(String, String)>,
-    context: web::Data<DarkshieldSession>,
+    session: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, config_id) = params.into_inner();
     log::info!(
@@ -205,23 +205,23 @@ pub async fn load_authenticator_config_by_id(
         config_id.as_str(),
         realm_id.as_str()
     );
-    AuthenticationModelApi::load_authenticator_config(&context, &realm_id, &config_id).await
+    AuthenticationModelApi::load_authenticator_config(&session, &realm_id, &config_id).await
 }
 
 #[get("/realm/{realm_id}/auth/configs/load_all")]
 pub async fn load_authenticator_configs_by_realm(
     realm_id: web::Path<String>,
-    context: web::Data<DarkshieldSession>,
+    session: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     log::info!("Loading authenticator configs realm: {}", realm_id.as_str());
 
-    AuthenticationModelApi::load_authenticator_config_by_realm_id(&context, &realm_id).await
+    AuthenticationModelApi::load_authenticator_config_by_realm_id(&session, &realm_id).await
 }
 
 #[delete("/realm/{realm_id}/auth/config/{flow_id}")]
 pub async fn remove_authenticator_config_by_id(
     params: web::Path<(String, String)>,
-    context: web::Data<DarkshieldSession>,
+    session: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, config_id) = params.into_inner();
     log::info!(
@@ -229,14 +229,14 @@ pub async fn remove_authenticator_config_by_id(
         config_id.as_str(),
         realm_id.as_str()
     );
-    AuthenticationModelApi::remove_authenticator_config(&context, &realm_id, &config_id).await
+    AuthenticationModelApi::remove_authenticator_config(&session, &realm_id, &config_id).await
 }
 
 #[post("/realm/{realm_id}/required_actions/create")]
 pub async fn register_required_action(
     realm_id: web::Path<String>,
     action: web::Json<RequiredActionMutationModel>,
-    context: web::Data<DarkshieldSession>,
+    session: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let mut action_model: RequiredActionModel = action.0.into();
     action_model.realm_id = realm_id.to_string();
@@ -245,14 +245,14 @@ pub async fn register_required_action(
         &action_model.name,
         &realm_id
     );
-    AuthenticationModelApi::register_required_action(&context, action_model).await
+    AuthenticationModelApi::register_required_action(&session, action_model).await
 }
 
 #[put("/realm/{realm_id}/required_actions/{action_id}")]
 pub async fn update_required_action(
     params: web::Path<(String, String)>,
     action: web::Json<RequiredActionMutationModel>,
-    context: web::Data<DarkshieldSession>,
+    session: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let mut action_model: RequiredActionModel = action.0.into();
     let (realm_id, action_id) = params.into_inner();
@@ -264,13 +264,13 @@ pub async fn update_required_action(
         &realm_id
     );
 
-    AuthenticationModelApi::update_required_action(&context, action_model).await
+    AuthenticationModelApi::update_required_action(&session, action_model).await
 }
 
 #[get("/realm/{realm_id}/actions/{action_id}")]
 pub async fn load_required_action_by_id(
     params: web::Path<(String, String)>,
-    context: web::Data<DarkshieldSession>,
+    session: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, action_id) = params.into_inner();
     log::info!(
@@ -278,13 +278,13 @@ pub async fn load_required_action_by_id(
         &realm_id.as_str(),
         &realm_id
     );
-    AuthenticationModelApi::load_required_action_by_id(&context, &realm_id, &action_id).await
+    AuthenticationModelApi::load_required_action_by_id(&session, &realm_id, &action_id).await
 }
 
 #[delete("/realm/{realm_id}/actions/{action_id}")]
 pub async fn remove_requied_action_by_id(
     params: web::Path<(String, String)>,
-    context: web::Data<DarkshieldSession>,
+    session: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, action_id) = params.into_inner();
     log::info!(
@@ -292,14 +292,14 @@ pub async fn remove_requied_action_by_id(
         &action_id.as_str(),
         &realm_id.as_str()
     );
-    AuthenticationModelApi::remove_required_action(&context, &realm_id, &action_id).await
+    AuthenticationModelApi::remove_required_action(&session, &realm_id, &action_id).await
 }
 
 #[get("/realm/{realm_id}/actions/load_all")]
 pub async fn load_requied_action_by_realm(
     realm_id: web::Path<String>,
-    context: web::Data<DarkshieldSession>,
+    session: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     log::info!("Loading required actions for realm: {}", &realm_id.as_str());
-    AuthenticationModelApi::load_required_action_by_realm_id(&context, &realm_id).await
+    AuthenticationModelApi::load_required_action_by_realm_id(&session, &realm_id).await
 }
