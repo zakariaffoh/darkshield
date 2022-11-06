@@ -1,4 +1,4 @@
-use crate::{api::services::user_api::UserApi, context::DarkShieldContext};
+use crate::api::services::user_api::UserApi;
 use log;
 use models::{
     entities::{
@@ -7,6 +7,7 @@ use models::{
     },
     PagingParams,
 };
+use services::session::session::DarkshieldSession;
 
 use actix_web::{
     delete, get, post, put,
@@ -18,7 +19,7 @@ use actix_web::{
 pub async fn create_user(
     params: web::Path<(String, String)>,
     user: web::Json<UserCreateModel>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, user_id) = params.into_inner();
     log::info!("Creating user {}, realm: {}", &user_id, &realm_id);
@@ -29,7 +30,7 @@ pub async fn create_user(
 pub async fn update_user(
     params: web::Path<(String, String)>,
     user: web::Json<UserUpdateModel>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, user_id) = params.into_inner();
     let mut user_model: UserModel = user.0.into();
@@ -42,7 +43,7 @@ pub async fn update_user(
 #[delete("/realm/{realm_id}/user/{user_id}")]
 pub async fn delete_user(
     params: web::Path<(String, String)>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, user_id) = params.into_inner();
     log::info!("Deleting user {}, realm: {}", &user_id, &realm_id,);
@@ -52,7 +53,7 @@ pub async fn delete_user(
 #[get("/realm/{realm_id}/user/{user_id}/load")]
 pub async fn load_user(
     params: web::Path<(String, String)>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, user_id) = params.into_inner();
     log::info!("Loading user {}, realm: {}", &user_id, &realm_id);
@@ -63,7 +64,7 @@ pub async fn load_user(
 pub async fn load_users_paging(
     params: web::Path<String>,
     paging: web::Query<PagingParams>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let realm_id = params.into_inner();
     log::info!("Loading users, realm: {}", &realm_id);
@@ -73,7 +74,7 @@ pub async fn load_users_paging(
 #[get("/realm/{realm_id}/user/{user_id}/count")]
 pub async fn count_users(
     realm_id: web::Path<String>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     log::info!("Counting users realm: {}", &realm_id);
     UserApi::count_users(&context, &realm_id).await
@@ -82,7 +83,7 @@ pub async fn count_users(
 #[put("/realm/{realm_id}/user/{user_id}/role/{role_id}")]
 pub async fn user_add_role(
     params: web::Path<(String, String, String)>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, user_id, role_id) = params.into_inner();
 
@@ -98,7 +99,7 @@ pub async fn user_add_role(
 #[delete("/realm/{realm_id}/user/{user_id}/role/{role_id}")]
 pub async fn user_remove_role(
     params: web::Path<(String, String, String)>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, user_id, role_id) = params.into_inner();
 
@@ -115,7 +116,7 @@ pub async fn user_remove_role(
 pub async fn load_user_roles_paging(
     params: web::Path<(String, String)>,
     paging: web::Query<PagingParams>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, user_id) = params.into_inner();
 
@@ -126,7 +127,7 @@ pub async fn load_user_roles_paging(
 #[put("/realm/{realm_id}/user/{user_id}/group/{group_id}")]
 pub async fn user_add_group(
     params: web::Path<(String, String, String)>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, user_id, group_id) = params.into_inner();
 
@@ -142,7 +143,7 @@ pub async fn user_add_group(
 #[delete("/realm/{realm_id}/user/{user_id}/group/{group_id}")]
 pub async fn user_remove_group(
     params: web::Path<(String, String, String)>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, user_id, group_id) = params.into_inner();
 
@@ -159,7 +160,7 @@ pub async fn user_remove_group(
 pub async fn load_user_groups_paging(
     params: web::Path<(String, String)>,
     paging: web::Query<PagingParams>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, user_id) = params.into_inner();
 
@@ -174,7 +175,7 @@ pub async fn load_user_groups_paging(
 #[get("/realm/{realm_id}/user/{user_id}/groups/count")]
 pub async fn user_count_groups(
     params: web::Path<(String, String)>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, user_id) = params.into_inner();
 
@@ -189,7 +190,7 @@ pub async fn user_count_groups(
 #[get("/realm/{realm_id}/user/{user_id}/credentials/load_all")]
 pub async fn load_user_credentials(
     params: web::Path<(String, String)>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, user_id) = params.into_inner();
 
@@ -205,7 +206,7 @@ pub async fn load_user_credentials(
 pub async fn user_disable_credential_type(
     params: web::Path<(String, String)>,
     credential_type: web::Query<String>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, user_id) = params.into_inner();
     let credential_type = credential_type.into_inner();
@@ -222,7 +223,7 @@ pub async fn user_disable_credential_type(
 pub async fn user_reset_password(
     params: web::Path<(String, String)>,
     password: web::Json<CredentialRepresentation>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, user_id) = params.into_inner();
     let credential = password.0;
@@ -235,7 +236,7 @@ pub async fn remove_credential(
     params: web::Path<(String, String, String)>,
     client_id: web::Query<String>,
     previous_credential_id: web::Query<String>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, user_id, credential_id) = params.into_inner();
     let previous_credential_id = previous_credential_id.into_inner();
@@ -260,7 +261,7 @@ pub async fn remove_credential(
 #[put("/realm/{realm_id}/user/{user_id}/credential/{credential_id}/move-to-first")]
 pub async fn move_credential_to_first(
     params: web::Path<(String, String, String)>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, user_id, credential_id) = params.into_inner();
     log::info!(
@@ -276,7 +277,7 @@ pub async fn move_credential_to_first(
 pub async fn move_credential_to_position(
     params: web::Path<(String, String, String)>,
     previous_credential_id: web::Query<String>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, user_id, credential_id) = params.into_inner();
     let previous_credential_id = previous_credential_id.into_inner();
@@ -302,7 +303,7 @@ pub async fn reset_password_email(
     params: web::Path<(String, String)>,
     client_id: web::Query<String>,
     redirect_uri: web::Query<String>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, user_id) = params.into_inner();
     log::info!(
@@ -320,7 +321,7 @@ pub async fn send_verify_email(
     params: web::Path<(String, String)>,
     query: web::Query<(String, String)>,
     redirect_uri: web::Query<String>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, user_id) = params.into_inner();
     let (client_id, redirect_uri) = query.into_inner();
@@ -336,7 +337,7 @@ pub async fn send_verify_email(
 #[get("/realm/{realm_id}/user/{user_id}/consents/load")]
 pub async fn load_user_consents(
     params: web::Path<(String, String)>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, user_id) = params.into_inner();
 
@@ -351,7 +352,7 @@ pub async fn load_user_consents(
 #[delete("/realm/{realm_id}/user/{user_id}/consent/client/{client_id}")]
 pub async fn revoke_user_consent_for_client(
     params: web::Path<(String, String, String)>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, user_id, client_id) = params.into_inner();
     log::info!(
@@ -367,7 +368,7 @@ pub async fn impersonate_user(
     params: web::Path<(String, String)>,
     client_id: web::Query<String>,
     scope: web::Query<String>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, user_id) = params.into_inner();
     log::info!(

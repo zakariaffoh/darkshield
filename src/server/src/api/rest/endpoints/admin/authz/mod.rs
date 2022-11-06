@@ -6,7 +6,9 @@ use actix_web::{
 use log;
 use shaku::HasComponent;
 
-use crate::{api::services::authz_api::AuthorizationModelApi, context::DarkShieldContext};
+use crate::api::services::authz_api::AuthorizationModelApi;
+use services::session::session::DarkshieldSession;
+
 use models::entities::authz::{
     GroupModel, GroupMutationModel, IdentityProviderModel, IdentityProviderMutationModel,
     PolicyRepresentation, ResourceModel, ResourceMutationModel, ResourceServerModel,
@@ -17,7 +19,7 @@ use models::entities::authz::{
 pub async fn create_role(
     realm_id: web::Path<String>,
     role: web::Json<RoleMutationModel>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let mut role_model: RoleModel = role.0.into();
     role_model.realm_id = realm_id.to_string();
@@ -29,7 +31,7 @@ pub async fn create_role(
 pub async fn update_role(
     params: web::Path<(String, String)>,
     role: web::Json<RoleMutationModel>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, role_id) = params.into_inner();
     let mut role_model: RoleModel = role.0.into();
@@ -46,7 +48,7 @@ pub async fn update_role(
 #[get("/realm/{realm_id}/role/{role_id}")]
 pub async fn load_role_by_id(
     params: web::Path<(String, String)>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, role_id) = params.into_inner();
     log::info!(
@@ -60,7 +62,7 @@ pub async fn load_role_by_id(
 #[delete("/realm/{realm_id}/role/{role_id}")]
 pub async fn delete_role_by_id(
     params: web::Path<(String, String)>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, role_id) = params.into_inner();
     log::info!(
@@ -74,7 +76,7 @@ pub async fn delete_role_by_id(
 #[get("/realm/{realm_id}/roles/load_all")]
 pub async fn load_roles_by_realm(
     realm_id: web::Path<String>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     log::info!("Loading roles for realm: {}", &realm_id.as_str());
     AuthorizationModelApi::load_roles_by_realm(&context, &realm_id).await
@@ -83,7 +85,7 @@ pub async fn load_roles_by_realm(
 #[get("/realm/{realm_id}/roles/count_all")]
 pub async fn count_roles_by_realm(
     realm_id: web::Path<String>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     log::info!("Counting roles for realm: {}", &realm_id.as_str());
     AuthorizationModelApi::count_roles_by_realm(&context, &realm_id).await
@@ -93,7 +95,7 @@ pub async fn count_roles_by_realm(
 pub async fn create_group(
     realm_id: web::Path<String>,
     group: web::Json<GroupMutationModel>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let mut group_model: GroupModel = group.0.into();
     group_model.realm_id = realm_id.to_string();
@@ -109,7 +111,7 @@ pub async fn create_group(
 pub async fn update_group(
     params: web::Path<(String, String)>,
     group: web::Json<GroupMutationModel>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, group_id) = params.into_inner();
     let mut group_model: GroupModel = group.0.into();
@@ -126,7 +128,7 @@ pub async fn update_group(
 #[get("/realm/{realm_id}/group/{group_id}")]
 pub async fn load_group_by_id(
     params: web::Path<(String, String)>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, group_id) = params.into_inner();
     log::info!(
@@ -140,7 +142,7 @@ pub async fn load_group_by_id(
 #[delete("/realm/{realm_id}/group/{group_id}")]
 pub async fn delete_group_by_id(
     params: web::Path<(String, String)>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, group_id) = params.into_inner();
     log::info!(
@@ -154,7 +156,7 @@ pub async fn delete_group_by_id(
 #[get("/realm/{realm_id}/groups/load_all")]
 pub async fn load_groups_by_realm(
     realm_id: web::Path<String>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     log::info!("Loading roles for realm: {}", &realm_id.as_str());
     AuthorizationModelApi::load_groups_by_realm(&context, &realm_id).await
@@ -163,7 +165,7 @@ pub async fn load_groups_by_realm(
 #[get("/realm/{realm_id}/groups/count_all")]
 pub async fn count_groups_by_realm(
     realm_id: web::Path<String>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     log::info!("Counting groups for realm: {}", &realm_id.as_str());
     AuthorizationModelApi::count_groups(&context, &realm_id).await
@@ -172,7 +174,7 @@ pub async fn count_groups_by_realm(
 #[post("/realm/{realm_id}/group/{group_id}/role/{role_id}")]
 pub async fn add_group_role(
     params: web::Path<(String, String, String)>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, group_id, role_id) = params.into_inner();
     log::info!(
@@ -187,7 +189,7 @@ pub async fn add_group_role(
 #[put("/realm/{realm_id}/group/{group_id}/role/{role_id}")]
 pub async fn remove_group_role(
     params: web::Path<(String, String, String)>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, group_id, role_id) = params.into_inner();
     log::info!(
@@ -203,7 +205,7 @@ pub async fn remove_group_role(
 pub async fn create_identity_provider(
     realm_id: web::Path<String>,
     identity_provider: web::Json<IdentityProviderMutationModel>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let mut idp_model: IdentityProviderModel = identity_provider.0.into();
     idp_model.realm_id = realm_id.to_string();
@@ -219,7 +221,7 @@ pub async fn create_identity_provider(
 pub async fn update_identity_provider(
     params: web::Path<(String, String)>,
     identity_provider: web::Json<IdentityProviderMutationModel>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, internal_id) = params.into_inner();
     let mut idp_model: IdentityProviderModel = identity_provider.0.into();
@@ -236,7 +238,7 @@ pub async fn update_identity_provider(
 #[get("/realm/{realm_id}/identity_provider/{internal_id}")]
 pub async fn load_identity_provider(
     params: web::Path<(String, String)>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, internal_id) = params.into_inner();
     log::info!(
@@ -250,7 +252,7 @@ pub async fn load_identity_provider(
 #[get("/realm/{realm_id}/identity_providers/load_all")]
 pub async fn load_identity_providers_by_realm(
     realm_id: web::Path<String>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     log::info!(
         "Loading identity providers for realm: {}",
@@ -262,7 +264,7 @@ pub async fn load_identity_providers_by_realm(
 #[delete("/realm/{realm_id}/identity_provider/{internal_id}")]
 pub async fn delete_identity_provider(
     params: web::Path<(String, String)>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, internal_id) = params.into_inner();
     log::info!(
@@ -277,7 +279,7 @@ pub async fn delete_identity_provider(
 pub async fn create_resource_server(
     realm_id: web::Path<String>,
     resource_server: web::Json<ResourceServerMutationModel>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let mut resource_server_model: ResourceServerModel = resource_server.0.into();
     resource_server_model.realm_id = realm_id.to_string();
@@ -293,7 +295,7 @@ pub async fn create_resource_server(
 pub async fn update_resource_server(
     params: web::Path<(String, String)>,
     resource_server: web::Json<ResourceServerMutationModel>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, server_id) = params.into_inner();
     let mut resource_server_model: ResourceServerModel = resource_server.0.into();
@@ -311,7 +313,7 @@ pub async fn update_resource_server(
 #[get("/realm/{realm_id}/resource-server/{server_id}")]
 pub async fn load_resource_server(
     params: web::Path<(String, String)>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, server_id) = params.into_inner();
     log::info!(
@@ -326,7 +328,7 @@ pub async fn load_resource_server(
 #[get("/realm/{realm_id}/resources_servers/all")]
 pub async fn load_resource_servers_by_realms(
     realm_id: web::Path<String>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     log::info!("Loading resources servers by realm: {}", realm_id.as_str());
     AuthorizationModelApi::load_resource_servers_by_realm(&context, &realm_id).await
@@ -335,7 +337,7 @@ pub async fn load_resource_servers_by_realms(
 #[delete("/realm/{realm_id}/resource-server/{server_id}")]
 pub async fn delete_resource_server_by_id(
     params: web::Path<(String, String)>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, server_id) = params.into_inner();
     log::info!(
@@ -350,7 +352,7 @@ pub async fn delete_resource_server_by_id(
 pub async fn create_resource(
     params: web::Path<(String, String)>,
     resource: web::Json<ResourceMutationModel>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, server_id) = params.into_inner();
     let mut resource_model: ResourceModel = resource.0.into();
@@ -370,7 +372,7 @@ pub async fn create_resource(
 pub async fn update_resource(
     params: web::Path<(String, String, String)>,
     resource: web::Json<ResourceMutationModel>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let mut resource_model: ResourceModel = resource.0.into();
     let (realm_id, server_id, resource_id) = params.into_inner();
@@ -389,7 +391,7 @@ pub async fn update_resource(
 #[get("/realm/{realm_id}/resource-server/{server_id}/resource/{resource_id}")]
 pub async fn load_resource(
     params: web::Path<(String, String, String)>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, server_id, resource_id) = params.into_inner();
     log::info!(
@@ -404,7 +406,7 @@ pub async fn load_resource(
 #[get("/realm/{realm_id}/resource-server/{server_id}/resources/load_all")]
 pub async fn load_resources_by_server(
     params: web::Path<(String, String)>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, server_id) = params.into_inner();
     log::info!(
@@ -418,7 +420,7 @@ pub async fn load_resources_by_server(
 #[delete("/realm/{realm_id}/resource-server/{server_id}/resource/{resource_id}")]
 pub async fn delete_resource_by_id(
     params: web::Path<(String, String, String)>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, server_id, resource_id) = params.into_inner();
     log::info!(
@@ -434,7 +436,7 @@ pub async fn delete_resource_by_id(
 #[post("/realm/{realm_id}/resource-server/{server_id}/resource/{resource_id}/scope/{scope_id}")]
 pub async fn add_scope_to_resource(
     params: web::Path<(String, String, String, String)>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, server_id, resource_id, scope_id) = params.into_inner();
     log::info!(
@@ -457,7 +459,7 @@ pub async fn add_scope_to_resource(
 #[put("/realm/{realm_id}/resource-server/{server_id}/resource/{resource_id}/scope/{scope_id}")]
 pub async fn remove_resource_scope(
     params: web::Path<(String, String, String, String)>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, server_id, resource_id, scope_id) = params.into_inner();
     log::info!(
@@ -481,7 +483,7 @@ pub async fn remove_resource_scope(
 pub async fn create_scope(
     params: web::Path<(String, String)>,
     scope: web::Json<ScopeMutationModel>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, server_id) = params.into_inner();
     let mut scope_model: ScopeModel = scope.0.into();
@@ -501,7 +503,7 @@ pub async fn create_scope(
 pub async fn update_scope(
     params: web::Path<(String, String, String)>,
     scope: web::Json<ScopeMutationModel>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, server_id, scope_id) = params.into_inner();
     let mut scope_model: ScopeModel = scope.0.into();
@@ -521,7 +523,7 @@ pub async fn update_scope(
 #[get("/realm/{realm_id}/resource-server/{server_id}/scope/{scope_id}")]
 pub async fn load_scope_by_id(
     params: web::Path<(String, String, String)>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, server_id, scope_id) = params.into_inner();
     log::info!(
@@ -536,7 +538,7 @@ pub async fn load_scope_by_id(
 #[get("/realm/{realm_id}/resource-server/{server_id}/scopes/load_all")]
 pub async fn load_scope_by_realm_and_server(
     params: web::Path<(String, String)>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, server_id) = params.into_inner();
     log::info!(
@@ -550,7 +552,7 @@ pub async fn load_scope_by_realm_and_server(
 #[delete("/realm/{realm_id}/resource-server/{server_id}/scope/{scope_id}")]
 pub async fn delete_scope_by_id(
     params: web::Path<(String, String, String)>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, server_id, scope_id) = params.into_inner();
     log::info!(
@@ -567,7 +569,7 @@ pub async fn delete_scope_by_id(
 pub async fn create_policy(
     params: web::Path<(String, String)>,
     policy: web::Json<PolicyRepresentation>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, server_id) = params.into_inner();
     let policy_model: PolicyRepresentation = policy.0;
@@ -583,7 +585,7 @@ pub async fn create_policy(
 pub async fn update_policy(
     params: web::Path<(String, String, String)>,
     policy: web::Json<PolicyRepresentation>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, server_id, policy_id) = params.into_inner();
     let policy_model: PolicyRepresentation = policy.0;
@@ -600,7 +602,7 @@ pub async fn update_policy(
 #[get("/realm/{realm_id}/resource-server/{server_id}/policy/{policy_id}")]
 pub async fn load_policy_by_id(
     params: web::Path<(String, String, String)>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, server_id, policy_id) = params.into_inner();
     log::info!(
@@ -615,7 +617,7 @@ pub async fn load_policy_by_id(
 #[get("/realm/{realm_id}/resource-server/{server_id}/policy/{policy_id}/scopes")]
 pub async fn load_policy_scopes_by_policy_id(
     params: web::Path<(String, String, String)>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, server_id, policy_id) = params.into_inner();
     log::info!(
@@ -633,7 +635,7 @@ pub async fn load_policy_scopes_by_policy_id(
 #[get("/realm/{realm_id}/resource-server/{server_id}/policy/{policy_id}/resources")]
 pub async fn load_policy_resources_by_policy_id(
     params: web::Path<(String, String, String)>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, server_id, policy_id) = params.into_inner();
     log::info!(
@@ -651,7 +653,7 @@ pub async fn load_policy_resources_by_policy_id(
 #[get("/realm/{realm_id}/resource-server/{server_id}/policy/{policy_id}/associated-policies")]
 pub async fn load_associates_policies_by_policy_id(
     params: web::Path<(String, String, String)>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, server_id, policy_id) = params.into_inner();
     log::info!(
@@ -669,7 +671,7 @@ pub async fn load_associates_policies_by_policy_id(
 #[get("/realm/{realm_id}/resource-server/{server_id}/policies/all")]
 pub async fn load_policies_by_server_id(
     params: web::Path<(String, String)>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, server_id) = params.into_inner();
     log::info!(
@@ -684,7 +686,7 @@ pub async fn load_policies_by_server_id(
 pub async fn count_policies_by_query(
     params: web::Path<String>,
     query: web::Query<String>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let realm_id = params.into_inner();
     let count_query = query.into_inner();
@@ -700,7 +702,7 @@ pub async fn count_policies_by_query(
 pub async fn search_policies_by_query(
     params: web::Path<String>,
     query: web::Query<String>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let realm_id = params.into_inner();
     let search_query = query.into_inner();
@@ -715,7 +717,7 @@ pub async fn search_policies_by_query(
 #[delete("/realm/{realm_id}/resource-server/{server_id}/policy/{policy_id}")]
 pub async fn delete_policy_by_id(
     params: web::Path<(String, String, String)>,
-    context: web::Data<DarkShieldContext>,
+    context: web::Data<DarkshieldSession>,
 ) -> impl Responder {
     let (realm_id, server_id, policy_id) = params.into_inner();
     log::info!(

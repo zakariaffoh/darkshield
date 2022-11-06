@@ -1,6 +1,6 @@
-use crate::context::DarkShieldContext;
 use commons::ApiResult;
 use log;
+use services::session::session::DarkshieldSession;
 use uuid;
 
 use models::{
@@ -19,11 +19,11 @@ pub struct AuthenticationModelApi;
 
 impl AuthenticationModelApi {
     pub async fn create_authentication_execution(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         execution: AuthenticationExecutionModel,
     ) -> ApiResult<AuthenticationExecutionModel> {
         let authentication_execution_service: &dyn IAuthenticationExecutionService =
-            context.services().resolve_ref();
+            session.services().resolve_ref();
 
         let existing_execution = authentication_execution_service
             .exists_execution_by_alias(&execution.realm_id, &execution.alias)
@@ -45,8 +45,13 @@ impl AuthenticationModelApi {
         let mut execution = execution;
         execution.execution_id = uuid::Uuid::new_v4().to_string();
         execution.metadata = AuditableModel::from_creator(
-            context.authenticated_user().metadata.tenant.to_owned(),
-            context.authenticated_user().user_id.to_owned(),
+            session
+                .context()
+                .authenticated_user()
+                .metadata
+                .tenant
+                .to_owned(),
+            session.context().authenticated_user().user_id.to_owned(),
         );
         let created_execution = authentication_execution_service
             .create_authentication_execution(&execution)
@@ -58,11 +63,11 @@ impl AuthenticationModelApi {
     }
 
     pub async fn update_authentication_execution(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         execution: AuthenticationExecutionModel,
     ) -> ApiResult<()> {
         let authentication_execution_service: &dyn IAuthenticationExecutionService =
-            context.services().resolve_ref();
+            session.services().resolve_ref();
 
         let existing_execution = authentication_execution_service
             .load_authentication_execution(&execution.realm_id, &execution.execution_id)
@@ -79,8 +84,13 @@ impl AuthenticationModelApi {
         }
         let mut execution = execution;
         execution.metadata = AuditableModel::from_updator(
-            context.authenticated_user().metadata.tenant.to_owned(),
-            context.authenticated_user().user_id.to_owned(),
+            session
+                .context()
+                .authenticated_user()
+                .metadata
+                .tenant
+                .to_owned(),
+            session.context().authenticated_user().user_id.to_owned(),
         );
         let updated_execution = authentication_execution_service
             .update_authentication_execution(&execution)
@@ -92,12 +102,12 @@ impl AuthenticationModelApi {
     }
 
     pub async fn load_authentication_execution(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         execution_id: &str,
     ) -> ApiResult<AuthenticationExecutionModel> {
         let authentication_execution_service: &dyn IAuthenticationExecutionService =
-            context.services().resolve_ref();
+            session.services().resolve_ref();
 
         let loaded_execution = authentication_execution_service
             .load_authentication_execution(&realm_id, &execution_id)
@@ -109,11 +119,11 @@ impl AuthenticationModelApi {
     }
 
     pub async fn load_authentication_execution_by_realm_id(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
     ) -> ApiResult<Vec<AuthenticationExecutionModel>> {
         let authentication_execution_service: &dyn IAuthenticationExecutionService =
-            context.services().resolve_ref();
+            session.services().resolve_ref();
 
         let loaded_executions = authentication_execution_service
             .load_authentication_execution_by_realm_id(&realm_id)
@@ -142,12 +152,12 @@ impl AuthenticationModelApi {
     }
 
     pub async fn remove_authentication_execution(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         execution_id: &str,
     ) -> ApiResult<()> {
         let authentication_execution_service: &dyn IAuthenticationExecutionService =
-            context.services().resolve_ref();
+            session.services().resolve_ref();
 
         let existing_execution = authentication_execution_service
             .load_authentication_execution(&realm_id, &execution_id)
@@ -178,11 +188,11 @@ impl AuthenticationModelApi {
     }
 
     pub async fn create_authentication_flow(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         flow: AuthenticationFlowModel,
     ) -> ApiResult<AuthenticationFlowModel> {
         let authentication_flow_service: &dyn IAuthenticationFlowService =
-            context.services().resolve_ref();
+            session.services().resolve_ref();
 
         let existing_flow = authentication_flow_service
             .exists_flow_by_alias(&flow.realm_id, &flow.alias)
@@ -210,11 +220,11 @@ impl AuthenticationModelApi {
     }
 
     pub async fn update_authentication_flow(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         flow: AuthenticationFlowModel,
     ) -> ApiResult<()> {
         let authentication_flow_service: &dyn IAuthenticationFlowService =
-            context.services().resolve_ref();
+            session.services().resolve_ref();
 
         let existing_flow = authentication_flow_service
             .load_authentication_flow_by_flow_id(&flow.realm_id, &flow.flow_id)
@@ -243,12 +253,12 @@ impl AuthenticationModelApi {
     }
 
     pub async fn load_authentication_flow_by_flow_id(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         flow_id: &str,
     ) -> ApiResult<AuthenticationFlowModel> {
         let authentication_flow_service: &dyn IAuthenticationFlowService =
-            context.services().resolve_ref();
+            session.services().resolve_ref();
 
         let loaded_flow = authentication_flow_service
             .load_authentication_flow_by_flow_id(&realm_id, &flow_id)
@@ -260,11 +270,11 @@ impl AuthenticationModelApi {
     }
 
     pub async fn load_authentication_flow_by_realm_id(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
     ) -> ApiResult<Vec<AuthenticationFlowModel>> {
         let authentication_flow_service: &dyn IAuthenticationFlowService =
-            context.services().resolve_ref();
+            session.services().resolve_ref();
 
         let loaded_flows = authentication_flow_service
             .load_authentication_flow_by_realm_id(&realm_id)
@@ -290,12 +300,12 @@ impl AuthenticationModelApi {
     }
 
     pub async fn remove_authentication_flow(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         flow_id: &str,
     ) -> ApiResult {
         let authentication_flow_service: &dyn IAuthenticationFlowService =
-            context.services().resolve_ref();
+            session.services().resolve_ref();
 
         let existing_flow = authentication_flow_service
             .load_authentication_flow_by_flow_id(&realm_id, &flow_id)
@@ -326,11 +336,11 @@ impl AuthenticationModelApi {
     }
 
     pub async fn create_authenticator_config(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         config: AuthenticatorConfigModel,
     ) -> ApiResult<AuthenticatorConfigModel> {
         let authenticator_config_service: &dyn IAuthenticatorConfigService =
-            context.services().resolve_ref();
+            session.services().resolve_ref();
 
         let existing_config = authenticator_config_service
             .exists_config_by_alias(&config.realm_id, &config.alias)
@@ -358,11 +368,11 @@ impl AuthenticationModelApi {
     }
 
     pub async fn update_authenticator_config(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         config: AuthenticatorConfigModel,
     ) -> ApiResult<()> {
         let authenticator_config_service: &dyn IAuthenticatorConfigService =
-            context.services().resolve_ref();
+            session.services().resolve_ref();
 
         let existing_config = authenticator_config_service
             .load_authenticator_config(&config.realm_id, &config.config_id)
@@ -389,12 +399,12 @@ impl AuthenticationModelApi {
     }
 
     pub async fn load_authenticator_config(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         config_id: &str,
     ) -> ApiResult<Option<AuthenticatorConfigModel>> {
         let authenticator_config_service: &dyn IAuthenticatorConfigService =
-            context.services().resolve_ref();
+            session.services().resolve_ref();
 
         let loaded_execution = authenticator_config_service
             .load_authenticator_config(&realm_id, &config_id)
@@ -406,11 +416,11 @@ impl AuthenticationModelApi {
     }
 
     pub async fn load_authenticator_config_by_realm_id(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
     ) -> ApiResult<Vec<AuthenticatorConfigModel>> {
         let authenticator_config_service: &dyn IAuthenticatorConfigService =
-            context.services().resolve_ref();
+            session.services().resolve_ref();
 
         let loaded_configs = authenticator_config_service
             .load_authenticator_config_by_realm_id(&realm_id)
@@ -439,12 +449,12 @@ impl AuthenticationModelApi {
     }
 
     pub async fn remove_authenticator_config(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         config_id: &str,
     ) -> ApiResult<()> {
         let authenticator_config_service: &dyn IAuthenticatorConfigService =
-            context.services().resolve_ref();
+            session.services().resolve_ref();
 
         let existing_config = authenticator_config_service
             .load_authenticator_config(&realm_id, &config_id)
@@ -475,10 +485,10 @@ impl AuthenticationModelApi {
     }
 
     pub async fn register_required_action(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         action: RequiredActionModel,
     ) -> ApiResult<RequiredActionModel> {
-        let required_action_service: &dyn IRequiredActionService = context.services().resolve_ref();
+        let required_action_service: &dyn IRequiredActionService = session.services().resolve_ref();
 
         let existing_action = required_action_service
             .load_required_action(&action.realm_id, &action.action_id)
@@ -506,10 +516,10 @@ impl AuthenticationModelApi {
     }
 
     pub async fn update_required_action(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         action: RequiredActionModel,
     ) -> ApiResult<()> {
-        let required_action_service: &dyn IRequiredActionService = context.services().resolve_ref();
+        let required_action_service: &dyn IRequiredActionService = session.services().resolve_ref();
 
         let existing_action = required_action_service
             .load_required_action(&action.realm_id, &action.action_id)
@@ -536,7 +546,7 @@ impl AuthenticationModelApi {
     }
 
     pub async fn update_required_action_priority(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         _realm_id: &str,
         _action: &RequiredActionEnum,
         _priority: i32,
@@ -570,11 +580,11 @@ impl AuthenticationModelApi {
     }
 
     pub async fn load_required_action_by_id(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         action_id: &str,
     ) -> ApiResult<Option<RequiredActionModel>> {
-        let required_action_service: &dyn IRequiredActionService = context.services().resolve_ref();
+        let required_action_service: &dyn IRequiredActionService = session.services().resolve_ref();
 
         let loaded_action = required_action_service
             .load_required_action(&realm_id, &action_id)
@@ -586,10 +596,10 @@ impl AuthenticationModelApi {
     }
 
     pub async fn load_required_action_by_realm_id(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
     ) -> ApiResult<Vec<RequiredActionModel>> {
-        let required_action_service: &dyn IRequiredActionService = context.services().resolve_ref();
+        let required_action_service: &dyn IRequiredActionService = session.services().resolve_ref();
         let loaded_actions = required_action_service
             .load_required_action_by_realm_id(&realm_id)
             .await;
@@ -611,11 +621,11 @@ impl AuthenticationModelApi {
     }
 
     pub async fn remove_required_action(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         action_id: &str,
     ) -> ApiResult<()> {
-        let required_action_service: &dyn IRequiredActionService = context.services().resolve_ref();
+        let required_action_service: &dyn IRequiredActionService = session.services().resolve_ref();
 
         let existing_action = required_action_service
             .load_required_action(&realm_id, &action_id)

@@ -1,8 +1,8 @@
 use std::str::FromStr;
 
-use crate::context::DarkShieldContext;
 use commons::ApiResult;
 use log;
+use services::session::session::DarkshieldSession;
 use uuid;
 
 use models::{
@@ -22,10 +22,10 @@ pub struct ClientApi;
 
 impl ClientApi {
     pub async fn create_client(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         client: ClientModel,
     ) -> ApiResult<ClientModel> {
-        let client_service: &dyn IClientService = context.services().resolve_ref();
+        let client_service: &dyn IClientService = session.services().resolve_ref();
         let existing_client = client_service
             .client_exists_by_id(&client.realm_id, &client.client_id)
             .await;
@@ -41,7 +41,15 @@ impl ClientApi {
             }
         }
         let mut client = client;
-        client.metadata = AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
+        client.metadata = AuditableModel::from_creator(
+            session
+                .context()
+                .authenticated_user()
+                .metadata
+                .tenant
+                .to_owned(),
+            session.context().authenticated_user().user_id.to_owned(),
+        );
         let created_client = client_service.create_client(&client).await;
         match created_client {
             Err(_) => ApiResult::from_error(500, "500", "failed to create client"),
@@ -49,8 +57,8 @@ impl ClientApi {
         }
     }
 
-    pub async fn update_client(context: &DarkShieldContext, client: ClientModel) -> ApiResult<()> {
-        let client_service: &dyn IClientService = context.services().resolve_ref();
+    pub async fn update_client(session: &DarkshieldSession, client: ClientModel) -> ApiResult<()> {
+        let client_service: &dyn IClientService = session.services().resolve_ref();
 
         let existing_client = client_service
             .client_exists_by_id(&client.realm_id, &client.client_id)
@@ -66,7 +74,15 @@ impl ClientApi {
             }
         }
         let mut client = client;
-        client.metadata = AuditableModel::from_updator("tenant".to_owned(), "zaffoh".to_owned());
+        client.metadata = AuditableModel::from_updator(
+            session
+                .context()
+                .authenticated_user()
+                .metadata
+                .tenant
+                .to_owned(),
+            session.context().authenticated_user().user_id.to_owned(),
+        );
         let updated_client = client_service.update_client(&client).await;
         match updated_client {
             Ok(_) => ApiResult::no_content(),
@@ -75,11 +91,11 @@ impl ClientApi {
     }
 
     pub async fn delete_client(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         client_id: &str,
     ) -> ApiResult<()> {
-        let client_service: &dyn IClientService = context.services().resolve_ref();
+        let client_service: &dyn IClientService = session.services().resolve_ref();
 
         let existing_client = client_service
             .client_exists_by_id(&realm_id, &client_id)
@@ -101,11 +117,11 @@ impl ClientApi {
     }
 
     pub async fn load_client_by_id(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         client_id: &str,
     ) -> ApiResult<ClientModel> {
-        let client_service: &dyn IClientService = context.services().resolve_ref();
+        let client_service: &dyn IClientService = session.services().resolve_ref();
 
         let loaded_client = client_service
             .load_client_by_id(&realm_id, &client_id)
@@ -118,11 +134,11 @@ impl ClientApi {
     }
 
     pub async fn load_client_by_ids(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         client_ids: &[&str],
     ) -> ApiResult<Vec<ClientModel>> {
-        let client_service: &dyn IClientService = context.services().resolve_ref();
+        let client_service: &dyn IClientService = session.services().resolve_ref();
         let loaded_clients = client_service
             .load_client_by_ids(&realm_id, &client_ids)
             .await;
@@ -148,10 +164,10 @@ impl ClientApi {
     }
 
     pub async fn load_clients_by_realm(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
     ) -> ApiResult<Vec<ClientModel>> {
-        let client_service: &dyn IClientService = context.services().resolve_ref();
+        let client_service: &dyn IClientService = session.services().resolve_ref();
 
         let loaded_clients = client_service.load_clients_by_realm(&realm_id).await;
         match loaded_clients {
@@ -175,10 +191,10 @@ impl ClientApi {
     }
 
     pub async fn count_clients_by_realm(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
     ) -> ApiResult<i64> {
-        let client_service: &dyn IClientService = context.services().resolve_ref();
+        let client_service: &dyn IClientService = session.services().resolve_ref();
         let count_clients = client_service.count_clients_by_realm(&realm_id).await;
         match count_clients {
             Ok(res) => ApiResult::from_data(res),
@@ -187,11 +203,11 @@ impl ClientApi {
     }
 
     pub async fn load_client_roles_mapping(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         client_id: &str,
     ) -> ApiResult<Vec<RoleModel>> {
-        let client_service: &dyn IClientService = context.services().resolve_ref();
+        let client_service: &dyn IClientService = session.services().resolve_ref();
         let loaded_client_roles = client_service
             .load_client_roles_mapping(&realm_id, &client_id)
             .await;
@@ -216,13 +232,13 @@ impl ClientApi {
     }
 
     pub async fn add_client_role_mapping(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         client_id: &str,
         role_id: &str,
     ) -> ApiResult<()> {
-        let client_service: &dyn IClientService = context.services().resolve_ref();
-        let role_service: &dyn IRoleService = context.services().resolve_ref();
+        let client_service: &dyn IClientService = session.services().resolve_ref();
+        let role_service: &dyn IRoleService = session.services().resolve_ref();
         let existing_client = client_service
             .client_exists_by_id(&realm_id, &client_id)
             .await;
@@ -256,13 +272,13 @@ impl ClientApi {
     }
 
     pub async fn remove_client_role_mapping(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         client_id: &str,
         role_id: &str,
     ) -> ApiResult<()> {
-        let client_service: &dyn IClientService = context.services().resolve_ref();
-        let role_service: &dyn IRoleService = context.services().resolve_ref();
+        let client_service: &dyn IClientService = session.services().resolve_ref();
+        let role_service: &dyn IRoleService = session.services().resolve_ref();
 
         let existing_client = client_service
             .client_exists_by_id(&realm_id, &client_id)
@@ -296,13 +312,13 @@ impl ClientApi {
     }
 
     pub async fn add_client_scope_mapping(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         client_id: &str,
         client_scope_id: &str,
     ) -> ApiResult<()> {
-        let client_service: &dyn IClientService = context.services().resolve_ref();
-        let client_scope_service: &dyn IClientScopeService = context.services().resolve_ref();
+        let client_service: &dyn IClientService = session.services().resolve_ref();
+        let client_scope_service: &dyn IClientScopeService = session.services().resolve_ref();
 
         let existing_client = client_service
             .client_exists_by_id(&realm_id, &client_id)
@@ -339,13 +355,13 @@ impl ClientApi {
     }
 
     pub async fn remove_client_scope_mapping(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         client_id: &str,
         client_scope_id: &str,
     ) -> ApiResult<()> {
-        let client_service: &dyn IClientService = context.services().resolve_ref();
-        let client_scope_service: &dyn IClientScopeService = context.services().resolve_ref();
+        let client_service: &dyn IClientService = session.services().resolve_ref();
+        let client_scope_service: &dyn IClientScopeService = session.services().resolve_ref();
 
         let existing_client = client_service
             .client_exists_by_id(&realm_id, &client_id)
@@ -384,12 +400,12 @@ impl ClientApi {
     }
 
     pub async fn load_client_scopes_by_client_id(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         client_id: &str,
     ) -> ApiResult<Vec<ClientScopeModel>> {
-        let client_service: &dyn IClientService = context.services().resolve_ref();
-        let client_scope_service: &dyn IClientScopeService = context.services().resolve_ref();
+        let client_service: &dyn IClientService = session.services().resolve_ref();
+        let client_scope_service: &dyn IClientScopeService = session.services().resolve_ref();
 
         let loaded_client_scopes = client_service
             .load_client_scopes_by_client_id(&realm_id, &client_id)
@@ -421,13 +437,13 @@ impl ClientApi {
     }
 
     pub async fn add_client_protocol_mapping(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         client_id: &str,
         mapper_id: &str,
     ) -> ApiResult<()> {
-        let client_service: &dyn IClientService = context.services().resolve_ref();
-        let protocol_mapper_service: &dyn IProtocolMapperService = context.services().resolve_ref();
+        let client_service: &dyn IClientService = session.services().resolve_ref();
+        let protocol_mapper_service: &dyn IProtocolMapperService = session.services().resolve_ref();
 
         let existing_client = client_service
             .client_exists_by_id(&realm_id, &client_id)
@@ -465,13 +481,13 @@ impl ClientApi {
     }
 
     pub async fn remove_client_protocol_mapping(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         client_id: &str,
         mapper_id: &str,
     ) -> ApiResult<()> {
-        let client_service: &dyn IClientService = context.services().resolve_ref();
-        let protocol_mapper_service: &dyn IProtocolMapperService = context.services().resolve_ref();
+        let client_service: &dyn IClientService = session.services().resolve_ref();
+        let protocol_mapper_service: &dyn IProtocolMapperService = session.services().resolve_ref();
         let existing_client = client_service
             .client_exists_by_id(&realm_id, &client_id)
             .await;
@@ -511,7 +527,7 @@ impl ClientApi {
     }
 
     pub async fn load_associated_service_acount_by_client_id(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         _realm_id: &str,
         _client_id: &str,
     ) -> ApiResult<Option<UserModel>> {
@@ -519,10 +535,10 @@ impl ClientApi {
     }
 
     pub async fn create_protocol_mapper(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         mapper: ProtocolMapperModel,
     ) -> ApiResult<ProtocolMapperModel> {
-        let protocol_mapper_service: &dyn IProtocolMapperService = context.services().resolve_ref();
+        let protocol_mapper_service: &dyn IProtocolMapperService = session.services().resolve_ref();
         let existing_protocol_mapper = protocol_mapper_service
             .protocol_mapper_exists_by_mapper_id(&mapper.realm_id, &mapper.name)
             .await;
@@ -539,7 +555,15 @@ impl ClientApi {
         }
         let mut mapper = mapper;
         mapper.mapper_id = uuid::Uuid::new_v4().to_string();
-        mapper.metadata = AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
+        mapper.metadata = AuditableModel::from_creator(
+            session
+                .context()
+                .authenticated_user()
+                .metadata
+                .tenant
+                .to_owned(),
+            session.context().authenticated_user().user_id.to_owned(),
+        );
         let created_mapper = protocol_mapper_service
             .create_protocol_mapper(&mapper)
             .await;
@@ -551,10 +575,10 @@ impl ClientApi {
     }
 
     pub async fn update_protocol_mapper(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         mapper: ProtocolMapperModel,
     ) -> ApiResult<()> {
-        let protocol_mapper_service: &dyn IProtocolMapperService = context.services().resolve_ref();
+        let protocol_mapper_service: &dyn IProtocolMapperService = session.services().resolve_ref();
 
         let existing_protocol_mapper = protocol_mapper_service
             .protocol_mapper_exists_by_mapper_id(&mapper.realm_id, &mapper.mapper_id)
@@ -570,7 +594,15 @@ impl ClientApi {
             }
         }
         let mut mapper = mapper;
-        mapper.metadata = AuditableModel::from_updator("tenant".to_owned(), "zaffoh".to_owned());
+        mapper.metadata = AuditableModel::from_updator(
+            session
+                .context()
+                .authenticated_user()
+                .metadata
+                .tenant
+                .to_owned(),
+            session.context().authenticated_user().user_id.to_owned(),
+        );
         let updated_protocol_mapper = protocol_mapper_service
             .update_protocol_mapper(&mapper)
             .await;
@@ -581,11 +613,11 @@ impl ClientApi {
     }
 
     pub async fn delete_protocol_mapper(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         mapper_id: &str,
     ) -> ApiResult<()> {
-        let protocol_mapper_service: &dyn IProtocolMapperService = context.services().resolve_ref();
+        let protocol_mapper_service: &dyn IProtocolMapperService = session.services().resolve_ref();
 
         let existing_protocol_mapper = protocol_mapper_service
             .protocol_mapper_exists_by_mapper_id(&realm_id, &mapper_id)
@@ -621,11 +653,11 @@ impl ClientApi {
     }
 
     pub async fn load_protocol_mapper_by_mapper_id(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         mapper_id: &str,
     ) -> ApiResult<ProtocolMapperModel> {
-        let protocol_mapper_service: &dyn IProtocolMapperService = context.services().resolve_ref();
+        let protocol_mapper_service: &dyn IProtocolMapperService = session.services().resolve_ref();
         let loaded_protocol_mapper = protocol_mapper_service
             .load_protocol_mapper_by_mapper_id(&realm_id, &mapper_id)
             .await;
@@ -637,10 +669,10 @@ impl ClientApi {
     }
 
     pub async fn load_protocol_mappers_by_realm(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
     ) -> ApiResult<Vec<ProtocolMapperModel>> {
-        let protocol_mapper_service: &dyn IProtocolMapperService = context.services().resolve_ref();
+        let protocol_mapper_service: &dyn IProtocolMapperService = session.services().resolve_ref();
         let loaded_protocol_mapper = protocol_mapper_service
             .load_protocol_mappers_by_realm(&realm_id)
             .await;
@@ -651,11 +683,11 @@ impl ClientApi {
     }
 
     pub async fn load_protocol_mapper_by_protocol(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         protocol: &str,
     ) -> ApiResult<Vec<ProtocolMapperModel>> {
-        let protocol_mapper_service: &dyn IProtocolMapperService = context.services().resolve_ref();
+        let protocol_mapper_service: &dyn IProtocolMapperService = session.services().resolve_ref();
         let protocol_enum = ProtocolEnum::from_str(protocol);
         if let Err(err) = protocol_enum {
             return ApiResult::<Vec<ProtocolMapperModel>>::from_error(400, "400", &err);
@@ -691,11 +723,11 @@ impl ClientApi {
     }
 
     pub async fn load_protocol_mappers_by_client_id(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         client_id: &str,
     ) -> ApiResult<Vec<ProtocolMapperModel>> {
-        let protocol_mapper_service: &dyn IProtocolMapperService = context.services().resolve_ref();
+        let protocol_mapper_service: &dyn IProtocolMapperService = session.services().resolve_ref();
         let loaded_protocol_mappers = protocol_mapper_service
             .load_protocol_mappers_by_client_id(&realm_id, client_id)
             .await;
@@ -726,10 +758,10 @@ impl ClientApi {
     }
 
     pub async fn create_client_scope(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         client_scope: ClientScopeModel,
     ) -> ApiResult<ClientScopeModel> {
-        let client_scope_service: &dyn IClientScopeService = context.services().resolve_ref();
+        let client_scope_service: &dyn IClientScopeService = session.services().resolve_ref();
         let existing_client_scope = client_scope_service
             .client_scope_exists_by_name(&client_scope.realm_id, &client_scope.name)
             .await;
@@ -745,8 +777,15 @@ impl ClientApi {
         }
         let mut client_scope = client_scope;
         client_scope.client_scope_id = uuid::Uuid::new_v4().to_string();
-        client_scope.metadata =
-            AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
+        client_scope.metadata = AuditableModel::from_creator(
+            session
+                .context()
+                .authenticated_user()
+                .metadata
+                .tenant
+                .to_owned(),
+            session.context().authenticated_user().user_id.to_owned(),
+        );
         let created_client_scope = client_scope_service
             .create_client_scope(&client_scope)
             .await;
@@ -757,10 +796,10 @@ impl ClientApi {
     }
 
     pub async fn update_client_scope(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         client_scope: ClientScopeModel,
     ) -> ApiResult<()> {
-        let client_scope_service: &dyn IClientScopeService = context.services().resolve_ref();
+        let client_scope_service: &dyn IClientScopeService = session.services().resolve_ref();
         let existing_client_scope = client_scope_service
             .client_scope_exists_by_scope_id(&client_scope.realm_id, &client_scope.client_scope_id)
             .await;
@@ -775,8 +814,15 @@ impl ClientApi {
             }
         }
         let mut client_scope = client_scope;
-        client_scope.metadata =
-            AuditableModel::from_updator("tenant".to_owned(), "zaffoh".to_owned());
+        client_scope.metadata = AuditableModel::from_updator(
+            session
+                .context()
+                .authenticated_user()
+                .metadata
+                .tenant
+                .to_owned(),
+            session.context().authenticated_user().user_id.to_owned(),
+        );
         let updated_client_scope = client_scope_service
             .update_client_scope(&client_scope)
             .await;
@@ -795,11 +841,11 @@ impl ClientApi {
     }
 
     pub async fn delete_client_scope(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         client_scope_id: &str,
     ) -> ApiResult<()> {
-        let client_scope_service: &dyn IClientScopeService = context.services().resolve_ref();
+        let client_scope_service: &dyn IClientScopeService = session.services().resolve_ref();
         let existing_client_scope = client_scope_service
             .load_client_scope_by_scope_id(&realm_id, &client_scope_id)
             .await;
@@ -831,11 +877,11 @@ impl ClientApi {
     }
 
     pub async fn load_client_scope_by_scope_id(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         client_scope_id: &str,
     ) -> ApiResult<ClientScopeModel> {
-        let client_scope_service: &dyn IClientScopeService = context.services().resolve_ref();
+        let client_scope_service: &dyn IClientScopeService = session.services().resolve_ref();
         let loaded_client_scope = client_scope_service
             .load_client_scope_by_scope_id(&realm_id, &client_scope_id)
             .await;
@@ -846,13 +892,13 @@ impl ClientApi {
     }
 
     pub async fn add_client_scope_protocol_mapper(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         scope_id: &str,
         mapper_id: &str,
     ) -> ApiResult<()> {
-        let client_scope_service: &dyn IClientScopeService = context.services().resolve_ref();
-        let protocol_mapper_service: &dyn IProtocolMapperService = context.services().resolve_ref();
+        let client_scope_service: &dyn IClientScopeService = session.services().resolve_ref();
+        let protocol_mapper_service: &dyn IProtocolMapperService = session.services().resolve_ref();
 
         let existing_client_scope = client_scope_service
             .client_scope_exists_by_scope_id(&realm_id, &scope_id)
@@ -895,13 +941,13 @@ impl ClientApi {
     }
 
     pub async fn remove_client_scope_protocol_mapper(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         scope_id: &str,
         mapper_id: &str,
     ) -> ApiResult<()> {
-        let client_scope_service: &dyn IClientScopeService = context.services().resolve_ref();
-        let protocol_mapper_service: &dyn IProtocolMapperService = context.services().resolve_ref();
+        let client_scope_service: &dyn IClientScopeService = session.services().resolve_ref();
+        let protocol_mapper_service: &dyn IProtocolMapperService = session.services().resolve_ref();
 
         let existing_client_scope = client_scope_service
             .client_scope_exists_by_scope_id(&realm_id, &scope_id)
@@ -944,13 +990,13 @@ impl ClientApi {
     }
 
     pub async fn add_client_scope_role_mapping(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         scope_id: &str,
         role_id: &str,
     ) -> ApiResult<()> {
-        let client_scope_service: &dyn IClientScopeService = context.services().resolve_ref();
-        let role_service: &dyn IRoleService = context.services().resolve_ref();
+        let client_scope_service: &dyn IClientScopeService = session.services().resolve_ref();
+        let role_service: &dyn IRoleService = session.services().resolve_ref();
         let existing_client_scope = client_scope_service
             .client_scope_exists_by_scope_id(&realm_id, &scope_id)
             .await;
@@ -986,13 +1032,13 @@ impl ClientApi {
     }
 
     pub async fn remove_client_scope_role_mapping(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         scope_id: &str,
         role_id: &str,
     ) -> ApiResult<()> {
-        let client_scope_service: &dyn IClientScopeService = context.services().resolve_ref();
-        let role_service: &dyn IRoleService = context.services().resolve_ref();
+        let client_scope_service: &dyn IClientScopeService = session.services().resolve_ref();
+        let role_service: &dyn IRoleService = session.services().resolve_ref();
         let existing_client_scope = client_scope_service
             .client_scope_exists_by_scope_id(&realm_id, &scope_id)
             .await;
