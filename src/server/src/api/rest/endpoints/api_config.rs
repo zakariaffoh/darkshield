@@ -97,8 +97,8 @@ pub fn register_apis(api_config: &mut web::ServiceConfig) {
                         .service(auth::register_required_action)
                         .service(auth::update_required_action)
                         .service(auth::load_required_action_by_id)
-                        .service(auth::load_requied_action_by_realm)
-                        .service(auth::remove_requied_action_by_id)
+                        .service(auth::load_required_action_by_realm)
+                        .service(auth::remove_required_action_by_id)
                         /* Client API */
                         .service(client::create_client)
                         .service(client::update_client)
