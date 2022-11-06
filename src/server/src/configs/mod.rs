@@ -1,32 +1,6 @@
 use deadpool_postgres::PoolConfig;
-use models::entities::user::UserModel;
 use serde::Deserialize;
 use std::{env, time::Duration};
-
-use services::catalog::DarkshieldServices;
-
-#[allow(dead_code)]
-pub struct DarkShieldContext {
-    services: DarkshieldServices,
-    authenticated_user: UserModel,
-}
-
-impl DarkShieldContext {
-    pub fn new(services: DarkshieldServices, authenticated_user: UserModel) -> Self {
-        Self {
-            services,
-            authenticated_user,
-        }
-    }
-
-    pub fn services(&self) -> &DarkshieldServices {
-        &self.services
-    }
-
-    pub fn authenticated_user(&self) -> &UserModel {
-        &self.authenticated_user
-    }
-}
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]

@@ -15,6 +15,7 @@ use crate::services::{
     user_services::{UserActionService, UserConsentService, UserImpersonationService, UserService},
 };
 
+#[allow(unused)]
 use shaku::{module, Component, HasComponent, Interface};
 
 use store::providers::rds::{
@@ -42,7 +43,7 @@ use store::providers::rds::{
 };
 
 module! {
-     pub DarkshieldServices {
+     pub DarkshieldServicesFactory {
         components = [
             DataBaseManager,
             RdsHealthCheckProvider,

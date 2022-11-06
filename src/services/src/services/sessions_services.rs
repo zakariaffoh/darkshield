@@ -1,6 +1,6 @@
 use crate::{
-    catalog::DarkshieldServices, services::client_services::IClientService,
-    session::darkshield_session::DarkshieldSession,
+    factory::DarkshieldServicesFactory, services::client_services::IClientService,
+    session::session::DarkshieldSession,
 };
 use async_trait::async_trait;
 use chrono::Utc;
@@ -22,7 +22,7 @@ use store::providers::interfaces::session_providers::{
 };
 
 pub struct AuthenticationSessionManager {
-    session: Arc<DarkshieldServices>,
+    session: Arc<DarkshieldServicesFactory>,
 }
 
 /*#[async_trait]

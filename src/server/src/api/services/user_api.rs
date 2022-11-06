@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use crate::context::DarkShieldContext;
 use ::services::services::credentials_services::IUserCredentialService;
 use commons::{validation::EmailValidator, ApiResult};
 use models::{
@@ -24,6 +23,7 @@ use services::services::{
     realm_service::IRealmService,
     user_services::IUserService,
 };
+use services::session::session::DarkshieldSession;
 use shaku::HasComponent;
 
 #[allow(dead_code)]
@@ -31,12 +31,12 @@ pub struct UserApi;
 
 impl UserApi {
     pub async fn create_user(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         user_id: &str,
         user: UserCreateModel,
     ) -> ApiResult<UserModel> {
-        let realm_service: &dyn IRealmService = context.services().resolve_ref();
+        let realm_service: &dyn IRealmService = session.services().resolve_ref();
         let realm_model = realm_service.load_realm(&realm_id).await;
         match &realm_model {
             Ok(realm) => {
@@ -56,8 +56,8 @@ impl UserApi {
         }
 
         let realm = realm_model.unwrap().unwrap();
-        let user_service: &dyn IUserService = context.services().resolve_ref();
-        let required_action_service: &dyn IRequiredActionService = context.services().resolve_ref();
+        let user_service: &dyn IUserService = session.services().resolve_ref();
+        let required_action_service: &dyn IRequiredActionService = session.services().resolve_ref();
 
         if realm.registration_allowed.unwrap() {
             log::error!("User registration not allowed for realm {}", &realm_id);
@@ -121,8 +121,13 @@ impl UserApi {
 
         let credential_input = credential_input.unwrap();
         user_model.metadata = AuditableModel::from_creator(
-            context.authenticated_user().metadata.tenant.to_owned(),
-            context.authenticated_user().user_id.to_owned(),
+            session
+                .context()
+                .authenticated_user()
+                .metadata
+                .tenant
+                .to_owned(),
+            session.context().authenticated_user().user_id.to_owned(),
         );
 
         let created_user = user_service.create_user(&user_model).await;
@@ -136,7 +141,7 @@ impl UserApi {
             return ApiResult::from_error(500, "500", "Failed to create user");
         }
 
-        let user_credential_service: Arc<dyn IUserCredentialService> = context.services().resolve();
+        let user_credential_service: Arc<dyn IUserCredentialService> = session.services().resolve();
         let credential_provider = PasswordCredentialProvider::new(user_credential_service);
         let credential_update_response = credential_provider
             .update_credential(&realm, &user_model, &credential_input)
@@ -245,8 +250,8 @@ impl UserApi {
         ))
     }
 
-    pub async fn udpate_user(context: &DarkShieldContext, user: UserModel) -> ApiResult<()> {
-        let realm_service: &dyn IRealmService = context.services().resolve_ref();
+    pub async fn udpate_user(session: &DarkshieldSession, user: UserModel) -> ApiResult<()> {
+        let realm_service: &dyn IRealmService = session.services().resolve_ref();
         let realm_model = realm_service.load_realm(&user.realm_id).await;
         match &realm_model {
             Ok(realm) => {
@@ -261,7 +266,7 @@ impl UserApi {
             }
         }
 
-        let user_service: &dyn IUserService = context.services().resolve_ref();
+        let user_service: &dyn IUserService = session.services().resolve_ref();
         let existing_user_model = user_service
             .load_user_by_id(&user.realm_id, &user.user_id)
             .await;
@@ -309,8 +314,13 @@ impl UserApi {
         user_model.is_service_account = user.is_service_account;
         user_model.service_account_client_link = user.service_account_client_link;
         user_model.metadata = AuditableModel::from_creator(
-            context.authenticated_user().metadata.tenant.to_owned(),
-            context.authenticated_user().user_id.to_owned(),
+            session
+                .context()
+                .authenticated_user()
+                .metadata
+                .tenant
+                .to_owned(),
+            session.context().authenticated_user().user_id.to_owned(),
         );
 
         match user_service.udpate_user(&user_model).await {
@@ -323,11 +333,11 @@ impl UserApi {
     }
 
     pub async fn delete_user(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         user_id: &str,
     ) -> ApiResult<()> {
-        let user_service: &dyn IUserService = context.services().resolve_ref();
+        let user_service: &dyn IUserService = session.services().resolve_ref();
         if !user_service
             .user_exists_by_id(&realm_id, &user_id)
             .await
@@ -344,11 +354,11 @@ impl UserApi {
     }
 
     pub async fn load_user(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         user_id: &str,
     ) -> ApiResult<UserModel> {
-        let user_service: &dyn IUserService = context.services().resolve_ref();
+        let user_service: &dyn IUserService = session.services().resolve_ref();
         let loaded_user = user_service.load_user_by_id(&realm_id, user_id).await;
         match loaded_user {
             Ok(user) => ApiResult::<UserModel>::from_option(user),
@@ -357,11 +367,11 @@ impl UserApi {
     }
 
     pub async fn load_users_by_realm_paging(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         paging: &PagingParams,
     ) -> ApiResult<UserPagingResult> {
-        let user_service: &dyn IUserService = context.services().resolve_ref();
+        let user_service: &dyn IUserService = session.services().resolve_ref();
 
         let loaded_users = user_service
             .load_users_paging(&realm_id, &paging.page_index, &paging.page_size)
@@ -383,8 +393,8 @@ impl UserApi {
         }
     }
 
-    pub async fn count_users(context: &DarkShieldContext, realm_id: &str) -> ApiResult<u64> {
-        let user_service: &dyn IUserService = context.services().resolve_ref();
+    pub async fn count_users(session: &DarkshieldSession, realm_id: &str) -> ApiResult<u64> {
+        let user_service: &dyn IUserService = session.services().resolve_ref();
         let response = user_service.count_users(&realm_id).await;
         match response {
             Ok(count) => ApiResult::from_data(count),
@@ -393,13 +403,13 @@ impl UserApi {
     }
 
     pub async fn add_user_role(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         user_id: &str,
         role_id: &str,
     ) -> ApiResult<()> {
-        let user_service: &dyn IUserService = context.services().resolve_ref();
-        let role_service: &dyn IRoleService = context.services().resolve_ref();
+        let user_service: &dyn IUserService = session.services().resolve_ref();
+        let role_service: &dyn IRoleService = session.services().resolve_ref();
 
         let user_exists = user_service.user_exists_by_id(&realm_id, &user_id).await;
         match user_exists {
@@ -441,13 +451,13 @@ impl UserApi {
     }
 
     pub async fn remove_user_role(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         user_id: &str,
         role_id: &str,
     ) -> ApiResult<()> {
-        let user_service: &dyn IUserService = context.services().resolve_ref();
-        let role_service: &dyn IRoleService = context.services().resolve_ref();
+        let user_service: &dyn IUserService = session.services().resolve_ref();
+        let role_service: &dyn IRoleService = session.services().resolve_ref();
 
         let user_exists = user_service.user_exists_by_id(&realm_id, &user_id).await;
         match user_exists {
@@ -489,12 +499,12 @@ impl UserApi {
     }
 
     pub async fn load_user_roles(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         user_id: &str,
         paging: &PagingParams,
     ) -> ApiResult<RolePagingResult> {
-        let role_service: &dyn IRoleService = context.services().resolve_ref();
+        let role_service: &dyn IRoleService = session.services().resolve_ref();
         let loaded_roles = role_service
             .load_user_roles_paging(&realm_id, &user_id, &paging.page_index, &paging.page_size)
             .await;
@@ -524,13 +534,13 @@ impl UserApi {
     }
 
     pub async fn add_user_group(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         user_id: &str,
         group_id: &str,
     ) -> ApiResult<()> {
-        let user_service: &dyn IUserService = context.services().resolve_ref();
-        let group_service: &dyn IGroupService = context.services().resolve_ref();
+        let user_service: &dyn IUserService = session.services().resolve_ref();
+        let group_service: &dyn IGroupService = session.services().resolve_ref();
 
         let user_exists = user_service.user_exists_by_id(&realm_id, &user_id).await;
         match user_exists {
@@ -574,13 +584,13 @@ impl UserApi {
     }
 
     pub async fn remove_user_group(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         user_id: &str,
         group_id: &str,
     ) -> ApiResult<()> {
-        let user_service: &dyn IUserService = context.services().resolve_ref();
-        let group_service: &dyn IGroupService = context.services().resolve_ref();
+        let user_service: &dyn IUserService = session.services().resolve_ref();
+        let group_service: &dyn IGroupService = session.services().resolve_ref();
 
         let user_exists = user_service.user_exists_by_id(&realm_id, &user_id).await;
         match user_exists {
@@ -624,11 +634,11 @@ impl UserApi {
     }
 
     pub async fn user_count_groups(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         user_id: &str,
     ) -> ApiResult<u64> {
-        let group_service: &dyn IGroupService = context.services().resolve_ref();
+        let group_service: &dyn IGroupService = session.services().resolve_ref();
         let response = group_service.count_user_groups(&realm_id, &user_id).await;
         match response {
             Ok(count) => ApiResult::from_data(count),
@@ -637,12 +647,12 @@ impl UserApi {
     }
 
     pub async fn load_user_groups_paging(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         user_id: &str,
         paging: &PagingParams,
     ) -> ApiResult<GroupPagingResult> {
-        let group_service: &dyn IGroupService = context.services().resolve_ref();
+        let group_service: &dyn IGroupService = session.services().resolve_ref();
 
         let loaded_groups = group_service
             .load_user_groups_paging(&realm_id, &user_id, &paging.page_index, &paging.page_size)
@@ -673,11 +683,11 @@ impl UserApi {
     }
 
     pub async fn load_user_credentials(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         user_id: &str,
     ) -> ApiResult<Vec<CredentialViewRepresentation>> {
-        let user_credential_service: &dyn IUserCredentialService = context.services().resolve_ref();
+        let user_credential_service: &dyn IUserCredentialService = session.services().resolve_ref();
         let user_credentials = user_credential_service
             .load_user_credentials_view(&realm_id, &user_id)
             .await;
@@ -695,7 +705,7 @@ impl UserApi {
     }
 
     pub async fn user_disable_credential_type(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         user_id: &str,
         credential_type: &str,
@@ -704,7 +714,7 @@ impl UserApi {
             log::error!("credential_type is empty");
             return ApiResult::from_error(400, "400", "invalid credential type");
         }
-        let user_service: &dyn IUserService = context.services().resolve_ref();
+        let user_service: &dyn IUserService = session.services().resolve_ref();
 
         let user_exists = user_service.user_exists_by_id(&realm_id, &user_id).await;
         if let Ok(response) = user_exists {
@@ -713,7 +723,7 @@ impl UserApi {
                 return ApiResult::from_error(404, "404", "user not found");
             }
         }
-        let user_credential_service: &dyn IUserCredentialService = context.services().resolve_ref();
+        let user_credential_service: &dyn IUserCredentialService = session.services().resolve_ref();
         let disabled_response = user_credential_service
             .disable_credential_type(&realm_id, &user_id, &credential_type)
             .await;
@@ -731,7 +741,7 @@ impl UserApi {
     }
 
     pub async fn reset_user_password(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         user_id: &str,
         password: &CredentialRepresentation,
@@ -740,7 +750,7 @@ impl UserApi {
             log::error!("credential secret is empty");
             return ApiResult::from_error(400, "400", "credential secret is empty");
         }
-        let user_service: &dyn IUserService = context.services().resolve_ref();
+        let user_service: &dyn IUserService = session.services().resolve_ref();
         let user = user_service.load_user_by_id(&realm_id, &user_id).await;
         match &user {
             Ok(data) => {
@@ -759,7 +769,7 @@ impl UserApi {
                 return ApiResult::from_error(500, "500", "failed to load user");
             }
         }
-        let user_credential_service: &dyn IUserCredentialService = context.services().resolve_ref();
+        let user_credential_service: &dyn IUserCredentialService = session.services().resolve_ref();
         let mut user = user.unwrap().unwrap();
         if password.is_temporary.unwrap_or_default() {
             if let Some(actions) = user.required_actions {
@@ -789,13 +799,13 @@ impl UserApi {
     }
 
     pub async fn move_credential_to_position(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         user_id: &str,
         credential_id: &str,
         previous_credential_id: &str,
     ) -> ApiResult<()> {
-        let user_service: &dyn IUserService = context.services().resolve_ref();
+        let user_service: &dyn IUserService = session.services().resolve_ref();
         let user = user_service.user_exists_by_id(&realm_id, &user_id).await;
         match &user {
             Ok(data) => {
@@ -814,7 +824,7 @@ impl UserApi {
                 return ApiResult::from_error(500, "500", "failed to load user");
             }
         }
-        let user_credential_service: &dyn IUserCredentialService = context.services().resolve_ref();
+        let user_credential_service: &dyn IUserCredentialService = session.services().resolve_ref();
         let current_credential_exist = user_credential_service
             .user_credential_exists(&realm_id, &user_id, &credential_id)
             .await;
@@ -895,12 +905,12 @@ impl UserApi {
     }
 
     pub async fn move_credential_to_first(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         user_id: &str,
         credential_id: &str,
     ) -> ApiResult<()> {
-        let user_service: &dyn IUserService = context.services().resolve_ref();
+        let user_service: &dyn IUserService = session.services().resolve_ref();
         let user = user_service.user_exists_by_id(&realm_id, &user_id).await;
         match &user {
             Ok(data) => {
@@ -920,7 +930,7 @@ impl UserApi {
             }
         }
 
-        let user_credential_service: &dyn IUserCredentialService = context.services().resolve_ref();
+        let user_credential_service: &dyn IUserCredentialService = session.services().resolve_ref();
         let credential_exist = user_credential_service
             .user_credential_exists(&realm_id, &user_id, &credential_id)
             .await;
@@ -969,7 +979,7 @@ impl UserApi {
     }
 
     pub async fn send_reset_password_email(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         user_id: &str,
         client_id: &str,
@@ -979,7 +989,7 @@ impl UserApi {
     }
 
     pub async fn send_verify_email(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         user_id: &str,
         client_id: &str,
@@ -989,7 +999,7 @@ impl UserApi {
     }
 
     pub async fn load_user_consents(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         user_id: &str,
     ) -> ApiResult<()> {
@@ -997,7 +1007,7 @@ impl UserApi {
     }
 
     pub async fn revoke_user_consent_for_client(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         user_id: &str,
         client_id: &str,
@@ -1006,7 +1016,7 @@ impl UserApi {
     }
 
     pub async fn impersonate_user(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         user_id: &str,
         client_id: &str,

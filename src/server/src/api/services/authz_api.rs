@@ -1,9 +1,6 @@
-use std::fmt::format;
-
-use crate::context::DarkShieldContext;
 use commons::ApiResult;
 use log;
-use store::providers::rds::loaders::rds_authz_providers::RdsPolicyProvider;
+use services::session::session::DarkshieldSession;
 use uuid;
 
 use models::{
@@ -30,8 +27,8 @@ use shaku::HasComponent;
 pub struct AuthorizationModelApi;
 
 impl AuthorizationModelApi {
-    pub async fn create_role(context: &DarkShieldContext, role: RoleModel) -> ApiResult<RoleModel> {
-        let role_service: &dyn IRoleService = context.services().resolve_ref();
+    pub async fn create_role(session: &DarkshieldSession, role: RoleModel) -> ApiResult<RoleModel> {
+        let role_service: &dyn IRoleService = session.services().resolve_ref();
         let existing_role = role_service
             .load_role_by_name(&role.realm_id, &role.name)
             .await;
@@ -47,7 +44,15 @@ impl AuthorizationModelApi {
         }
         let mut role = role;
         role.role_id = uuid::Uuid::new_v4().to_string();
-        role.metadata = AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
+        role.metadata = AuditableModel::from_creator(
+            session
+                .context()
+                .authenticated_user()
+                .metadata
+                .tenant
+                .to_owned(),
+            session.context().authenticated_user().user_id.to_owned(),
+        );
         let created_role = role_service.create_role(&role).await;
         match created_role {
             Ok(_) => ApiResult::Data(role),
@@ -63,8 +68,8 @@ impl AuthorizationModelApi {
         }
     }
 
-    pub async fn update_role(context: &DarkShieldContext, role: RoleModel) -> ApiResult<()> {
-        let role_service: &dyn IRoleService = context.services().resolve_ref();
+    pub async fn update_role(session: &DarkshieldSession, role: RoleModel) -> ApiResult<()> {
+        let role_service: &dyn IRoleService = session.services().resolve_ref();
 
         let existing_role = role_service
             .load_role_by_id(&role.realm_id, &role.role_id)
@@ -80,7 +85,15 @@ impl AuthorizationModelApi {
             }
         }
         let mut role = role;
-        role.metadata = AuditableModel::from_updator("tenant".to_owned(), "zaffoh".to_owned());
+        role.metadata = AuditableModel::from_updator(
+            session
+                .context()
+                .authenticated_user()
+                .metadata
+                .tenant
+                .to_owned(),
+            session.context().authenticated_user().user_id.to_owned(),
+        );
         let updated_role = role_service.update_role(&role).await;
         match updated_role {
             Err(err) => {
@@ -97,11 +110,11 @@ impl AuthorizationModelApi {
     }
 
     pub async fn delete_role(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         role_id: &str,
     ) -> ApiResult<()> {
-        let role_service: &dyn IRoleService = context.services().resolve_ref();
+        let role_service: &dyn IRoleService = session.services().resolve_ref();
 
         let existing_role = role_service.load_role_by_id(&realm_id, &role_id).await;
         if let Ok(response) = existing_role {
@@ -126,11 +139,11 @@ impl AuthorizationModelApi {
     }
 
     pub async fn load_role_by_id(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         role_id: &str,
     ) -> ApiResult<RoleModel> {
-        let role_service: &dyn IRoleService = context.services().resolve_ref();
+        let role_service: &dyn IRoleService = session.services().resolve_ref();
         let loaded_role = role_service.load_role_by_id(&realm_id, &role_id).await;
         match loaded_role {
             Ok(role) => ApiResult::<RoleModel>::from_option(role),
@@ -139,10 +152,10 @@ impl AuthorizationModelApi {
     }
 
     pub async fn load_roles_by_realm(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
     ) -> ApiResult<Vec<RoleModel>> {
-        let role_service: &dyn IRoleService = context.services().resolve_ref();
+        let role_service: &dyn IRoleService = session.services().resolve_ref();
 
         let loaded_roles = role_service.load_roles_by_realm(&realm_id).await;
         match loaded_roles {
@@ -162,10 +175,10 @@ impl AuthorizationModelApi {
     }
 
     pub async fn count_roles_by_realm(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
     ) -> ApiResult<i64> {
-        let role_service: &dyn IRoleService = context.services().resolve_ref();
+        let role_service: &dyn IRoleService = session.services().resolve_ref();
         let response = role_service.count_roles_by_realm(&realm_id).await;
         match response {
             Ok(count) => ApiResult::from_data(count),
@@ -177,10 +190,10 @@ impl AuthorizationModelApi {
     }
 
     pub async fn create_group(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         group: GroupModel,
     ) -> ApiResult<GroupModel> {
-        let group_service: &dyn IGroupService = context.services().resolve_ref();
+        let group_service: &dyn IGroupService = session.services().resolve_ref();
         let existing_group = group_service
             .load_group_by_name(&group.realm_id, &group.name)
             .await;
@@ -196,7 +209,15 @@ impl AuthorizationModelApi {
         }
         let mut group = group;
         group.group_id = uuid::Uuid::new_v4().to_string();
-        group.metadata = AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
+        group.metadata = AuditableModel::from_creator(
+            session
+                .context()
+                .authenticated_user()
+                .metadata
+                .tenant
+                .to_owned(),
+            session.context().authenticated_user().user_id.to_owned(),
+        );
         let created_group = group_service.create_group(&group).await;
         match created_group {
             Ok(_) => ApiResult::Data(group),
@@ -212,8 +233,8 @@ impl AuthorizationModelApi {
         }
     }
 
-    pub async fn udpate_group(context: &DarkShieldContext, group: GroupModel) -> ApiResult<()> {
-        let group_service: &dyn IGroupService = context.services().resolve_ref();
+    pub async fn udpate_group(session: &DarkshieldSession, group: GroupModel) -> ApiResult<()> {
+        let group_service: &dyn IGroupService = session.services().resolve_ref();
 
         let existing_group = group_service
             .load_group_by_id(&group.realm_id, &group.group_id)
@@ -229,7 +250,15 @@ impl AuthorizationModelApi {
             }
         }
         let mut group = group;
-        group.metadata = AuditableModel::from_updator("tenant".to_owned(), "zaffoh".to_owned());
+        group.metadata = AuditableModel::from_updator(
+            session
+                .context()
+                .authenticated_user()
+                .metadata
+                .tenant
+                .to_owned(),
+            session.context().authenticated_user().user_id.to_owned(),
+        );
         let updated_group = group_service.udpate_group(&group).await;
         match updated_group {
             Err(err) => {
@@ -253,11 +282,11 @@ impl AuthorizationModelApi {
     }
 
     pub async fn delete_group(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         group_id: &str,
     ) -> ApiResult<()> {
-        let group_service: &dyn IGroupService = context.services().resolve_ref();
+        let group_service: &dyn IGroupService = session.services().resolve_ref();
 
         let existing_group = group_service.load_group_by_id(&realm_id, &group_id).await;
         if let Ok(response) = existing_group {
@@ -274,11 +303,11 @@ impl AuthorizationModelApi {
     }
 
     pub async fn load_group_by_id(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         group_id: &str,
     ) -> ApiResult<GroupModel> {
-        let group_service: &dyn IGroupService = context.services().resolve_ref();
+        let group_service: &dyn IGroupService = session.services().resolve_ref();
 
         let loaded_group = group_service.load_group_by_id(&realm_id, &group_id).await;
         match loaded_group {
@@ -288,10 +317,10 @@ impl AuthorizationModelApi {
     }
 
     pub async fn load_groups_by_realm(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
     ) -> ApiResult<Vec<GroupModel>> {
-        let group_service: &dyn IGroupService = context.services().resolve_ref();
+        let group_service: &dyn IGroupService = session.services().resolve_ref();
         let loaded_groups = group_service.load_groups_by_realm(&realm_id).await;
         match loaded_groups {
             Ok(groups) => {
@@ -309,8 +338,8 @@ impl AuthorizationModelApi {
         }
     }
 
-    pub async fn count_groups(context: &DarkShieldContext, realm_id: &str) -> ApiResult<i64> {
-        let group_service: &dyn IGroupService = context.services().resolve_ref();
+    pub async fn count_groups(session: &DarkshieldSession, realm_id: &str) -> ApiResult<i64> {
+        let group_service: &dyn IGroupService = session.services().resolve_ref();
 
         let response = group_service.count_groups(&realm_id).await;
         match response {
@@ -320,13 +349,13 @@ impl AuthorizationModelApi {
     }
 
     pub async fn add_group_role(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         group_id: &str,
         role_id: &str,
     ) -> ApiResult<()> {
-        let role_service: &dyn IRoleService = context.services().resolve_ref();
-        let group_service: &dyn IGroupService = context.services().resolve_ref();
+        let role_service: &dyn IRoleService = session.services().resolve_ref();
+        let group_service: &dyn IGroupService = session.services().resolve_ref();
 
         let existing_group = group_service
             .exists_groups_by_id(&realm_id, &group_id)
@@ -357,13 +386,13 @@ impl AuthorizationModelApi {
     }
 
     pub async fn remove_group_role(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         group_id: &str,
         role_id: &str,
     ) -> ApiResult<()> {
-        let role_service: &dyn IRoleService = context.services().resolve_ref();
-        let group_service: &dyn IGroupService = context.services().resolve_ref();
+        let role_service: &dyn IRoleService = session.services().resolve_ref();
+        let group_service: &dyn IGroupService = session.services().resolve_ref();
 
         let existing_group = group_service
             .exists_groups_by_id(&realm_id, &group_id)
@@ -394,11 +423,11 @@ impl AuthorizationModelApi {
     }
 
     pub async fn create_identity_provider(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         idp: IdentityProviderModel,
     ) -> ApiResult<IdentityProviderModel> {
         let identity_provider_service: &dyn IIdentityProviderService =
-            context.services().resolve_ref();
+            session.services().resolve_ref();
 
         let existing_idp = identity_provider_service
             .load_identity_provider_by_internal_id(&idp.realm_id, &idp.internal_id)
@@ -415,7 +444,15 @@ impl AuthorizationModelApi {
         }
         let mut idp = idp;
         idp.internal_id = uuid::Uuid::new_v4().to_string();
-        idp.metadata = AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
+        idp.metadata = AuditableModel::from_creator(
+            session
+                .context()
+                .authenticated_user()
+                .metadata
+                .tenant
+                .to_owned(),
+            session.context().authenticated_user().user_id.to_owned(),
+        );
         let created_idp = identity_provider_service
             .create_identity_provider(&idp)
             .await;
@@ -434,11 +471,11 @@ impl AuthorizationModelApi {
     }
 
     pub async fn udpate_identity_provider(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         idp: IdentityProviderModel,
     ) -> ApiResult<()> {
         let identity_provider_service: &dyn IIdentityProviderService =
-            context.services().resolve_ref();
+            session.services().resolve_ref();
 
         let existing_idp = identity_provider_service
             .load_identity_provider_by_internal_id(&idp.realm_id, &idp.internal_id)
@@ -475,7 +512,15 @@ impl AuthorizationModelApi {
             }
         }
         let mut idp = idp;
-        idp.metadata = AuditableModel::from_updator("tenant".to_owned(), "zaffoh".to_owned());
+        idp.metadata = AuditableModel::from_updator(
+            session
+                .context()
+                .authenticated_user()
+                .metadata
+                .tenant
+                .to_owned(),
+            session.context().authenticated_user().user_id.to_owned(),
+        );
         let updated_idp = identity_provider_service
             .udpate_identity_provider(&idp)
             .await;
@@ -494,12 +539,12 @@ impl AuthorizationModelApi {
     }
 
     pub async fn load_identity_provider(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         internal_id: &str,
     ) -> ApiResult<IdentityProviderModel> {
         let identity_provider_service: &dyn IIdentityProviderService =
-            context.services().resolve_ref();
+            session.services().resolve_ref();
 
         let loaded_idp = identity_provider_service
             .load_identity_provider_by_internal_id(&realm_id, &internal_id)
@@ -511,11 +556,11 @@ impl AuthorizationModelApi {
     }
 
     pub async fn load_identity_providers_by_realm(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
     ) -> ApiResult<Vec<IdentityProviderModel>> {
         let identity_provider_service: &dyn IIdentityProviderService =
-            context.services().resolve_ref();
+            session.services().resolve_ref();
 
         let loaded_idps = identity_provider_service
             .load_identity_providers_by_realm(&realm_id)
@@ -545,12 +590,12 @@ impl AuthorizationModelApi {
     }
 
     pub async fn delete_identity_provider(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         internal_id: &str,
     ) -> ApiResult<()> {
         let identity_provider_service: &dyn IIdentityProviderService =
-            context.services().resolve_ref();
+            session.services().resolve_ref();
 
         let existing_idp = identity_provider_service
             .load_identity_provider_by_internal_id(&realm_id, &internal_id)
@@ -584,12 +629,12 @@ impl AuthorizationModelApi {
     }
 
     pub async fn exists_by_alias(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         alias: &str,
     ) -> ApiResult<bool> {
         let identity_provider_service: &dyn IIdentityProviderService =
-            context.services().resolve_ref();
+            session.services().resolve_ref();
         let existing_idp = identity_provider_service
             .exists_by_alias(&realm_id, &alias)
             .await;
@@ -600,10 +645,10 @@ impl AuthorizationModelApi {
     }
 
     pub async fn create_resource_server(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         server: ResourceServerModel,
     ) -> ApiResult<ResourceServerModel> {
-        let resource_server_server: &dyn IResourceServerService = context.services().resolve_ref();
+        let resource_server_server: &dyn IResourceServerService = session.services().resolve_ref();
 
         let existing_resource_server = resource_server_server
             .load_resource_server_by_id(&server.realm_id, &server.server_id)
@@ -621,7 +666,15 @@ impl AuthorizationModelApi {
         }
         let mut server = server;
         server.server_id = uuid::Uuid::new_v4().to_string();
-        server.metadata = AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
+        server.metadata = AuditableModel::from_creator(
+            session
+                .context()
+                .authenticated_user()
+                .metadata
+                .tenant
+                .to_owned(),
+            session.context().authenticated_user().user_id.to_owned(),
+        );
         let created_role = resource_server_server.create_resource_server(&server).await;
         match created_role {
             Ok(_) => ApiResult::Data(server),
@@ -638,10 +691,10 @@ impl AuthorizationModelApi {
     }
 
     pub async fn udpate_resource_server(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         server: ResourceServerModel,
     ) -> ApiResult<()> {
-        let resource_server_server: &dyn IResourceServerService = context.services().resolve_ref();
+        let resource_server_server: &dyn IResourceServerService = session.services().resolve_ref();
 
         let existing_resource_server = resource_server_server
             .load_resource_server_by_id(&server.realm_id, &server.server_id)
@@ -682,7 +735,15 @@ impl AuthorizationModelApi {
             }
         }
         let mut server = server;
-        server.metadata = AuditableModel::from_updator("tenant".to_owned(), "zaffoh".to_owned());
+        server.metadata = AuditableModel::from_updator(
+            session
+                .context()
+                .authenticated_user()
+                .metadata
+                .tenant
+                .to_owned(),
+            session.context().authenticated_user().user_id.to_owned(),
+        );
         let updated_idp = resource_server_server.udpate_resource_server(&server).await;
         match updated_idp {
             Ok(_) => ApiResult::no_content(),
@@ -699,11 +760,11 @@ impl AuthorizationModelApi {
     }
 
     pub async fn load_resource_server_by_id(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         server_id: &str,
     ) -> ApiResult<ResourceServerModel> {
-        let resource_server_server: &dyn IResourceServerService = context.services().resolve_ref();
+        let resource_server_server: &dyn IResourceServerService = session.services().resolve_ref();
         let loaded_resource_server = resource_server_server
             .load_resource_server_by_id(&realm_id, &server_id)
             .await;
@@ -715,10 +776,10 @@ impl AuthorizationModelApi {
     }
 
     pub async fn load_resource_servers_by_realm(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
     ) -> ApiResult<Vec<ResourceServerModel>> {
-        let resource_server_server: &dyn IResourceServerService = context.services().resolve_ref();
+        let resource_server_server: &dyn IResourceServerService = session.services().resolve_ref();
 
         let loaded_servers = resource_server_server
             .load_resource_servers_by_realm(&realm_id)
@@ -745,11 +806,11 @@ impl AuthorizationModelApi {
     }
 
     pub async fn delete_resource_server_by_id(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         server_id: &str,
     ) -> ApiResult<()> {
-        let resource_server_server: &dyn IResourceServerService = context.services().resolve_ref();
+        let resource_server_server: &dyn IResourceServerService = session.services().resolve_ref();
 
         let existing_server = resource_server_server
             .load_resource_server_by_id(&realm_id, &server_id)
@@ -784,10 +845,10 @@ impl AuthorizationModelApi {
     }
 
     pub async fn create_resource(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         resource: ResourceModel,
     ) -> ApiResult<ResourceModel> {
-        let resource_service: &dyn IResourceService = context.services().resolve_ref();
+        let resource_service: &dyn IResourceService = session.services().resolve_ref();
         let existing_resource = resource_service
             .resource_exists_by_name(&resource.realm_id, &resource.server_id, &resource.name)
             .await;
@@ -805,7 +866,15 @@ impl AuthorizationModelApi {
         }
         let mut resource = resource;
         resource.resource_id = uuid::Uuid::new_v4().to_string();
-        resource.metadata = AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
+        resource.metadata = AuditableModel::from_creator(
+            session
+                .context()
+                .authenticated_user()
+                .metadata
+                .tenant
+                .to_owned(),
+            session.context().authenticated_user().user_id.to_owned(),
+        );
         let created_resource = resource_service.create_resource(&resource).await;
         match created_resource {
             Err(err) => {
@@ -823,10 +892,10 @@ impl AuthorizationModelApi {
     }
 
     pub async fn udpate_resource(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         resource: ResourceModel,
     ) -> ApiResult<()> {
-        let resource_service: &dyn IResourceService = context.services().resolve_ref();
+        let resource_service: &dyn IResourceService = session.services().resolve_ref();
         let existing_resource = resource_service
             .load_resource_by_id(
                 &resource.realm_id,
@@ -873,7 +942,15 @@ impl AuthorizationModelApi {
             }
         }
         let mut resource = resource;
-        resource.metadata = AuditableModel::from_updator("tenant".to_owned(), "zaffoh".to_owned());
+        resource.metadata = AuditableModel::from_updator(
+            session
+                .context()
+                .authenticated_user()
+                .metadata
+                .tenant
+                .to_owned(),
+            session.context().authenticated_user().user_id.to_owned(),
+        );
         let updated_resource = resource_service.udpate_resource(&resource).await;
         match updated_resource {
             Err(err) => {
@@ -891,12 +968,12 @@ impl AuthorizationModelApi {
     }
 
     pub async fn load_resource_by_id(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         server_id: &str,
         resource_id: &str,
     ) -> ApiResult<ResourceModel> {
-        let resource_service: &dyn IResourceService = context.services().resolve_ref();
+        let resource_service: &dyn IResourceService = session.services().resolve_ref();
 
         let loaded_resource = resource_service
             .load_resource_by_id(&realm_id, &server_id, &resource_id)
@@ -909,11 +986,11 @@ impl AuthorizationModelApi {
     }
 
     pub async fn load_resources_by_server(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         server_id: &str,
     ) -> ApiResult<Vec<ResourceModel>> {
-        let resource_service: &dyn IResourceService = context.services().resolve_ref();
+        let resource_service: &dyn IResourceService = session.services().resolve_ref();
         let loaded_resources = resource_service
             .load_resources_by_server(&realm_id, &server_id)
             .await;
@@ -944,10 +1021,10 @@ impl AuthorizationModelApi {
     }
 
     pub async fn load_resources_by_realm(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
     ) -> ApiResult<Vec<ResourceModel>> {
-        let resource_service: &dyn IResourceService = context.services().resolve_ref();
+        let resource_service: &dyn IResourceService = session.services().resolve_ref();
         let loaded_resources = resource_service.load_resources_by_realm(&realm_id).await;
 
         match loaded_resources {
@@ -971,12 +1048,12 @@ impl AuthorizationModelApi {
     }
 
     pub async fn delete_resource_by_id(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         server_id: &str,
         resource_id: &str,
     ) -> ApiResult<()> {
-        let resource_service: &dyn IResourceService = context.services().resolve_ref();
+        let resource_service: &dyn IResourceService = session.services().resolve_ref();
 
         let existing_resource = resource_service
             .load_resource_by_id(&realm_id, &server_id, &resource_id)
@@ -1013,14 +1090,14 @@ impl AuthorizationModelApi {
     }
 
     pub async fn add_resource_scope(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         server_id: &str,
         resource_id: &str,
         scope_id: &str,
     ) -> ApiResult<()> {
-        let resource_service: &dyn IResourceService = context.services().resolve_ref();
-        let scope_service: &dyn IScopeService = context.services().resolve_ref();
+        let resource_service: &dyn IResourceService = session.services().resolve_ref();
+        let scope_service: &dyn IScopeService = session.services().resolve_ref();
 
         let existing_resource = resource_service
             .resource_exists_by_id(&realm_id, &server_id, &resource_id)
@@ -1063,14 +1140,14 @@ impl AuthorizationModelApi {
     }
 
     pub async fn remove_resource_scope(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         server_id: &str,
         resource_id: &str,
         scope_id: &str,
     ) -> ApiResult<()> {
-        let resource_service: &dyn IResourceService = context.services().resolve_ref();
-        let scope_service: &dyn IScopeService = context.services().resolve_ref();
+        let resource_service: &dyn IResourceService = session.services().resolve_ref();
+        let scope_service: &dyn IScopeService = session.services().resolve_ref();
 
         let existing_resource = resource_service
             .resource_exists_by_id(&realm_id, &server_id, &resource_id)
@@ -1113,11 +1190,11 @@ impl AuthorizationModelApi {
     }
 
     pub async fn create_scope(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         scope: ScopeModel,
     ) -> ApiResult<ScopeModel> {
-        let resource_server_service: &dyn IResourceServerService = context.services().resolve_ref();
-        let scope_service: &dyn IScopeService = context.services().resolve_ref();
+        let resource_server_service: &dyn IResourceServerService = session.services().resolve_ref();
+        let scope_service: &dyn IScopeService = session.services().resolve_ref();
 
         let existing_resource_server = resource_server_service
             .resource_server_exists_by_id(&scope.realm_id, &scope.server_id)
@@ -1152,7 +1229,15 @@ impl AuthorizationModelApi {
 
         let mut scope = scope;
         scope.scope_id = uuid::Uuid::new_v4().to_string();
-        scope.metadata = AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
+        scope.metadata = AuditableModel::from_creator(
+            session
+                .context()
+                .authenticated_user()
+                .metadata
+                .tenant
+                .to_owned(),
+            session.context().authenticated_user().user_id.to_owned(),
+        );
         let created_scope = scope_service.create_scope(&scope).await;
         match created_scope {
             Err(err) => {
@@ -1169,9 +1254,9 @@ impl AuthorizationModelApi {
         }
     }
 
-    pub async fn udpate_scope(context: &DarkShieldContext, scope: ScopeModel) -> ApiResult<()> {
-        let resource_server_service: &dyn IResourceServerService = context.services().resolve_ref();
-        let scope_service: &dyn IScopeService = context.services().resolve_ref();
+    pub async fn udpate_scope(session: &DarkshieldSession, scope: ScopeModel) -> ApiResult<()> {
+        let resource_server_service: &dyn IResourceServerService = session.services().resolve_ref();
+        let scope_service: &dyn IScopeService = session.services().resolve_ref();
 
         let existing_resource_server = resource_server_service
             .resource_server_exists_by_id(&scope.realm_id, &scope.server_id)
@@ -1205,7 +1290,15 @@ impl AuthorizationModelApi {
         }
 
         let mut scope = scope;
-        scope.metadata = AuditableModel::from_updator("tenant".to_owned(), "zaffoh".to_owned());
+        scope.metadata = AuditableModel::from_updator(
+            session
+                .context()
+                .authenticated_user()
+                .metadata
+                .tenant
+                .to_owned(),
+            session.context().authenticated_user().user_id.to_owned(),
+        );
 
         let updated_scope = scope_service.udpate_scope(&scope).await;
         match updated_scope {
@@ -1224,12 +1317,12 @@ impl AuthorizationModelApi {
     }
 
     pub async fn load_scope_by_id(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         server_id: &str,
         scope_id: &str,
     ) -> ApiResult<ScopeModel> {
-        let scope_service: &dyn IScopeService = context.services().resolve_ref();
+        let scope_service: &dyn IScopeService = session.services().resolve_ref();
         let loaded_scope = scope_service
             .load_scope_by_id(&realm_id, &server_id, &scope_id)
             .await;
@@ -1241,11 +1334,11 @@ impl AuthorizationModelApi {
     }
 
     pub async fn load_scopes_by_realm(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         server_id: &str,
     ) -> ApiResult<Vec<ScopeModel>> {
-        let scope_service: &dyn IScopeService = context.services().resolve_ref();
+        let scope_service: &dyn IScopeService = session.services().resolve_ref();
         let loaded_scopes = scope_service
             .load_scopes_by_realm_and_server(&realm_id, &server_id)
             .await;
@@ -1276,12 +1369,12 @@ impl AuthorizationModelApi {
     }
 
     pub async fn delete_scope_by_id(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         server_id: &str,
         scope_id: &str,
     ) -> ApiResult<()> {
-        let scope_service: &dyn IScopeService = context.services().resolve_ref();
+        let scope_service: &dyn IScopeService = session.services().resolve_ref();
         let existing_scope = scope_service
             .load_scope_by_id(&realm_id, &server_id, &scope_id)
             .await;
@@ -1316,12 +1409,12 @@ impl AuthorizationModelApi {
     }
 
     pub async fn create_policy(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         server_id: &str,
         policy: PolicyRepresentation,
     ) -> ApiResult<PolicyModel> {
-        let resource_server_server: &dyn IResourceServerService = context.services().resolve_ref();
+        let resource_server_server: &dyn IResourceServerService = session.services().resolve_ref();
         let existing_resource_server = resource_server_server
             .resource_server_exists_by_id(&realm_id, &server_id)
             .await;
@@ -1336,7 +1429,7 @@ impl AuthorizationModelApi {
             }
         }
 
-        let policy_service: &dyn IPolicyService = context.services().resolve_ref();
+        let policy_service: &dyn IPolicyService = session.services().resolve_ref();
         let existing_policy = policy_service
             .policy_exists_by_name(&realm_id, &server_id, policy.name())
             .await;
@@ -1359,14 +1452,21 @@ impl AuthorizationModelApi {
         let policy_id = uuid::Uuid::new_v4().to_string();
 
         let parsed_policy_model = AuthorizationModelApi::policy_model_from_representation(
-            context, realm_id, server_id, &policy_id, policy,
+            session, realm_id, server_id, &policy_id, policy,
         )
         .await;
         match parsed_policy_model {
             Ok(policy_model) => {
                 let mut policy_model = policy_model;
-                policy_model.metadata =
-                    AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
+                policy_model.metadata = AuditableModel::from_creator(
+                    session
+                        .context()
+                        .authenticated_user()
+                        .metadata
+                        .tenant
+                        .to_owned(),
+                    session.context().authenticated_user().user_id.to_owned(),
+                );
                 let res = policy_service.create_policy(&policy_model).await;
                 match res {
                     Ok(_) => ApiResult::Data(policy_model),
@@ -1392,7 +1492,7 @@ impl AuthorizationModelApi {
     }
 
     async fn policy_model_from_representation(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         server_id: &str,
         policy_id: &str,
@@ -1419,7 +1519,7 @@ impl AuthorizationModelApi {
         let mut regex_config: Option<RegexConfig> = None;
         let mut time_config: Option<TimePolicyConfig> = None;
 
-        let policy_service: &(dyn IPolicyService + 'static) = context.services().resolve_ref();
+        let policy_service: &(dyn IPolicyService + 'static) = session.services().resolve_ref();
         match policy {
             PolicyRepresentation::PyPolicy(py_policy) => {
                 if py_policy.script.is_empty() {
@@ -1463,7 +1563,7 @@ impl AuthorizationModelApi {
                     }
                 }
                 if !user_policy.users.is_empty() {
-                    let user_service: &dyn IUserService = context.services().resolve_ref();
+                    let user_service: &dyn IUserService = session.services().resolve_ref();
                     let user_ids: Vec<_> = user_policy.users.iter().map(|s| s.as_str()).collect();
                     match user_service.load_user_by_ids(&realm_id, &user_ids).await {
                         Ok(res) => users = Some(res),
@@ -1493,7 +1593,7 @@ impl AuthorizationModelApi {
                     }
                 }
                 if !role_policy.roles.is_empty() {
-                    let role_service: &dyn IRoleService = context.services().resolve_ref();
+                    let role_service: &dyn IRoleService = session.services().resolve_ref();
                     let roles_ids: Vec<_> = role_policy.roles.iter().map(|s| s.as_str()).collect();
 
                     match role_service.load_role_by_ids(&realm_id, &roles_ids).await {
@@ -1532,7 +1632,7 @@ impl AuthorizationModelApi {
                 }
                 let mut loaded_groups: Vec<GroupModel> = Vec::new();
                 if !group_policy.groups.is_empty() {
-                    let group_service: &dyn IGroupService = context.services().resolve_ref();
+                    let group_service: &dyn IGroupService = session.services().resolve_ref();
                     let group_ids: Vec<_> =
                         group_policy.groups.iter().map(|s| s.as_str()).collect();
 
@@ -1570,7 +1670,7 @@ impl AuthorizationModelApi {
                 }
 
                 if !client_policy.clients.is_empty() {
-                    let client_service: &dyn IClientService = context.services().resolve_ref();
+                    let client_service: &dyn IClientService = session.services().resolve_ref();
                     let clients_ids: Vec<_> =
                         client_policy.clients.iter().map(|s| s.as_str()).collect();
 
@@ -1607,7 +1707,7 @@ impl AuthorizationModelApi {
 
                 if !client_scope_policy.client_scopes.is_empty() {
                     let client_scope_service: &dyn IClientScopeService =
-                        context.services().resolve_ref();
+                        session.services().resolve_ref();
                     let client_scope_ids: Vec<_> = client_scope_policy
                         .client_scopes
                         .iter()
@@ -1785,7 +1885,7 @@ impl AuthorizationModelApi {
                 }
 
                 if let Some(scopes_ids) = scope_policy.scopes {
-                    let scope_service: &dyn IScopeService = context.services().resolve_ref();
+                    let scope_service: &dyn IScopeService = session.services().resolve_ref();
                     let scope_ids: Vec<_> = scopes_ids.iter().map(|s| s.as_str()).collect();
                     match scope_service
                         .load_scopes_by_ids(&realm_id, &scope_ids)
@@ -1824,7 +1924,7 @@ impl AuthorizationModelApi {
                 }
 
                 if let Some(resources_ids) = resource_policy.resources {
-                    let resources_service: &dyn IResourceService = context.services().resolve_ref();
+                    let resources_service: &dyn IResourceService = session.services().resolve_ref();
                     let resources_ids: Vec<_> = resources_ids.iter().map(|s| s.as_str()).collect();
 
                     match resources_service
@@ -1896,13 +1996,13 @@ impl AuthorizationModelApi {
     }
 
     pub async fn update_policy(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         server_id: &str,
         policy_id: &str,
         policy: PolicyRepresentation,
     ) -> ApiResult<PolicyModel> {
-        let resource_server_server: &dyn IResourceServerService = context.services().resolve_ref();
+        let resource_server_server: &dyn IResourceServerService = session.services().resolve_ref();
         let existing_resource_server = resource_server_server
             .resource_server_exists_by_id(&realm_id, &server_id)
             .await;
@@ -1917,7 +2017,7 @@ impl AuthorizationModelApi {
             }
         }
 
-        let policy_service: &dyn IPolicyService = context.services().resolve_ref();
+        let policy_service: &dyn IPolicyService = session.services().resolve_ref();
         let existing_policy = policy_service
             .policy_exists_by_id(&realm_id, &server_id, &policy_id)
             .await;
@@ -1938,14 +2038,21 @@ impl AuthorizationModelApi {
         }
 
         let parsed_policy_model = AuthorizationModelApi::policy_model_from_representation(
-            context, realm_id, server_id, &policy_id, policy,
+            session, realm_id, server_id, &policy_id, policy,
         )
         .await;
         match parsed_policy_model {
             Ok(policy_model) => {
                 let mut policy_model = policy_model;
-                policy_model.metadata =
-                    AuditableModel::from_updator("tenant".to_owned(), "zaffoh".to_owned());
+                policy_model.metadata = AuditableModel::from_updator(
+                    session
+                        .context()
+                        .authenticated_user()
+                        .metadata
+                        .tenant
+                        .to_owned(),
+                    session.context().authenticated_user().user_id.to_owned(),
+                );
                 let res = policy_service.udpate_policy(&policy_model).await;
                 match res {
                     Ok(_) => ApiResult::no_content(),
@@ -1971,12 +2078,12 @@ impl AuthorizationModelApi {
     }
 
     pub async fn load_policy_by_id(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         server_id: &str,
         policy_id: &str,
     ) -> ApiResult<PolicyModel> {
-        let policy_service: &dyn IPolicyService = context.services().resolve_ref();
+        let policy_service: &dyn IPolicyService = session.services().resolve_ref();
 
         let loaded_policy = policy_service
             .load_policy_by_id(&realm_id, &server_id, &policy_id)
@@ -1989,12 +2096,12 @@ impl AuthorizationModelApi {
     }
 
     pub async fn load_policy_scopes_by_policy_id(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         server_id: &str,
         policy_id: &str,
     ) -> ApiResult<Vec<ScopeModel>> {
-        let policy_service: &dyn IPolicyService = context.services().resolve_ref();
+        let policy_service: &dyn IPolicyService = session.services().resolve_ref();
         let loaded_policy_scopes = policy_service
             .load_policy_scopes_by_id(&realm_id, &server_id, &policy_id)
             .await;
@@ -2027,12 +2134,12 @@ impl AuthorizationModelApi {
     }
 
     pub async fn load_policy_resources_by_policy_id(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         server_id: &str,
         policy_id: &str,
     ) -> ApiResult<Vec<ResourceModel>> {
-        let policy_service: &dyn IPolicyService = context.services().resolve_ref();
+        let policy_service: &dyn IPolicyService = session.services().resolve_ref();
         let loaded_resources = policy_service
             .load_policy_resources_by_id(&realm_id, &server_id, &policy_id)
             .await;
@@ -2065,12 +2172,12 @@ impl AuthorizationModelApi {
     }
 
     pub async fn load_associates_policies_by_policy_id(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         server_id: &str,
         policy_id: &str,
     ) -> ApiResult<Vec<PolicyModel>> {
-        let policy_service: &dyn IPolicyService = context.services().resolve_ref();
+        let policy_service: &dyn IPolicyService = session.services().resolve_ref();
         let loaded_associated_policies = policy_service
             .load_associated_policies_by_policy_id(&realm_id, &server_id, &policy_id)
             .await;
@@ -2103,11 +2210,11 @@ impl AuthorizationModelApi {
     }
 
     pub async fn load_policies_by_server_id(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         server_id: &str,
     ) -> ApiResult<Vec<PolicyModel>> {
-        let policy_service: &dyn IPolicyService = context.services().resolve_ref();
+        let policy_service: &dyn IPolicyService = session.services().resolve_ref();
         let loaded_policies = policy_service
             .load_policies_by_server_id(&realm_id, &server_id)
             .await;
@@ -2138,11 +2245,11 @@ impl AuthorizationModelApi {
     }
 
     pub async fn count_policies_by_query(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         count_query: &str,
     ) -> ApiResult<u64> {
-        let policy_service: &dyn IPolicyService = context.services().resolve_ref();
+        let policy_service: &dyn IPolicyService = session.services().resolve_ref();
         let count_policies_result = policy_service.count_policies(&realm_id, &count_query).await;
 
         match count_policies_result {
@@ -2152,11 +2259,11 @@ impl AuthorizationModelApi {
     }
 
     pub async fn search_policies_by_query(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         search_query: &str,
     ) -> ApiResult<Vec<PolicyModel>> {
-        let policy_service: &dyn IPolicyService = context.services().resolve_ref();
+        let policy_service: &dyn IPolicyService = session.services().resolve_ref();
         let loaded_policies = policy_service
             .search_policies(&realm_id, &search_query)
             .await;
@@ -2186,12 +2293,12 @@ impl AuthorizationModelApi {
     }
 
     pub async fn delete_policy_by_id(
-        context: &DarkShieldContext,
+        session: &DarkshieldSession,
         realm_id: &str,
         server_id: &str,
         policy_id: &str,
     ) -> ApiResult {
-        let resource_server_server: &dyn IResourceServerService = context.services().resolve_ref();
+        let resource_server_server: &dyn IResourceServerService = session.services().resolve_ref();
         let existing_resource_server = resource_server_server
             .resource_server_exists_by_id(&realm_id, &server_id)
             .await;
@@ -2206,7 +2313,7 @@ impl AuthorizationModelApi {
             }
         }
 
-        let policy_service: &dyn IPolicyService = context.services().resolve_ref();
+        let policy_service: &dyn IPolicyService = session.services().resolve_ref();
         let existing_policy = policy_service
             .policy_exists_by_id(&realm_id, &server_id, &policy_id)
             .await;

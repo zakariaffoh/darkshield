@@ -539,11 +539,45 @@ pub struct AuthenticationSessionModel {
     pub user_session_notes: Option<HashMap<String, String>>,
 }
 
+impl Default for AuthenticationSessionModel {
+    fn default() -> Self {
+        Self {
+            tenant: Default::default(),
+            tab_id: Default::default(),
+            auth_user_id: Default::default(),
+            realm_id: Default::default(),
+            root_session_id: Default::default(),
+            client_id: Default::default(),
+            redirect_uri: Default::default(),
+            client_scopes: Default::default(),
+            timestamp: 0.0,
+            action: Default::default(),
+            protocol: Default::default(),
+            execution_status: Default::default(),
+            client_notes: Default::default(),
+            auth_notes: Default::default(),
+            required_actions: Default::default(),
+            user_session_notes: Default::default(),
+        }
+    }
+}
+
 pub struct AuthenticationSession {
     parent_session: Option<Arc<RootAuthenticationSession>>,
     session_model: AuthenticationSessionModel,
     client: Option<Arc<ClientModel>>,
     user: Option<Arc<UserModel>>,
+}
+
+impl Default for AuthenticationSession {
+    fn default() -> Self {
+        Self {
+            parent_session: Default::default(),
+            session_model: Default::default(),
+            client: Default::default(),
+            user: Default::default(),
+        }
+    }
 }
 
 impl AuthenticationSession {
@@ -571,18 +605,12 @@ impl AuthenticationSession {
         self.parent_session = Some(parent_session);
     }
 
-    pub fn update_authenticated_user(&mut self, authenticated_user: &Option<Arc<UserModel>>) {
-        if let Some(auth_client) = authenticated_user {
-            self.user = Some(Arc::clone(auth_client));
-        } else {
-            self.user = None;
-        }
+    pub fn update_authenticated_user(&mut self, authenticated_user: &Arc<UserModel>) {
+        self.user = Some(Arc::clone(&authenticated_user));
     }
 
-    pub fn set_authenticated_user(&mut self, authenticated_user: &Option<Arc<UserModel>>) {
-        if let Some(auth_client) = authenticated_user {
-            self.session_model.auth_user_id = Some(auth_client.user_id.clone());
-        }
+    pub fn set_authenticated_user(&mut self, authenticated_user: UserModel) {
+        self.session_model.auth_user_id = Some(authenticated_user.user_id.clone());
         self.user = None;
     }
 

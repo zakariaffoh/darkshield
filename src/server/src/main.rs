@@ -1,18 +1,16 @@
 mod api;
-mod context;
+mod configs;
 mod metrics;
-use ::services::catalog::DarkshieldServices;
 use actix_web::{middleware, web::Data, App, HttpServer};
-use context::{DarkShieldContext, EnvironmentConfig};
+use configs::EnvironmentConfig;
 use deadpool_postgres::{tokio_postgres, Runtime};
 use dotenv::dotenv;
-use models::entities::user::UserModel;
+use services::factory::DarkshieldServicesFactory;
 use store::providers::rds::client::postgres_client::{DataBaseManager, DataBaseManagerParameters};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
-    //let config = EnvironmentConfig::from_env();
 
     let config = EnvironmentConfig::static_configs();
     let connection_pool = config
@@ -20,14 +18,13 @@ async fn main() -> std::io::Result<()> {
         .create_pool(Some(Runtime::Tokio1), tokio_postgres::NoTls)
         .unwrap();
 
-    let darkshield_services = DarkshieldServices::builder()
+    let services_factory = DarkshieldServicesFactory::builder()
         .with_component_parameters::<DataBaseManager>(DataBaseManagerParameters {
             connection_pool: Some(connection_pool),
         })
         .build();
 
-    let darkshield_context = DarkShieldContext::new(darkshield_services, UserModel::default());
-    let context = Data::new(darkshield_context);
+    let context = Data::new(services_factory);
     env_logger::init_from_env(env_logger::Env::default().default_filter_or("debug"));
 
     HttpServer::new(move || {

@@ -10,7 +10,7 @@ use crypto::providers::{
 };
 use models::entities::realm::RealmModel;
 use serde_json::{Map, Value};
-use services::session::darkshield_session::DarkshieldSession;
+use services::session::session::DarkshieldSession;
 
 pub mod oidc;
 
@@ -526,7 +526,7 @@ impl OidcWellKnownProvider {
     }
 }
 
-#[async_trait]
+/*#[async_trait]
 impl WellKnownProvider for OidcWellKnownProvider {
     async fn oidc_config(&self) -> Result<OidcConfiguration, String> {
         let uri = self.session.context().lock().await.uri();
@@ -691,6 +691,10 @@ impl WellKnownProvider for OidcWellKnownProvider {
         );
         config.set_require_pushed_authorization_requests(false);
         self.check_config_override(&mut config);
-        Ok(config)
+
+        return Ok(config);
     }
 }
+
+unsafe impl Send for OidcWellKnownProvider {}
+*/
