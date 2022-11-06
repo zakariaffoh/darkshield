@@ -8,9 +8,7 @@ use models::{
         realm::{ExportedRealm, ImportedRealm, RealmModel},
     },
 };
-use services::services::realm_service::IRealmService;
 use services::session::session::DarkshieldSession;
-use shaku::HasComponent;
 pub struct ReamlApi;
 
 impl ReamlApi {
@@ -18,8 +16,11 @@ impl ReamlApi {
         session: &DarkshieldSession,
         realm: RealmModel,
     ) -> ApiResult<RealmModel> {
-        let realm_service: &dyn IRealmService = session.services().resolve_ref();
-        let existing_realm = realm_service.realm_exists_by_id(&realm.realm_id).await;
+        let existing_realm = session
+            .services()
+            .realm_service()
+            .realm_exists_by_id(&realm.realm_id)
+            .await;
         if let Ok(response) = existing_realm {
             if response {
                 log::error!("realm: {} already", &realm.realm_id,);
@@ -38,7 +39,11 @@ impl ReamlApi {
             "zaffoh".to_owned(),
         );
 
-        let created_realm = realm_service.create_realm(&realm).await;
+        let created_realm = session
+            .services()
+            .realm_service()
+            .create_realm(&realm)
+            .await;
         match created_realm {
             _ => ApiResult::Data(realm),
             Err(err) => ApiResult::from_error(500, "500", err.as_str()),
@@ -46,8 +51,9 @@ impl ReamlApi {
     }
 
     pub async fn update_realm(session: &DarkshieldSession, realm: RealmModel) -> ApiResult {
-        let realm_service: &dyn IRealmService = session.services().resolve_ref();
-        let existing_realm = realm_service
+        let existing_realm = session
+            .services()
+            .realm_service()
             .realm_exists_by_criteria(&realm.realm_id, &realm.name, &realm.display_name)
             .await;
         if let Ok(res) = existing_realm {
@@ -67,7 +73,11 @@ impl ReamlApi {
             session.context().authenticated_user().user_id.to_owned(),
         );
 
-        let updated_realm = realm_service.udpate_realm(&realm).await;
+        let updated_realm = session
+            .services()
+            .realm_service()
+            .udpate_realm(&realm)
+            .await;
         match updated_realm {
             Err(err) => ApiResult::from_error(500, "500", err.as_str()),
             _ => ApiResult::no_content(),
@@ -75,8 +85,11 @@ impl ReamlApi {
     }
 
     pub async fn delete_realm(session: &DarkshieldSession, realm_id: &str) -> ApiResult<()> {
-        let realm_service: &dyn IRealmService = session.services().resolve_ref();
-        let response = realm_service.delete_realm(&realm_id).await;
+        let response = session
+            .services()
+            .realm_service()
+            .delete_realm(&realm_id)
+            .await;
         match response {
             Err(err) => ApiResult::from_error(500, "500", err.as_str()),
             _ => ApiResult::Data(()),
@@ -87,8 +100,11 @@ impl ReamlApi {
         session: &DarkshieldSession,
         realm_id: &str,
     ) -> ApiResult<RealmModel> {
-        let realm_service: &dyn IRealmService = session.services().resolve_ref();
-        let loaded_realm = realm_service.load_realm(&realm_id).await;
+        let loaded_realm = session
+            .services()
+            .realm_service()
+            .load_realm(&realm_id)
+            .await;
         match loaded_realm {
             Ok(realm) => ApiResult::<RealmModel>::from_option(realm),
             Err(err) => ApiResult::from_error(500, "500", &err),
@@ -96,8 +112,7 @@ impl ReamlApi {
     }
 
     pub async fn load_realms(session: &DarkshieldSession) -> ApiResult<Vec<RealmModel>> {
-        let realm_service: &dyn IRealmService = session.services().resolve_ref();
-        let loaded_realms = realm_service.load_realms().await;
+        let loaded_realms = session.services().realm_service().load_realms().await;
         match loaded_realms {
             Ok(realms) => {
                 log::info!("[{}] realms loaded", realms.len());
@@ -115,8 +130,11 @@ impl ReamlApi {
         session: &DarkshieldSession,
         realm_id: &str,
     ) -> ApiResult<ExportedRealm> {
-        let realm_service: &dyn IRealmService = session.services().resolve_ref();
-        let exported_realm = realm_service.export_realm(&realm_id).await;
+        let exported_realm = session
+            .services()
+            .realm_service()
+            .export_realm(&realm_id)
+            .await;
         match exported_realm {
             Ok(realm) => ApiResult::<ExportedRealm>::from_option(realm),
             Err(err) => ApiResult::from_error(500, "500", &err),
@@ -127,8 +145,11 @@ impl ReamlApi {
         session: &DarkshieldSession,
         imported_realm: &ImportedRealm,
     ) -> ApiResult<()> {
-        let realm_service: &dyn IRealmService = session.services().resolve_ref();
-        let import_realm_response = realm_service.import_realm(imported_realm).await;
+        let import_realm_response = session
+            .services()
+            .realm_service()
+            .import_realm(imported_realm)
+            .await;
         match import_realm_response {
             Err(err) => ApiResult::from_error(500, "500", &err),
             _ => ApiResult::no_content(),
@@ -143,8 +164,9 @@ impl ReamlApi {
         priority: &Option<i64>,
         algorithm: &str,
     ) -> ApiResult<CredentialViewRepresentation> {
-        let realm_service: &dyn IRealmService = session.services().resolve_ref();
-        let realm_keys = realm_service
+        let realm_keys = session
+            .services()
+            .realm_service()
             .generate_realm_key(&realm_id, &key_type, &key_use, &priority, &algorithm)
             .await;
         match realm_keys {
@@ -157,8 +179,11 @@ impl ReamlApi {
         session: &DarkshieldSession,
         realm_id: &str,
     ) -> ApiResult<Vec<CredentialViewRepresentation>> {
-        let realm_service: &dyn IRealmService = session.services().resolve_ref();
-        let loaded_realm_keys = realm_service.load_realm_keys(&realm_id).await;
+        let loaded_realm_keys = session
+            .services()
+            .realm_service()
+            .load_realm_keys(&realm_id)
+            .await;
         match loaded_realm_keys {
             Ok(keys) => {
                 log::info!("[{}] realm keys loaded", keys.len());

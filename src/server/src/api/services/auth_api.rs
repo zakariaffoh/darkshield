@@ -10,11 +10,7 @@ use models::{
         RequiredActionEnum, RequiredActionModel,
     },
 };
-use services::services::auth_services::{
-    IAuthenticationExecutionService, IAuthenticationFlowService, IAuthenticatorConfigService,
-    IRequiredActionService,
-};
-use shaku::HasComponent;
+
 pub struct AuthenticationModelApi;
 
 impl AuthenticationModelApi {
@@ -22,10 +18,9 @@ impl AuthenticationModelApi {
         session: &DarkshieldSession,
         execution: AuthenticationExecutionModel,
     ) -> ApiResult<AuthenticationExecutionModel> {
-        let authentication_execution_service: &dyn IAuthenticationExecutionService =
-            session.services().resolve_ref();
-
-        let existing_execution = authentication_execution_service
+        let existing_execution = session
+            .services()
+            .authentication_execution_service()
             .exists_execution_by_alias(&execution.realm_id, &execution.alias)
             .await;
         if let Ok(response) = existing_execution {
@@ -53,7 +48,9 @@ impl AuthenticationModelApi {
                 .to_owned(),
             session.context().authenticated_user().user_id.to_owned(),
         );
-        let created_execution = authentication_execution_service
+        let created_execution = session
+            .services()
+            .authentication_execution_service()
             .create_authentication_execution(&execution)
             .await;
         match created_execution {
@@ -66,10 +63,9 @@ impl AuthenticationModelApi {
         session: &DarkshieldSession,
         execution: AuthenticationExecutionModel,
     ) -> ApiResult<()> {
-        let authentication_execution_service: &dyn IAuthenticationExecutionService =
-            session.services().resolve_ref();
-
-        let existing_execution = authentication_execution_service
+        let existing_execution = session
+            .services()
+            .authentication_execution_service()
             .load_authentication_execution(&execution.realm_id, &execution.execution_id)
             .await;
         if let Ok(response) = existing_execution {
@@ -92,7 +88,9 @@ impl AuthenticationModelApi {
                 .to_owned(),
             session.context().authenticated_user().user_id.to_owned(),
         );
-        let updated_execution = authentication_execution_service
+        let updated_execution = session
+            .services()
+            .authentication_execution_service()
             .update_authentication_execution(&execution)
             .await;
         match updated_execution {
@@ -106,10 +104,9 @@ impl AuthenticationModelApi {
         realm_id: &str,
         execution_id: &str,
     ) -> ApiResult<AuthenticationExecutionModel> {
-        let authentication_execution_service: &dyn IAuthenticationExecutionService =
-            session.services().resolve_ref();
-
-        let loaded_execution = authentication_execution_service
+        let loaded_execution = session
+            .services()
+            .authentication_execution_service()
             .load_authentication_execution(&realm_id, &execution_id)
             .await;
         match loaded_execution {
@@ -122,10 +119,9 @@ impl AuthenticationModelApi {
         session: &DarkshieldSession,
         realm_id: &str,
     ) -> ApiResult<Vec<AuthenticationExecutionModel>> {
-        let authentication_execution_service: &dyn IAuthenticationExecutionService =
-            session.services().resolve_ref();
-
-        let loaded_executions = authentication_execution_service
+        let loaded_executions = session
+            .services()
+            .authentication_execution_service()
             .load_authentication_execution_by_realm_id(&realm_id)
             .await;
         match loaded_executions {
@@ -156,10 +152,9 @@ impl AuthenticationModelApi {
         realm_id: &str,
         execution_id: &str,
     ) -> ApiResult<()> {
-        let authentication_execution_service: &dyn IAuthenticationExecutionService =
-            session.services().resolve_ref();
-
-        let existing_execution = authentication_execution_service
+        let existing_execution = session
+            .services()
+            .authentication_execution_service()
             .load_authentication_execution(&realm_id, &execution_id)
             .await;
         if let Ok(response) = existing_execution {
@@ -172,7 +167,9 @@ impl AuthenticationModelApi {
                 return ApiResult::from_error(404, "404", "authentication execution not found");
             }
         }
-        let result = authentication_execution_service
+        let result = session
+            .services()
+            .authentication_execution_service()
             .remove_authentication_execution(&realm_id, &execution_id)
             .await;
         match result {
@@ -191,10 +188,9 @@ impl AuthenticationModelApi {
         session: &DarkshieldSession,
         flow: AuthenticationFlowModel,
     ) -> ApiResult<AuthenticationFlowModel> {
-        let authentication_flow_service: &dyn IAuthenticationFlowService =
-            session.services().resolve_ref();
-
-        let existing_flow = authentication_flow_service
+        let existing_flow = session
+            .services()
+            .authentication_flow_service()
             .exists_flow_by_alias(&flow.realm_id, &flow.alias)
             .await;
         if let Ok(response) = existing_flow {
@@ -210,7 +206,9 @@ impl AuthenticationModelApi {
         let mut flow = flow;
         flow.flow_id = uuid::Uuid::new_v4().to_string();
         flow.metadata = AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
-        let created_flow = authentication_flow_service
+        let created_flow = session
+            .services()
+            .authentication_flow_service()
             .create_authentication_flow(&flow)
             .await;
         match created_flow {
@@ -223,10 +221,9 @@ impl AuthenticationModelApi {
         session: &DarkshieldSession,
         flow: AuthenticationFlowModel,
     ) -> ApiResult<()> {
-        let authentication_flow_service: &dyn IAuthenticationFlowService =
-            session.services().resolve_ref();
-
-        let existing_flow = authentication_flow_service
+        let existing_flow = session
+            .services()
+            .authentication_flow_service()
             .load_authentication_flow_by_flow_id(&flow.realm_id, &flow.flow_id)
             .await;
         if let Ok(response) = existing_flow {
@@ -243,7 +240,9 @@ impl AuthenticationModelApi {
         flow_model.flow_id = uuid::Uuid::new_v4().to_string();
         flow_model.metadata =
             AuditableModel::from_updator("tenant".to_owned(), "zaffoh".to_owned());
-        let updated_flow = authentication_flow_service
+        let updated_flow = session
+            .services()
+            .authentication_flow_service()
             .update_authentication_flow(&flow_model)
             .await;
         match updated_flow {
@@ -257,10 +256,9 @@ impl AuthenticationModelApi {
         realm_id: &str,
         flow_id: &str,
     ) -> ApiResult<AuthenticationFlowModel> {
-        let authentication_flow_service: &dyn IAuthenticationFlowService =
-            session.services().resolve_ref();
-
-        let loaded_flow = authentication_flow_service
+        let loaded_flow = session
+            .services()
+            .authentication_flow_service()
             .load_authentication_flow_by_flow_id(&realm_id, &flow_id)
             .await;
         match loaded_flow {
@@ -273,10 +271,9 @@ impl AuthenticationModelApi {
         session: &DarkshieldSession,
         realm_id: &str,
     ) -> ApiResult<Vec<AuthenticationFlowModel>> {
-        let authentication_flow_service: &dyn IAuthenticationFlowService =
-            session.services().resolve_ref();
-
-        let loaded_flows = authentication_flow_service
+        let loaded_flows = session
+            .services()
+            .authentication_flow_service()
             .load_authentication_flow_by_realm_id(&realm_id)
             .await;
         match loaded_flows {
@@ -304,10 +301,9 @@ impl AuthenticationModelApi {
         realm_id: &str,
         flow_id: &str,
     ) -> ApiResult {
-        let authentication_flow_service: &dyn IAuthenticationFlowService =
-            session.services().resolve_ref();
-
-        let existing_flow = authentication_flow_service
+        let existing_flow = session
+            .services()
+            .authentication_flow_service()
             .load_authentication_flow_by_flow_id(&realm_id, &flow_id)
             .await;
         if let Ok(response) = existing_flow {
@@ -320,7 +316,9 @@ impl AuthenticationModelApi {
                 return ApiResult::from_error(404, "404", "authentication flow not found");
             }
         }
-        let result = authentication_flow_service
+        let result = session
+            .services()
+            .authentication_flow_service()
             .remove_authentication_flow(&realm_id, &flow_id)
             .await;
         match result {
@@ -339,10 +337,9 @@ impl AuthenticationModelApi {
         session: &DarkshieldSession,
         config: AuthenticatorConfigModel,
     ) -> ApiResult<AuthenticatorConfigModel> {
-        let authenticator_config_service: &dyn IAuthenticatorConfigService =
-            session.services().resolve_ref();
-
-        let existing_config = authenticator_config_service
+        let existing_config = session
+            .services()
+            .authenticator_config_service()
             .exists_config_by_alias(&config.realm_id, &config.alias)
             .await;
         if let Ok(response) = existing_config {
@@ -358,7 +355,9 @@ impl AuthenticationModelApi {
         let mut config = config;
         config.config_id = uuid::Uuid::new_v4().to_string();
         config.metadata = AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
-        let created_config = authenticator_config_service
+        let created_config = session
+            .services()
+            .authenticator_config_service()
             .create_authenticator_config(&config)
             .await;
         match created_config {
@@ -371,10 +370,9 @@ impl AuthenticationModelApi {
         session: &DarkshieldSession,
         config: AuthenticatorConfigModel,
     ) -> ApiResult<()> {
-        let authenticator_config_service: &dyn IAuthenticatorConfigService =
-            session.services().resolve_ref();
-
-        let existing_config = authenticator_config_service
+        let existing_config = session
+            .services()
+            .authenticator_config_service()
             .load_authenticator_config(&config.realm_id, &config.config_id)
             .await;
         if let Ok(response) = existing_config {
@@ -389,7 +387,9 @@ impl AuthenticationModelApi {
         }
         let mut config = config;
         config.metadata = AuditableModel::from_updator("tenant".to_owned(), "zaffoh".to_owned());
-        let updated_config = authenticator_config_service
+        let updated_config = session
+            .services()
+            .authenticator_config_service()
             .update_authenticator_config(&config)
             .await;
         match updated_config {
@@ -403,10 +403,9 @@ impl AuthenticationModelApi {
         realm_id: &str,
         config_id: &str,
     ) -> ApiResult<Option<AuthenticatorConfigModel>> {
-        let authenticator_config_service: &dyn IAuthenticatorConfigService =
-            session.services().resolve_ref();
-
-        let loaded_execution = authenticator_config_service
+        let loaded_execution = session
+            .services()
+            .authenticator_config_service()
             .load_authenticator_config(&realm_id, &config_id)
             .await;
         match loaded_execution {
@@ -419,10 +418,9 @@ impl AuthenticationModelApi {
         session: &DarkshieldSession,
         realm_id: &str,
     ) -> ApiResult<Vec<AuthenticatorConfigModel>> {
-        let authenticator_config_service: &dyn IAuthenticatorConfigService =
-            session.services().resolve_ref();
-
-        let loaded_configs = authenticator_config_service
+        let loaded_configs = session
+            .services()
+            .authenticator_config_service()
             .load_authenticator_config_by_realm_id(&realm_id)
             .await;
         match loaded_configs {
@@ -453,10 +451,9 @@ impl AuthenticationModelApi {
         realm_id: &str,
         config_id: &str,
     ) -> ApiResult<()> {
-        let authenticator_config_service: &dyn IAuthenticatorConfigService =
-            session.services().resolve_ref();
-
-        let existing_config = authenticator_config_service
+        let existing_config = session
+            .services()
+            .authenticator_config_service()
             .load_authenticator_config(&realm_id, &config_id)
             .await;
         if let Ok(response) = existing_config {
@@ -469,7 +466,9 @@ impl AuthenticationModelApi {
                 return ApiResult::from_error(404, "404", "authentication config not found");
             }
         }
-        let result = authenticator_config_service
+        let result = session
+            .services()
+            .authenticator_config_service()
             .remove_authenticator_config(&realm_id, &config_id)
             .await;
         match result {
@@ -488,9 +487,9 @@ impl AuthenticationModelApi {
         session: &DarkshieldSession,
         action: RequiredActionModel,
     ) -> ApiResult<RequiredActionModel> {
-        let required_action_service: &dyn IRequiredActionService = session.services().resolve_ref();
-
-        let existing_action = required_action_service
+        let existing_action = session
+            .services()
+            .required_action_service()
             .load_required_action(&action.realm_id, &action.action_id)
             .await;
         if let Ok(response) = existing_action {
@@ -506,7 +505,9 @@ impl AuthenticationModelApi {
         let mut action = action;
         action.action_id = uuid::Uuid::new_v4().to_string();
         action.metadata = AuditableModel::from_creator("tenant".to_owned(), "zaffoh".to_owned());
-        let created_action = required_action_service
+        let created_action = session
+            .services()
+            .required_action_service()
             .register_required_action(&action)
             .await;
         match created_action {
@@ -519,9 +520,9 @@ impl AuthenticationModelApi {
         session: &DarkshieldSession,
         action: RequiredActionModel,
     ) -> ApiResult<()> {
-        let required_action_service: &dyn IRequiredActionService = session.services().resolve_ref();
-
-        let existing_action = required_action_service
+        let existing_action = session
+            .services()
+            .required_action_service()
             .load_required_action(&action.realm_id, &action.action_id)
             .await;
         if let Ok(response) = existing_action {
@@ -536,7 +537,9 @@ impl AuthenticationModelApi {
         }
         let mut action = action;
         action.metadata = AuditableModel::from_updator("tenant".to_owned(), "zaffoh".to_owned());
-        let updated_action = required_action_service
+        let updated_action = session
+            .services()
+            .required_action_service()
             .update_required_action(&action)
             .await;
         match updated_action {
@@ -584,9 +587,9 @@ impl AuthenticationModelApi {
         realm_id: &str,
         action_id: &str,
     ) -> ApiResult<Option<RequiredActionModel>> {
-        let required_action_service: &dyn IRequiredActionService = session.services().resolve_ref();
-
-        let loaded_action = required_action_service
+        let loaded_action = session
+            .services()
+            .required_action_service()
             .load_required_action(&realm_id, &action_id)
             .await;
         match loaded_action {
@@ -599,8 +602,9 @@ impl AuthenticationModelApi {
         session: &DarkshieldSession,
         realm_id: &str,
     ) -> ApiResult<Vec<RequiredActionModel>> {
-        let required_action_service: &dyn IRequiredActionService = session.services().resolve_ref();
-        let loaded_actions = required_action_service
+        let loaded_actions = session
+            .services()
+            .required_action_service()
             .load_required_action_by_realm_id(&realm_id)
             .await;
 
@@ -625,9 +629,9 @@ impl AuthenticationModelApi {
         realm_id: &str,
         action_id: &str,
     ) -> ApiResult<()> {
-        let required_action_service: &dyn IRequiredActionService = session.services().resolve_ref();
-
-        let existing_action = required_action_service
+        let existing_action = session
+            .services()
+            .required_action_service()
             .load_required_action(&realm_id, &action_id)
             .await;
         if let Ok(response) = existing_action {
@@ -640,7 +644,9 @@ impl AuthenticationModelApi {
                 return ApiResult::from_error(404, "404", "required action not found");
             }
         }
-        let result = required_action_service
+        let result = session
+            .services()
+            .required_action_service()
             .remove_required_action(&realm_id, &action_id)
             .await;
         match result {

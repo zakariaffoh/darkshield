@@ -17,7 +17,6 @@ use services::services::{
     authz_services::IRoleService,
     client_services::{IClientScopeService, IClientService, IProtocolMapperService},
 };
-use shaku::HasComponent;
 pub struct ClientApi;
 
 impl ClientApi {
@@ -25,8 +24,9 @@ impl ClientApi {
         session: &DarkshieldSession,
         client: ClientModel,
     ) -> ApiResult<ClientModel> {
-        let client_service: &dyn IClientService = session.services().resolve_ref();
-        let existing_client = client_service
+        let existing_client = session
+            .services()
+            .client_service()
             .client_exists_by_id(&client.realm_id, &client.client_id)
             .await;
 
@@ -50,7 +50,11 @@ impl ClientApi {
                 .to_owned(),
             session.context().authenticated_user().user_id.to_owned(),
         );
-        let created_client = client_service.create_client(&client).await;
+        let created_client = session
+            .services()
+            .client_service()
+            .create_client(&client)
+            .await;
         match created_client {
             Err(_) => ApiResult::from_error(500, "500", "failed to create client"),
             _ => ApiResult::Data(client),
@@ -58,9 +62,9 @@ impl ClientApi {
     }
 
     pub async fn update_client(session: &DarkshieldSession, client: ClientModel) -> ApiResult<()> {
-        let client_service: &dyn IClientService = session.services().resolve_ref();
-
-        let existing_client = client_service
+        let existing_client = session
+            .services()
+            .client_service()
             .client_exists_by_id(&client.realm_id, &client.client_id)
             .await;
         if let Ok(res) = existing_client {
@@ -83,7 +87,11 @@ impl ClientApi {
                 .to_owned(),
             session.context().authenticated_user().user_id.to_owned(),
         );
-        let updated_client = client_service.update_client(&client).await;
+        let updated_client = session
+            .services()
+            .client_service()
+            .update_client(&client)
+            .await;
         match updated_client {
             Ok(_) => ApiResult::no_content(),
             Err(_) => ApiResult::from_error(500, "500", "failed to update client"),
@@ -95,9 +103,9 @@ impl ClientApi {
         realm_id: &str,
         client_id: &str,
     ) -> ApiResult<()> {
-        let client_service: &dyn IClientService = session.services().resolve_ref();
-
-        let existing_client = client_service
+        let existing_client = session
+            .services()
+            .client_service()
             .client_exists_by_id(&realm_id, &client_id)
             .await;
 
@@ -108,7 +116,11 @@ impl ClientApi {
             }
         }
 
-        let response = client_service.delete_client(&realm_id, &client_id).await;
+        let response = session
+            .services()
+            .client_service()
+            .delete_client(&realm_id, &client_id)
+            .await;
 
         match response {
             Err(_) => ApiResult::from_error(500, "500", "failed to delete client"),
@@ -121,9 +133,9 @@ impl ClientApi {
         realm_id: &str,
         client_id: &str,
     ) -> ApiResult<ClientModel> {
-        let client_service: &dyn IClientService = session.services().resolve_ref();
-
-        let loaded_client = client_service
+        let loaded_client = session
+            .services()
+            .client_service()
             .load_client_by_id(&realm_id, &client_id)
             .await;
 
@@ -138,8 +150,9 @@ impl ClientApi {
         realm_id: &str,
         client_ids: &[&str],
     ) -> ApiResult<Vec<ClientModel>> {
-        let client_service: &dyn IClientService = session.services().resolve_ref();
-        let loaded_clients = client_service
+        let loaded_clients = session
+            .services()
+            .client_service()
             .load_client_by_ids(&realm_id, &client_ids)
             .await;
 
@@ -167,9 +180,11 @@ impl ClientApi {
         session: &DarkshieldSession,
         realm_id: &str,
     ) -> ApiResult<Vec<ClientModel>> {
-        let client_service: &dyn IClientService = session.services().resolve_ref();
-
-        let loaded_clients = client_service.load_clients_by_realm(&realm_id).await;
+        let loaded_clients = session
+            .services()
+            .client_service()
+            .load_clients_by_realm(&realm_id)
+            .await;
         match loaded_clients {
             Ok(clients) => {
                 log::info!(
@@ -194,8 +209,11 @@ impl ClientApi {
         session: &DarkshieldSession,
         realm_id: &str,
     ) -> ApiResult<i64> {
-        let client_service: &dyn IClientService = session.services().resolve_ref();
-        let count_clients = client_service.count_clients_by_realm(&realm_id).await;
+        let count_clients = session
+            .services()
+            .client_service()
+            .count_clients_by_realm(&realm_id)
+            .await;
         match count_clients {
             Ok(res) => ApiResult::from_data(res),
             Err(err) => ApiResult::from_error(500, "500", &err),
@@ -207,8 +225,9 @@ impl ClientApi {
         realm_id: &str,
         client_id: &str,
     ) -> ApiResult<Vec<RoleModel>> {
-        let client_service: &dyn IClientService = session.services().resolve_ref();
-        let loaded_client_roles = client_service
+        let loaded_client_roles = session
+            .services()
+            .client_service()
             .load_client_roles_mapping(&realm_id, &client_id)
             .await;
         match loaded_client_roles {
@@ -237,9 +256,9 @@ impl ClientApi {
         client_id: &str,
         role_id: &str,
     ) -> ApiResult<()> {
-        let client_service: &dyn IClientService = session.services().resolve_ref();
-        let role_service: &dyn IRoleService = session.services().resolve_ref();
-        let existing_client = client_service
+        let existing_client = session
+            .services()
+            .client_service()
             .client_exists_by_id(&realm_id, &client_id)
             .await;
 
@@ -250,7 +269,9 @@ impl ClientApi {
             }
         }
 
-        let existing_role = role_service
+        let existing_role = session
+            .services()
+            .role_service()
             .client_role_exists_by_id(&realm_id, &role_id)
             .await;
 
@@ -261,7 +282,9 @@ impl ClientApi {
             }
         }
 
-        let response = client_service
+        let response = session
+            .services()
+            .client_service()
             .add_client_role_mapping(&realm_id, &client_id, &role_id)
             .await;
 
@@ -277,10 +300,9 @@ impl ClientApi {
         client_id: &str,
         role_id: &str,
     ) -> ApiResult<()> {
-        let client_service: &dyn IClientService = session.services().resolve_ref();
-        let role_service: &dyn IRoleService = session.services().resolve_ref();
-
-        let existing_client = client_service
+        let existing_client = session
+            .services()
+            .client_service()
             .client_exists_by_id(&realm_id, &client_id)
             .await;
 
@@ -291,7 +313,9 @@ impl ClientApi {
             }
         }
 
-        let existing_role = role_service
+        let existing_role = session
+            .services()
+            .role_service()
             .client_role_exists_by_id(&realm_id, &role_id)
             .await;
         if let Ok(res) = existing_role {
@@ -301,7 +325,9 @@ impl ClientApi {
             }
         }
 
-        let response = client_service
+        let response = session
+            .services()
+            .client_service()
             .remove_client_role_mapping(&realm_id, &client_id, &role_id)
             .await;
 
@@ -317,10 +343,9 @@ impl ClientApi {
         client_id: &str,
         client_scope_id: &str,
     ) -> ApiResult<()> {
-        let client_service: &dyn IClientService = session.services().resolve_ref();
-        let client_scope_service: &dyn IClientScopeService = session.services().resolve_ref();
-
-        let existing_client = client_service
+        let existing_client = session
+            .services()
+            .client_service()
             .client_exists_by_id(&realm_id, &client_id)
             .await;
         if let Ok(response) = existing_client {
@@ -330,7 +355,9 @@ impl ClientApi {
             }
         }
 
-        let existing_client_scope = client_scope_service
+        let existing_client_scope = session
+            .services()
+            .client_scope_service()
             .client_scope_exists_by_scope_id(&realm_id, &client_scope_id)
             .await;
         if let Ok(res) = existing_client_scope {
@@ -344,7 +371,9 @@ impl ClientApi {
             }
         }
 
-        let response = client_service
+        let response = session
+            .services()
+            .client_service()
             .add_client_scope_mapping(&realm_id, &client_id, &client_scope_id)
             .await;
 
@@ -360,10 +389,9 @@ impl ClientApi {
         client_id: &str,
         client_scope_id: &str,
     ) -> ApiResult<()> {
-        let client_service: &dyn IClientService = session.services().resolve_ref();
-        let client_scope_service: &dyn IClientScopeService = session.services().resolve_ref();
-
-        let existing_client = client_service
+        let existing_client = session
+            .services()
+            .client_service()
             .client_exists_by_id(&realm_id, &client_id)
             .await;
 
@@ -374,7 +402,9 @@ impl ClientApi {
             }
         }
 
-        let existing_client_scope = client_scope_service
+        let existing_client_scope = session
+            .services()
+            .client_scope_service()
             .client_scope_exists_by_scope_id(&realm_id, &client_scope_id)
             .await;
 
@@ -389,7 +419,9 @@ impl ClientApi {
             }
         }
 
-        let response = client_service
+        let response = session
+            .services()
+            .client_service()
             .remove_client_scope_mapping(&realm_id, &client_id, &client_scope_id)
             .await;
 
@@ -404,10 +436,9 @@ impl ClientApi {
         realm_id: &str,
         client_id: &str,
     ) -> ApiResult<Vec<ClientScopeModel>> {
-        let client_service: &dyn IClientService = session.services().resolve_ref();
-        let client_scope_service: &dyn IClientScopeService = session.services().resolve_ref();
-
-        let loaded_client_scopes = client_service
+        let loaded_client_scopes = session
+            .services()
+            .client_service()
             .load_client_scopes_by_client_id(&realm_id, &client_id)
             .await;
 
@@ -442,10 +473,9 @@ impl ClientApi {
         client_id: &str,
         mapper_id: &str,
     ) -> ApiResult<()> {
-        let client_service: &dyn IClientService = session.services().resolve_ref();
-        let protocol_mapper_service: &dyn IProtocolMapperService = session.services().resolve_ref();
-
-        let existing_client = client_service
+        let existing_client = session
+            .services()
+            .client_service()
             .client_exists_by_id(&realm_id, &client_id)
             .await;
         if let Ok(response) = existing_client {
@@ -455,7 +485,9 @@ impl ClientApi {
             }
         }
 
-        let existing_protocol_mapper = protocol_mapper_service
+        let existing_protocol_mapper = session
+            .services()
+            .protocol_mapper_service()
             .protocol_mapper_exists_by_mapper_id(&realm_id, &mapper_id)
             .await;
 
@@ -470,7 +502,9 @@ impl ClientApi {
             }
         }
 
-        let response = client_service
+        let response = session
+            .services()
+            .client_service()
             .add_client_protocol_mapping(&realm_id, &client_id, &mapper_id)
             .await;
 
@@ -486,9 +520,9 @@ impl ClientApi {
         client_id: &str,
         mapper_id: &str,
     ) -> ApiResult<()> {
-        let client_service: &dyn IClientService = session.services().resolve_ref();
-        let protocol_mapper_service: &dyn IProtocolMapperService = session.services().resolve_ref();
-        let existing_client = client_service
+        let existing_client = session
+            .services()
+            .client_service()
             .client_exists_by_id(&realm_id, &client_id)
             .await;
 
@@ -499,7 +533,9 @@ impl ClientApi {
             }
         }
 
-        let existing_protocol_mapper = protocol_mapper_service
+        let existing_protocol_mapper = session
+            .services()
+            .protocol_mapper_service()
             .protocol_mapper_exists_by_mapper_id(&realm_id, &mapper_id)
             .await;
 
@@ -514,7 +550,9 @@ impl ClientApi {
             }
         }
 
-        let response = client_service
+        let response = session
+            .services()
+            .client_service()
             .remove_client_protocol_mapping(&realm_id, &client_id, &mapper_id)
             .await;
 
@@ -538,8 +576,9 @@ impl ClientApi {
         session: &DarkshieldSession,
         mapper: ProtocolMapperModel,
     ) -> ApiResult<ProtocolMapperModel> {
-        let protocol_mapper_service: &dyn IProtocolMapperService = session.services().resolve_ref();
-        let existing_protocol_mapper = protocol_mapper_service
+        let existing_protocol_mapper = session
+            .services()
+            .protocol_mapper_service()
             .protocol_mapper_exists_by_mapper_id(&mapper.realm_id, &mapper.name)
             .await;
 
@@ -564,7 +603,9 @@ impl ClientApi {
                 .to_owned(),
             session.context().authenticated_user().user_id.to_owned(),
         );
-        let created_mapper = protocol_mapper_service
+        let created_mapper = session
+            .services()
+            .protocol_mapper_service()
             .create_protocol_mapper(&mapper)
             .await;
 
@@ -578,9 +619,9 @@ impl ClientApi {
         session: &DarkshieldSession,
         mapper: ProtocolMapperModel,
     ) -> ApiResult<()> {
-        let protocol_mapper_service: &dyn IProtocolMapperService = session.services().resolve_ref();
-
-        let existing_protocol_mapper = protocol_mapper_service
+        let existing_protocol_mapper = session
+            .services()
+            .protocol_mapper_service()
             .protocol_mapper_exists_by_mapper_id(&mapper.realm_id, &mapper.mapper_id)
             .await;
         if let Ok(res) = existing_protocol_mapper {
@@ -603,7 +644,9 @@ impl ClientApi {
                 .to_owned(),
             session.context().authenticated_user().user_id.to_owned(),
         );
-        let updated_protocol_mapper = protocol_mapper_service
+        let updated_protocol_mapper = session
+            .services()
+            .protocol_mapper_service()
             .update_protocol_mapper(&mapper)
             .await;
         match updated_protocol_mapper {
@@ -617,9 +660,9 @@ impl ClientApi {
         realm_id: &str,
         mapper_id: &str,
     ) -> ApiResult<()> {
-        let protocol_mapper_service: &dyn IProtocolMapperService = session.services().resolve_ref();
-
-        let existing_protocol_mapper = protocol_mapper_service
+        let existing_protocol_mapper = session
+            .services()
+            .protocol_mapper_service()
             .protocol_mapper_exists_by_mapper_id(&realm_id, &mapper_id)
             .await;
 
@@ -634,7 +677,9 @@ impl ClientApi {
             }
         }
 
-        let response = protocol_mapper_service
+        let response = session
+            .services()
+            .protocol_mapper_service()
             .delete_protocol_mapper(&realm_id, &mapper_id)
             .await;
 
@@ -657,8 +702,9 @@ impl ClientApi {
         realm_id: &str,
         mapper_id: &str,
     ) -> ApiResult<ProtocolMapperModel> {
-        let protocol_mapper_service: &dyn IProtocolMapperService = session.services().resolve_ref();
-        let loaded_protocol_mapper = protocol_mapper_service
+        let loaded_protocol_mapper = session
+            .services()
+            .protocol_mapper_service()
             .load_protocol_mapper_by_mapper_id(&realm_id, &mapper_id)
             .await;
 
@@ -672,8 +718,9 @@ impl ClientApi {
         session: &DarkshieldSession,
         realm_id: &str,
     ) -> ApiResult<Vec<ProtocolMapperModel>> {
-        let protocol_mapper_service: &dyn IProtocolMapperService = session.services().resolve_ref();
-        let loaded_protocol_mapper = protocol_mapper_service
+        let loaded_protocol_mapper = session
+            .services()
+            .protocol_mapper_service()
             .load_protocol_mappers_by_realm(&realm_id)
             .await;
         match loaded_protocol_mapper {
@@ -687,13 +734,14 @@ impl ClientApi {
         realm_id: &str,
         protocol: &str,
     ) -> ApiResult<Vec<ProtocolMapperModel>> {
-        let protocol_mapper_service: &dyn IProtocolMapperService = session.services().resolve_ref();
         let protocol_enum = ProtocolEnum::from_str(protocol);
         if let Err(err) = protocol_enum {
             return ApiResult::<Vec<ProtocolMapperModel>>::from_error(400, "400", &err);
         }
 
-        let loaded_protocol_mappers = protocol_mapper_service
+        let loaded_protocol_mappers = session
+            .services()
+            .protocol_mapper_service()
             .load_protocol_mapper_by_protocol(&realm_id, protocol_enum.unwrap())
             .await;
 
@@ -727,8 +775,9 @@ impl ClientApi {
         realm_id: &str,
         client_id: &str,
     ) -> ApiResult<Vec<ProtocolMapperModel>> {
-        let protocol_mapper_service: &dyn IProtocolMapperService = session.services().resolve_ref();
-        let loaded_protocol_mappers = protocol_mapper_service
+        let loaded_protocol_mappers = session
+            .services()
+            .protocol_mapper_service()
             .load_protocol_mappers_by_client_id(&realm_id, client_id)
             .await;
 
@@ -761,8 +810,9 @@ impl ClientApi {
         session: &DarkshieldSession,
         client_scope: ClientScopeModel,
     ) -> ApiResult<ClientScopeModel> {
-        let client_scope_service: &dyn IClientScopeService = session.services().resolve_ref();
-        let existing_client_scope = client_scope_service
+        let existing_client_scope = session
+            .services()
+            .client_scope_service()
             .client_scope_exists_by_name(&client_scope.realm_id, &client_scope.name)
             .await;
         if let Ok(response) = existing_client_scope {
@@ -786,7 +836,9 @@ impl ClientApi {
                 .to_owned(),
             session.context().authenticated_user().user_id.to_owned(),
         );
-        let created_client_scope = client_scope_service
+        let created_client_scope = session
+            .services()
+            .client_scope_service()
             .create_client_scope(&client_scope)
             .await;
         match created_client_scope {
@@ -799,8 +851,9 @@ impl ClientApi {
         session: &DarkshieldSession,
         client_scope: ClientScopeModel,
     ) -> ApiResult<()> {
-        let client_scope_service: &dyn IClientScopeService = session.services().resolve_ref();
-        let existing_client_scope = client_scope_service
+        let existing_client_scope = session
+            .services()
+            .client_scope_service()
             .client_scope_exists_by_scope_id(&client_scope.realm_id, &client_scope.client_scope_id)
             .await;
         if let Ok(response) = existing_client_scope {
@@ -823,7 +876,9 @@ impl ClientApi {
                 .to_owned(),
             session.context().authenticated_user().user_id.to_owned(),
         );
-        let updated_client_scope = client_scope_service
+        let updated_client_scope = session
+            .services()
+            .client_scope_service()
             .update_client_scope(&client_scope)
             .await;
         match updated_client_scope {
@@ -845,8 +900,9 @@ impl ClientApi {
         realm_id: &str,
         client_scope_id: &str,
     ) -> ApiResult<()> {
-        let client_scope_service: &dyn IClientScopeService = session.services().resolve_ref();
-        let existing_client_scope = client_scope_service
+        let existing_client_scope = session
+            .services()
+            .client_scope_service()
             .load_client_scope_by_scope_id(&realm_id, &client_scope_id)
             .await;
         if let Ok(response) = existing_client_scope {
@@ -859,7 +915,9 @@ impl ClientApi {
                 return ApiResult::from_error(404, "404", "client scope not found");
             }
         }
-        let deleted_client_scope = client_scope_service
+        let deleted_client_scope = session
+            .services()
+            .client_scope_service()
             .delete_client_scope(&realm_id, &client_scope_id)
             .await;
         match deleted_client_scope {
@@ -881,8 +939,9 @@ impl ClientApi {
         realm_id: &str,
         client_scope_id: &str,
     ) -> ApiResult<ClientScopeModel> {
-        let client_scope_service: &dyn IClientScopeService = session.services().resolve_ref();
-        let loaded_client_scope = client_scope_service
+        let loaded_client_scope = session
+            .services()
+            .client_scope_service()
             .load_client_scope_by_scope_id(&realm_id, &client_scope_id)
             .await;
         match loaded_client_scope {
@@ -897,10 +956,9 @@ impl ClientApi {
         scope_id: &str,
         mapper_id: &str,
     ) -> ApiResult<()> {
-        let client_scope_service: &dyn IClientScopeService = session.services().resolve_ref();
-        let protocol_mapper_service: &dyn IProtocolMapperService = session.services().resolve_ref();
-
-        let existing_client_scope = client_scope_service
+        let existing_client_scope = session
+            .services()
+            .client_scope_service()
             .client_scope_exists_by_scope_id(&realm_id, &scope_id)
             .await;
         if let Ok(response) = existing_client_scope {
@@ -914,7 +972,9 @@ impl ClientApi {
             }
         }
 
-        let existing_protocol_mapper = protocol_mapper_service
+        let existing_protocol_mapper = session
+            .services()
+            .protocol_mapper_service()
             .protocol_mapper_exists_by_mapper_id(&realm_id, &mapper_id)
             .await;
         if let Ok(res) = existing_protocol_mapper {
@@ -928,7 +988,9 @@ impl ClientApi {
             }
         }
 
-        let response = client_scope_service
+        let response = session
+            .services()
+            .client_scope_service()
             .add_client_scope_protocol_mapper(&realm_id, &scope_id, &mapper_id)
             .await;
 
@@ -946,10 +1008,9 @@ impl ClientApi {
         scope_id: &str,
         mapper_id: &str,
     ) -> ApiResult<()> {
-        let client_scope_service: &dyn IClientScopeService = session.services().resolve_ref();
-        let protocol_mapper_service: &dyn IProtocolMapperService = session.services().resolve_ref();
-
-        let existing_client_scope = client_scope_service
+        let existing_client_scope = session
+            .services()
+            .client_scope_service()
             .client_scope_exists_by_scope_id(&realm_id, &scope_id)
             .await;
         if let Ok(response) = existing_client_scope {
@@ -963,7 +1024,9 @@ impl ClientApi {
             }
         }
 
-        let existing_protocol_mapper = protocol_mapper_service
+        let existing_protocol_mapper = session
+            .services()
+            .protocol_mapper_service()
             .protocol_mapper_exists_by_mapper_id(&realm_id, &mapper_id)
             .await;
         if let Ok(res) = existing_protocol_mapper {
@@ -977,7 +1040,9 @@ impl ClientApi {
             }
         }
 
-        let response = client_scope_service
+        let response = session
+            .services()
+            .client_scope_service()
             .remove_client_scope_protocol_mapper(&realm_id, &scope_id, &mapper_id)
             .await;
 
@@ -995,9 +1060,9 @@ impl ClientApi {
         scope_id: &str,
         role_id: &str,
     ) -> ApiResult<()> {
-        let client_scope_service: &dyn IClientScopeService = session.services().resolve_ref();
-        let role_service: &dyn IRoleService = session.services().resolve_ref();
-        let existing_client_scope = client_scope_service
+        let existing_client_scope = session
+            .services()
+            .client_scope_service()
             .client_scope_exists_by_scope_id(&realm_id, &scope_id)
             .await;
         if let Ok(response) = existing_client_scope {
@@ -1011,7 +1076,11 @@ impl ClientApi {
             }
         }
 
-        let existing_role = role_service.role_exists_by_id(&realm_id, &role_id).await;
+        let existing_role = session
+            .services()
+            .role_service()
+            .role_exists_by_id(&realm_id, &role_id)
+            .await;
         if let Ok(res) = existing_role {
             if !res {
                 log::error!("client role: {} not found in realm: {}", &role_id, &role_id,);
@@ -1019,7 +1088,9 @@ impl ClientApi {
             }
         }
 
-        let response = client_scope_service
+        let response = session
+            .services()
+            .client_scope_service()
             .add_client_scope_role_mapping(&realm_id, &scope_id, &role_id)
             .await;
 
@@ -1037,9 +1108,9 @@ impl ClientApi {
         scope_id: &str,
         role_id: &str,
     ) -> ApiResult<()> {
-        let client_scope_service: &dyn IClientScopeService = session.services().resolve_ref();
-        let role_service: &dyn IRoleService = session.services().resolve_ref();
-        let existing_client_scope = client_scope_service
+        let existing_client_scope = session
+            .services()
+            .client_scope_service()
             .client_scope_exists_by_scope_id(&realm_id, &scope_id)
             .await;
         if let Ok(response) = existing_client_scope {
@@ -1053,7 +1124,11 @@ impl ClientApi {
             }
         }
 
-        let existing_role = role_service.role_exists_by_id(&realm_id, &role_id).await;
+        let existing_role = session
+            .services()
+            .role_service()
+            .role_exists_by_id(&realm_id, &role_id)
+            .await;
         if let Ok(res) = existing_role {
             if !res {
                 log::error!(
@@ -1065,7 +1140,9 @@ impl ClientApi {
             }
         }
 
-        let response = client_scope_service
+        let response = session
+            .services()
+            .client_scope_service()
             .remove_client_scope_role_mapping(&realm_id, &scope_id, &role_id)
             .await;
 

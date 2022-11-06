@@ -1,6 +1,3 @@
-use std::sync::Arc;
-
-use ::services::services::credentials_services::IUserCredentialService;
 use commons::{validation::EmailValidator, ApiResult};
 use models::{
     auditable::AuditableModel,
@@ -16,15 +13,10 @@ use models::{
     },
     PagingParams,
 };
-use services::services::{
-    auth_services::IRequiredActionService,
-    authz_services::{IGroupService, IRoleService},
-    credentials_services::{CredentialInputUpdater, PasswordCredentialProvider},
-    realm_service::IRealmService,
-    user_services::IUserService,
+use services::services::credentials_services::{
+    CredentialInputUpdater, PasswordCredentialProvider,
 };
 use services::session::session::DarkshieldSession;
-use shaku::HasComponent;
 
 #[allow(dead_code)]
 pub struct UserApi;
@@ -36,8 +28,11 @@ impl UserApi {
         user_id: &str,
         user: UserCreateModel,
     ) -> ApiResult<UserModel> {
-        let realm_service: &dyn IRealmService = session.services().resolve_ref();
-        let realm_model = realm_service.load_realm(&realm_id).await;
+        let realm_model = session
+            .services()
+            .realm_service()
+            .load_realm(&realm_id)
+            .await;
         match &realm_model {
             Ok(realm) => {
                 if realm.is_none() {
@@ -56,8 +51,6 @@ impl UserApi {
         }
 
         let realm = realm_model.unwrap().unwrap();
-        let user_service: &dyn IUserService = session.services().resolve_ref();
-        let required_action_service: &dyn IRequiredActionService = session.services().resolve_ref();
 
         if realm.registration_allowed.unwrap() {
             log::error!("User registration not allowed for realm {}", &realm_id);
@@ -73,7 +66,9 @@ impl UserApi {
             return ApiResult::from_error(400, "400", "User name is null or empty");
         }
 
-        if user_service
+        if session
+            .services()
+            .user_service()
             .user_exists_by_user_name(&realm_id, &user_name)
             .await
             .unwrap_or_default()
@@ -83,7 +78,9 @@ impl UserApi {
         }
 
         if !user.email.is_empty() && realm.duplicated_email_allowed.unwrap_or_default() {
-            if user_service
+            if session
+                .services()
+                .user_service()
                 .user_exists_by_email(&realm_id, &user_name)
                 .await
                 .unwrap_or_default()
@@ -93,7 +90,9 @@ impl UserApi {
             }
         }
 
-        let required_actions_list = required_action_service
+        let required_actions_list = session
+            .services()
+            .required_action_service()
             .load_required_action_by_realm_id(&realm_id)
             .await;
 
@@ -130,7 +129,11 @@ impl UserApi {
             session.context().authenticated_user().user_id.to_owned(),
         );
 
-        let created_user = user_service.create_user(&user_model).await;
+        let created_user = session
+            .services()
+            .user_service()
+            .create_user(&user_model)
+            .await;
         if let Err(err) = created_user {
             log::error!(
                 "Failed to create user: {}, realm: {}. Error: {}",
@@ -141,14 +144,19 @@ impl UserApi {
             return ApiResult::from_error(500, "500", "Failed to create user");
         }
 
-        let user_credential_service: Arc<dyn IUserCredentialService> = session.services().resolve();
-        let credential_provider = PasswordCredentialProvider::new(user_credential_service);
+        let credential_provider =
+            PasswordCredentialProvider::new(session.services().user_credential_service());
         let credential_update_response = credential_provider
             .update_credential(&realm, &user_model, &credential_input)
             .await;
 
         if let Err(err) = credential_update_response {
-            match user_service.delete_user(&realm_id, &user_id).await {
+            match session
+                .services()
+                .user_service()
+                .delete_user(&realm_id, &user_id)
+                .await
+            {
                 Ok(_) => {
                     log::error!(
                         "Rollbacking user, failed to create user credential: {}, realm: {}. Error: {}",
@@ -251,8 +259,11 @@ impl UserApi {
     }
 
     pub async fn udpate_user(session: &DarkshieldSession, user: UserModel) -> ApiResult<()> {
-        let realm_service: &dyn IRealmService = session.services().resolve_ref();
-        let realm_model = realm_service.load_realm(&user.realm_id).await;
+        let realm_model = session
+            .services()
+            .realm_service()
+            .load_realm(&user.realm_id)
+            .await;
         match &realm_model {
             Ok(realm) => {
                 if realm.is_none() {
@@ -266,8 +277,9 @@ impl UserApi {
             }
         }
 
-        let user_service: &dyn IUserService = session.services().resolve_ref();
-        let existing_user_model = user_service
+        let existing_user_model = session
+            .services()
+            .user_service()
             .load_user_by_id(&user.realm_id, &user.user_id)
             .await;
 
@@ -323,7 +335,12 @@ impl UserApi {
             session.context().authenticated_user().user_id.to_owned(),
         );
 
-        match user_service.udpate_user(&user_model).await {
+        match session
+            .services()
+            .user_service()
+            .udpate_user(&user_model)
+            .await
+        {
             Err(err) => {
                 log::error!("User: {} updated. Error: {}", &user.user_id, &err);
                 return ApiResult::from_error(500, "500", "Failed to update user");
@@ -337,8 +354,9 @@ impl UserApi {
         realm_id: &str,
         user_id: &str,
     ) -> ApiResult<()> {
-        let user_service: &dyn IUserService = session.services().resolve_ref();
-        if !user_service
+        if !session
+            .services()
+            .user_service()
             .user_exists_by_id(&realm_id, &user_id)
             .await
             .unwrap_or_default()
@@ -346,7 +364,11 @@ impl UserApi {
             log::error!("User with user id: {} does not exist", &user_id);
             return ApiResult::from_error(404, "404", "User does not exists in the realm");
         }
-        let deleted_user = user_service.delete_user(&realm_id, &user_id).await;
+        let deleted_user = session
+            .services()
+            .user_service()
+            .delete_user(&realm_id, &user_id)
+            .await;
         match deleted_user {
             Err(err) => ApiResult::from_error(500, "500", &err),
             _ => ApiResult::no_content(),
@@ -358,8 +380,11 @@ impl UserApi {
         realm_id: &str,
         user_id: &str,
     ) -> ApiResult<UserModel> {
-        let user_service: &dyn IUserService = session.services().resolve_ref();
-        let loaded_user = user_service.load_user_by_id(&realm_id, user_id).await;
+        let loaded_user = session
+            .services()
+            .user_service()
+            .load_user_by_id(&realm_id, user_id)
+            .await;
         match loaded_user {
             Ok(user) => ApiResult::<UserModel>::from_option(user),
             Err(err) => ApiResult::from_error(500, "500", &err),
@@ -371,9 +396,9 @@ impl UserApi {
         realm_id: &str,
         paging: &PagingParams,
     ) -> ApiResult<UserPagingResult> {
-        let user_service: &dyn IUserService = session.services().resolve_ref();
-
-        let loaded_users = user_service
+        let loaded_users = session
+            .services()
+            .user_service()
             .load_users_paging(&realm_id, &paging.page_index, &paging.page_size)
             .await;
         match loaded_users {
@@ -394,8 +419,11 @@ impl UserApi {
     }
 
     pub async fn count_users(session: &DarkshieldSession, realm_id: &str) -> ApiResult<u64> {
-        let user_service: &dyn IUserService = session.services().resolve_ref();
-        let response = user_service.count_users(&realm_id).await;
+        let response = session
+            .services()
+            .user_service()
+            .count_users(&realm_id)
+            .await;
         match response {
             Ok(count) => ApiResult::from_data(count),
             Err(err) => ApiResult::from_error(500, "500", &err),
@@ -408,10 +436,11 @@ impl UserApi {
         user_id: &str,
         role_id: &str,
     ) -> ApiResult<()> {
-        let user_service: &dyn IUserService = session.services().resolve_ref();
-        let role_service: &dyn IRoleService = session.services().resolve_ref();
-
-        let user_exists = user_service.user_exists_by_id(&realm_id, &user_id).await;
+        let user_exists = session
+            .services()
+            .user_service()
+            .user_exists_by_id(&realm_id, &user_id)
+            .await;
         match user_exists {
             Ok(response) => {
                 if !response {
@@ -425,7 +454,11 @@ impl UserApi {
             }
         }
 
-        let existing_role = role_service.role_exists_by_id(&realm_id, &role_id).await;
+        let existing_role = session
+            .services()
+            .role_service()
+            .role_exists_by_id(&realm_id, &role_id)
+            .await;
 
         match existing_role {
             Ok(response) => {
@@ -440,7 +473,9 @@ impl UserApi {
             }
         }
 
-        let response = user_service
+        let response = session
+            .services()
+            .user_service()
             .add_user_role_mapping(&realm_id, &user_id, &role_id)
             .await;
 
@@ -456,10 +491,11 @@ impl UserApi {
         user_id: &str,
         role_id: &str,
     ) -> ApiResult<()> {
-        let user_service: &dyn IUserService = session.services().resolve_ref();
-        let role_service: &dyn IRoleService = session.services().resolve_ref();
-
-        let user_exists = user_service.user_exists_by_id(&realm_id, &user_id).await;
+        let user_exists = session
+            .services()
+            .user_service()
+            .user_exists_by_id(&realm_id, &user_id)
+            .await;
         match user_exists {
             Ok(response) => {
                 if !response {
@@ -473,7 +509,11 @@ impl UserApi {
             }
         }
 
-        let existing_role = role_service.role_exists_by_id(&realm_id, &role_id).await;
+        let existing_role = session
+            .services()
+            .role_service()
+            .role_exists_by_id(&realm_id, &role_id)
+            .await;
 
         match existing_role {
             Ok(response) => {
@@ -488,7 +528,9 @@ impl UserApi {
             }
         }
 
-        let response = user_service
+        let response = session
+            .services()
+            .user_service()
             .remove_user_role_mapping(&realm_id, &user_id, &role_id)
             .await;
 
@@ -504,8 +546,9 @@ impl UserApi {
         user_id: &str,
         paging: &PagingParams,
     ) -> ApiResult<RolePagingResult> {
-        let role_service: &dyn IRoleService = session.services().resolve_ref();
-        let loaded_roles = role_service
+        let loaded_roles = session
+            .services()
+            .role_service()
             .load_user_roles_paging(&realm_id, &user_id, &paging.page_index, &paging.page_size)
             .await;
         match loaded_roles {
@@ -539,10 +582,11 @@ impl UserApi {
         user_id: &str,
         group_id: &str,
     ) -> ApiResult<()> {
-        let user_service: &dyn IUserService = session.services().resolve_ref();
-        let group_service: &dyn IGroupService = session.services().resolve_ref();
-
-        let user_exists = user_service.user_exists_by_id(&realm_id, &user_id).await;
+        let user_exists = session
+            .services()
+            .user_service()
+            .user_exists_by_id(&realm_id, &user_id)
+            .await;
         match user_exists {
             Ok(response) => {
                 if !response {
@@ -556,7 +600,9 @@ impl UserApi {
             }
         }
 
-        let existing_group = group_service
+        let existing_group = session
+            .services()
+            .group_service()
             .exists_groups_by_id(&realm_id, &group_id)
             .await;
 
@@ -573,7 +619,9 @@ impl UserApi {
             }
         }
 
-        let response = user_service
+        let response = session
+            .services()
+            .user_service()
             .add_user_group_mapping(&realm_id, &user_id, &group_id)
             .await;
 
@@ -589,10 +637,11 @@ impl UserApi {
         user_id: &str,
         group_id: &str,
     ) -> ApiResult<()> {
-        let user_service: &dyn IUserService = session.services().resolve_ref();
-        let group_service: &dyn IGroupService = session.services().resolve_ref();
-
-        let user_exists = user_service.user_exists_by_id(&realm_id, &user_id).await;
+        let user_exists = session
+            .services()
+            .user_service()
+            .user_exists_by_id(&realm_id, &user_id)
+            .await;
         match user_exists {
             Ok(response) => {
                 if !response {
@@ -606,7 +655,9 @@ impl UserApi {
             }
         }
 
-        let existing_group = group_service
+        let existing_group = session
+            .services()
+            .group_service()
             .exists_groups_by_id(&realm_id, &group_id)
             .await;
 
@@ -623,7 +674,9 @@ impl UserApi {
             }
         }
 
-        let response = user_service
+        let response = session
+            .services()
+            .user_service()
             .remove_user_group_mapping(&realm_id, &user_id, &group_id)
             .await;
 
@@ -638,8 +691,11 @@ impl UserApi {
         realm_id: &str,
         user_id: &str,
     ) -> ApiResult<u64> {
-        let group_service: &dyn IGroupService = session.services().resolve_ref();
-        let response = group_service.count_user_groups(&realm_id, &user_id).await;
+        let response = session
+            .services()
+            .group_service()
+            .count_user_groups(&realm_id, &user_id)
+            .await;
         match response {
             Ok(count) => ApiResult::from_data(count),
             Err(err) => ApiResult::from_error(500, "500", &err),
@@ -652,9 +708,9 @@ impl UserApi {
         user_id: &str,
         paging: &PagingParams,
     ) -> ApiResult<GroupPagingResult> {
-        let group_service: &dyn IGroupService = session.services().resolve_ref();
-
-        let loaded_groups = group_service
+        let loaded_groups = session
+            .services()
+            .group_service()
             .load_user_groups_paging(&realm_id, &user_id, &paging.page_index, &paging.page_size)
             .await;
         match loaded_groups {
@@ -687,8 +743,9 @@ impl UserApi {
         realm_id: &str,
         user_id: &str,
     ) -> ApiResult<Vec<CredentialViewRepresentation>> {
-        let user_credential_service: &dyn IUserCredentialService = session.services().resolve_ref();
-        let user_credentials = user_credential_service
+        let user_credentials = session
+            .services()
+            .user_credential_service()
             .load_user_credentials_view(&realm_id, &user_id)
             .await;
         match user_credentials {
@@ -714,17 +771,21 @@ impl UserApi {
             log::error!("credential_type is empty");
             return ApiResult::from_error(400, "400", "invalid credential type");
         }
-        let user_service: &dyn IUserService = session.services().resolve_ref();
 
-        let user_exists = user_service.user_exists_by_id(&realm_id, &user_id).await;
+        let user_exists = session
+            .services()
+            .user_service()
+            .user_exists_by_id(&realm_id, &user_id)
+            .await;
         if let Ok(response) = user_exists {
             if !response {
                 log::error!("user: {} not found in realm: {}", &user_id, &realm_id);
                 return ApiResult::from_error(404, "404", "user not found");
             }
         }
-        let user_credential_service: &dyn IUserCredentialService = session.services().resolve_ref();
-        let disabled_response = user_credential_service
+        let disabled_response = session
+            .services()
+            .user_credential_service()
             .disable_credential_type(&realm_id, &user_id, &credential_type)
             .await;
         match disabled_response {
@@ -750,8 +811,11 @@ impl UserApi {
             log::error!("credential secret is empty");
             return ApiResult::from_error(400, "400", "credential secret is empty");
         }
-        let user_service: &dyn IUserService = session.services().resolve_ref();
-        let user = user_service.load_user_by_id(&realm_id, &user_id).await;
+        let user = session
+            .services()
+            .user_service()
+            .load_user_by_id(&realm_id, &user_id)
+            .await;
         match &user {
             Ok(data) => {
                 if data.is_none() {
@@ -769,7 +833,6 @@ impl UserApi {
                 return ApiResult::from_error(500, "500", "failed to load user");
             }
         }
-        let user_credential_service: &dyn IUserCredentialService = session.services().resolve_ref();
         let mut user = user.unwrap().unwrap();
         if password.is_temporary.unwrap_or_default() {
             if let Some(actions) = user.required_actions {
@@ -781,7 +844,9 @@ impl UserApi {
             }
         }
         let password_credential = PasswordCredentialModel::from_password(&password.secret);
-        let updated_credential = user_credential_service
+        let updated_credential = session
+            .services()
+            .user_credential_service()
             .reset_user_password(&realm_id, &user.user_id, &password_credential)
             .await;
 
@@ -805,8 +870,11 @@ impl UserApi {
         credential_id: &str,
         previous_credential_id: &str,
     ) -> ApiResult<()> {
-        let user_service: &dyn IUserService = session.services().resolve_ref();
-        let user = user_service.user_exists_by_id(&realm_id, &user_id).await;
+        let user = session
+            .services()
+            .user_service()
+            .user_exists_by_id(&realm_id, &user_id)
+            .await;
         match &user {
             Ok(data) => {
                 if !data {
@@ -824,8 +892,9 @@ impl UserApi {
                 return ApiResult::from_error(500, "500", "failed to load user");
             }
         }
-        let user_credential_service: &dyn IUserCredentialService = session.services().resolve_ref();
-        let current_credential_exist = user_credential_service
+        let current_credential_exist = session
+            .services()
+            .user_credential_service()
             .user_credential_exists(&realm_id, &user_id, &credential_id)
             .await;
 
@@ -853,7 +922,9 @@ impl UserApi {
             }
         }
 
-        let previous_credential_exist = user_credential_service
+        let previous_credential_exist = session
+            .services()
+            .user_credential_service()
             .user_credential_exists(&realm_id, &user_id, &previous_credential_id)
             .await;
 
@@ -880,7 +951,9 @@ impl UserApi {
                 return ApiResult::from_error(500, "500", "failed to load user credential");
             }
         }
-        let response = user_credential_service
+        let response = session
+            .services()
+            .user_credential_service()
             .move_credential_to_position(
                 &realm_id,
                 &user_id,
@@ -910,8 +983,11 @@ impl UserApi {
         user_id: &str,
         credential_id: &str,
     ) -> ApiResult<()> {
-        let user_service: &dyn IUserService = session.services().resolve_ref();
-        let user = user_service.user_exists_by_id(&realm_id, &user_id).await;
+        let user = session
+            .services()
+            .user_service()
+            .user_exists_by_id(&realm_id, &user_id)
+            .await;
         match &user {
             Ok(data) => {
                 if !data {
@@ -930,8 +1006,9 @@ impl UserApi {
             }
         }
 
-        let user_credential_service: &dyn IUserCredentialService = session.services().resolve_ref();
-        let credential_exist = user_credential_service
+        let credential_exist = session
+            .services()
+            .user_credential_service()
             .user_credential_exists(&realm_id, &user_id, &credential_id)
             .await;
 
@@ -959,7 +1036,9 @@ impl UserApi {
             }
         }
 
-        let response = user_credential_service
+        let response = session
+            .services()
+            .user_credential_service()
             .move_credential_to_first(&realm_id, &user_id, &credential_id)
             .await;
 

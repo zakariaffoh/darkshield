@@ -9,8 +9,11 @@ use services::{services::health_check::IHealthCheckService, session::session::Da
 use shaku::HasComponent;
 
 #[get("/health_check")]
-pub async fn health_check(context: web::Data<DarkshieldSession>) -> impl Responder {
-    let heath_check_service: &dyn IHealthCheckService = context.services().resolve_ref();
+pub async fn health_check(session: web::ReqData<DarkshieldSession>) -> impl Responder {
     log::info!("Running health check");
-    heath_check_service.health_check().await
+    session
+        .services()
+        .health_check_service()
+        .health_check()
+        .await
 }

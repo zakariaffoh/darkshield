@@ -278,7 +278,7 @@ pub async fn load_required_action_by_id(
 }
 
 #[delete("/realm/{realm_id}/actions/{action_id}")]
-pub async fn remove_requied_action_by_id(
+pub async fn remove_required_action_by_id(
     params: web::Path<(String, String)>,
     session: web::ReqData<DarkshieldSession>,
 ) -> impl Responder {
@@ -292,7 +292,7 @@ pub async fn remove_requied_action_by_id(
 }
 
 #[get("/realm/{realm_id}/actions/load_all")]
-pub async fn load_requied_action_by_realm(
+pub async fn load_required_action_by_realm(
     realm_id: web::Path<String>,
     session: web::ReqData<DarkshieldSession>,
 ) -> impl Responder {
