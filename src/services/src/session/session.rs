@@ -13,6 +13,15 @@ pub struct DarkshieldSession {
     services: Arc<DarkshieldServicesFactory>,
 }
 
+impl Clone for DarkshieldSession {
+    fn clone(&self) -> Self {
+        Self {
+            context: self.context.clone(),
+            services: self.services.clone(),
+        }
+    }
+}
+
 impl DarkshieldSession {
     pub fn new(services: Arc<DarkshieldServicesFactory>, context: Arc<DarkshieldContext>) -> Self {
         Self {
