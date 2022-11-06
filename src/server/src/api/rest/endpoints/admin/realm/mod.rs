@@ -2,19 +2,14 @@ use crate::api::services::realm_api::ReamlApi;
 use crypto::{KeyTypeEnum, KeyUseEnum};
 use log;
 use models::entities::realm::{RealmCreateModel, RealmModel, RealmUpdateModel};
-use services::services::realm_service::IRealmService;
 use services::session::session::DarkshieldSession;
 
-use actix_web::{
-    delete, get, post, put,
-    web::{self},
-    Responder,
-};
+use actix_web::{delete, get, post, put, web, Responder};
 
 #[post("/realm/create")]
 pub async fn create_realm(
     realm: web::Json<RealmCreateModel>,
-    session: web::Data<DarkshieldSession>,
+    session: web::ReqData<DarkshieldSession>,
 ) -> impl Responder {
     log::info!("Creating realm request {}", realm.realm_id);
     let ream_model: RealmModel = realm.0.into();
@@ -25,7 +20,7 @@ pub async fn create_realm(
 pub async fn update_realm(
     realm_id: web::Path<String>,
     realm: web::Json<RealmUpdateModel>,
-    session: web::Data<DarkshieldSession>,
+    session: web::ReqData<DarkshieldSession>,
 ) -> impl Responder {
     let mut ream_model: RealmModel = realm.0.into();
     ream_model.realm_id = realm_id.to_string();
@@ -36,7 +31,7 @@ pub async fn update_realm(
 #[delete("/realm/{realm_id}")]
 pub async fn delete_realm(
     realm_id: web::Path<String>,
-    session: web::Data<DarkshieldSession>,
+    session: web::ReqData<DarkshieldSession>,
 ) -> impl Responder {
     log::info!("Deleting realm {}", realm_id.as_str());
     ReamlApi::delete_realm(&session, &realm_id).await
@@ -45,14 +40,14 @@ pub async fn delete_realm(
 #[get("/realm/{realm_id}")]
 pub async fn load_realm_by_id(
     realm_id: web::Path<String>,
-    session: web::Data<DarkshieldSession>,
+    session: web::ReqData<DarkshieldSession>,
 ) -> impl Responder {
     log::info!("Loading realm {}", realm_id.as_str());
     ReamlApi::load_realm_by_id(&session, &realm_id).await
 }
 
 #[get("/realms/load_all")]
-pub async fn load_realms(session: web::Data<DarkshieldSession>) -> impl Responder {
+pub async fn load_realms(session: web::ReqData<DarkshieldSession>) -> impl Responder {
     log::info!("Loading all realms");
     ReamlApi::load_realms(&session).await
 }
@@ -60,7 +55,7 @@ pub async fn load_realms(session: web::Data<DarkshieldSession>) -> impl Responde
 #[post("/realm/export")]
 pub async fn export_realm(
     realm_id: web::Path<String>,
-    session: web::Data<DarkshieldSession>,
+    session: web::ReqData<DarkshieldSession>,
 ) -> impl Responder {
     log::info!("Exporting realm: {}", realm_id.as_str());
     ReamlApi::export_realm(&session, &realm_id).await
@@ -69,7 +64,7 @@ pub async fn export_realm(
 #[post("/realm/import")]
 pub async fn import_realm(
     realm_id: web::Path<String>,
-    session: web::Data<DarkshieldSession>,
+    session: web::ReqData<DarkshieldSession>,
 ) -> impl Responder {
     log::info!("Importing realm: {}", realm_id.as_str());
     ReamlApi::export_realm(&session, &realm_id).await
@@ -82,7 +77,7 @@ pub async fn generate_realm_key(
     key_use: web::Query<KeyUseEnum>,
     priority: web::Query<Option<i64>>,
     algorithm: web::Query<String>,
-    session: web::Data<DarkshieldSession>,
+    session: web::ReqData<DarkshieldSession>,
 ) -> impl Responder {
     log::info!(
         "Generate realm {} keys with for key_type: {}, key_use: {},",
@@ -104,7 +99,7 @@ pub async fn generate_realm_key(
 #[get("/realm/{realm_id}/realm-keys")]
 pub async fn load_realm_keys(
     realm_id: web::Path<String>,
-    session: web::Data<DarkshieldSession>,
+    session: web::ReqData<DarkshieldSession>,
 ) -> impl Responder {
     log::info!("Loading realm {} keys", &realm_id);
     ReamlApi::load_realm_keys(&session, &realm_id).await
